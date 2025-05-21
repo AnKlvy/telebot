@@ -1,5 +1,8 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+def get_universal_back_button():
+    return [InlineKeyboardButton(text="⬅️ Назад", callback_data="back")]
+
 def get_main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📝 Домашнее задание", callback_data="homework")],
@@ -12,14 +15,15 @@ def get_main_menu_kb() -> InlineKeyboardMarkup:
     ])
 
 def get_courses_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+    buttons = [
         [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
         [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_math")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_main")]
-    ])
+        get_universal_back_button()
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_subjects_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+    buttons = [
         [InlineKeyboardButton(text="История Казахстана", callback_data="sub_kz")],
         [InlineKeyboardButton(text="Математическая грамотность", callback_data="sub_mathlit")],
         [InlineKeyboardButton(text="Математика", callback_data="sub_math")],
@@ -29,8 +33,9 @@ def get_subjects_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data="sub_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data="sub_world")],
         [InlineKeyboardButton(text="Грамотность чтения", callback_data="sub_read")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_course")]
-    ])
+        get_universal_back_button()
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 

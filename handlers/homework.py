@@ -3,7 +3,8 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from keyboards import get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb
+from keyboards import get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb, get_homeworks_kb, \
+    get_confirm_kb
 
 router = Router()
 
@@ -78,3 +79,50 @@ async def back_to_subject(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_subjects_kb()
     )
     await state.set_state(HomeworkStates.subject)
+
+# Словарь переходов между состояниями
+STATE_TRANSITIONS = {
+    HomeworkStates.confirmation: HomeworkStates.homework,
+    HomeworkStates.homework: HomeworkStates.lesson,
+    HomeworkStates.lesson: HomeworkStates.subject,
+    HomeworkStates.subject: HomeworkStates.course,
+    HomeworkStates.course: None  # None означает возврат в главное меню
+}
+
+# Словарь обработчиков для каждого состояния
+STATE_HANDLERS = {
+    HomeworkStates.course: choose_course,
+    HomeworkStates.subject: choose_subject,
+    HomeworkStates.lesson: choose_lesson,
+    # Добавьте остальные обработчики по мере необходимости
+}
+
+@router.callback_query(F.data == "back")
+async def go_back(callback: CallbackQuery, state: FSMContext):
+    current_state = await state.get_state()
+    
+    if not current_state or current_state not in STATE_TRANSITIONS:
+        # Если текущего состояния нет или оно не в словаре переходов, возвращаемся в главное меню
+        await callback.message.delete()
+        await show_main_menu(callback.message)
+        await state.clear()
+        return
+    
+    # Получаем предыдущее состояние из словаря переходов
+    prev_state = STATE_TRANSITIONS[current_state]
+    
+    if prev_state is None:
+        # Если предыдущее состояние None, возвращаемся в главное меню
+        await callback.message.delete()
+        await show_main_menu(callback.message)
+        await state.clear()
+        return
+    
+    # Вызываем соответствующий обработчик для предыдущего состояния
+    if prev_state in STATE_HANDLERS:
+        await STATE_HANDLERS[prev_state](callback, state)
+    else:
+        # Если обработчик не найден, возвращаемся в главное меню
+        await callback.message.delete()
+        await show_main_menu(callback.message)
+        await state.clear()
