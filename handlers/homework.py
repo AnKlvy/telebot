@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from keyboards import get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb, get_homeworks_kb, \
     get_confirm_kb, get_test_answers_kb, get_after_test_kb
+from .test_logic import start_test_process, process_test_answer
 
 router = Router()
 
@@ -128,29 +129,7 @@ async def confirm_homework(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(HomeworkStates.confirmation, F.data == "start_test")
 async def start_test(callback: CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    lesson_name = user_data.get("lesson_name", "")
-    homework_name = user_data.get("homework_name", "")
-
-    # Сохраняем информацию для последующего использования
-    await state.update_data(
-        test_started=True,
-        total_questions=15,
-        current_question=1
-    )
-
-    # Здесь будет отображение первого вопроса
-    await callback.message.edit_text(
-        f"Вопрос 1/15\n\n"
-        f"Какое из следующих соединений является изомером бутана?\n\n"
-        f"A) Пропан\n"
-        f"B) 2-метилпропан\n"
-        f"C) Пентан\n"
-        f"D) Этан",
-        reply_markup=get_test_answers_kb()
-    )
-    
-    # Переходим в состояние прохождения теста
+    await start_test_process(callback, state)
     await state.set_state(HomeworkStates.test_in_progress)
 
 @router.callback_query(F.data == "back_to_lesson")
@@ -220,52 +199,8 @@ async def go_back(callback: CallbackQuery, state: FSMContext):
 # Обработчик ответов на вопросы теста
 @router.callback_query(HomeworkStates.test_in_progress, F.data.startswith("answer_"))
 async def process_answer(callback: CallbackQuery, state: FSMContext):
-    user_data = await state.get_data()
-    current_question = user_data.get("current_question", 1)
-    total_questions = user_data.get("total_questions", 15)
-    
-    # Здесь будет логика проверки ответа
     selected_answer = callback.data.replace("answer_", "")
-    
-    # Для демонстрации: увеличиваем номер текущего вопроса
-    current_question += 1
-    await state.update_data(current_question=current_question)
-    
-    # Если это был последний вопрос, показываем результаты
-    if current_question > total_questions:
-        # Для демонстрации: показываем успешное прохождение
-        success = True  # В реальной логике это будет определяться проверкой ответов
-        
-        if success:
-            await callback.message.edit_text(
-                "✅ Тест завершён!\n"
-                "Верных: 15 / 15\n"
-                "🎯 Начислено: 45 баллов\n"
-                "📈 Понимание по микротемам обновлено.",
-                reply_markup=get_after_test_kb()
-            )
-        else:
-            await callback.message.edit_text(
-                "❌ Тест завершён!\n"
-                "Верных: 12 / 15\n"
-                "Баллы не начислены — для получения баллов нужно пройти тест на 100%\n"
-                "Ты можешь пройти снова!\n"
-                "📈 Понимание по микротемам обновлено.",
-                reply_markup=get_after_test_kb()
-            )
-        
-        await state.clear()
-    else:
-        # Показываем следующий вопрос
-        await callback.message.edit_text(
-            f"Вопрос {current_question}/{total_questions}\n\n"
-            f"Какой тип изомерии характерен для алканов?\n\n"
-            f"A) Геометрическая\n"
-            f"B) Структурная\n"
-            f"C) Оптическая\n"
-            f"D) Таутомерия",
-            reply_markup=get_test_answers_kb()
-        )
+    await process_test_answer(callback, state, selected_answer)
 
 @router.callback_query(F.data == "retry_test")
 async def retry_test(callback: CallbackQuery, state: FSMContext):
