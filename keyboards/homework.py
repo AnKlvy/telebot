@@ -62,3 +62,20 @@ def get_lessons_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_subject")]
     ])
 
+def get_test_answers_kb() -> InlineKeyboardMarkup:
+    """Клавиатура с вариантами ответов на вопрос теста"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="A", callback_data="answer_A")],
+        [InlineKeyboardButton(text="B", callback_data="answer_B")],
+        [InlineKeyboardButton(text="C", callback_data="answer_C")],
+        [InlineKeyboardButton(text="D", callback_data="answer_D")]
+    ])
+
+def get_after_test_kb() -> InlineKeyboardMarkup:
+    """Клавиатура после завершения теста"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Пройти ещё раз", callback_data="retry_test")],
+        [InlineKeyboardButton(text="📊 Мой прогресс", callback_data="progress")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+    ])
+

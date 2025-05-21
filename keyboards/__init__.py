@@ -5,6 +5,8 @@ from .homework import (
     get_lessons_kb,
     get_homeworks_kb,
     get_confirm_kb,
+    get_test_answers_kb,
+    get_after_test_kb,
 )
 
 __all__ = [
@@ -14,4 +16,6 @@ __all__ = [
     "get_lessons_kb",
     "get_homeworks_kb",
     "get_confirm_kb",
+    "get_test_answers_kb",
+    "get_after_test_kb",
 ]
