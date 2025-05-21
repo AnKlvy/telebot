@@ -13,6 +13,11 @@ from .progress import (
     get_subjects_progress_kb,
     get_back_to_progress_kb,
 )
+from .shop import (
+    get_shop_menu_kb,
+    get_exchange_points_kb,
+    get_back_to_shop_kb,
+)
 
 __all__ = [
     "get_main_menu_kb",
@@ -26,4 +31,7 @@ __all__ = [
     "get_progress_menu_kb",
     "get_subjects_progress_kb",
     "get_back_to_progress_kb",
+    "get_shop_menu_kb",
+    "get_exchange_points_kb",
+    "get_back_to_shop_kb",
 ]
