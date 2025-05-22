@@ -25,6 +25,16 @@ from .test_report import (
     get_month_test_kb,
     get_back_to_test_report_kb,
 )
+from .trial_ent import (
+    get_trial_ent_start_kb,
+    get_required_subjects_kb,
+    get_profile_subjects_kb,
+    get_second_profile_subject_kb,
+    get_test_answers_kb,
+    get_after_trial_ent_kb,
+    get_analytics_subjects_kb,
+    get_back_to_analytics_kb,
+)
 
 __all__ = [
     "get_main_menu_kb",
@@ -46,4 +56,11 @@ __all__ = [
     "get_test_subjects_kb",
     "get_month_test_kb",
     "get_back_to_test_report_kb",
+    "get_trial_ent_start_kb",
+    "get_required_subjects_kb",
+    "get_profile_subjects_kb",
+    "get_second_profile_subject_kb",
+    "get_after_trial_ent_kb",
+    "get_analytics_subjects_kb",
+    "get_back_to_analytics_kb",
 ]
