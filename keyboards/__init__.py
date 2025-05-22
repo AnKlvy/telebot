@@ -19,6 +19,12 @@ from .shop import (
     get_bonus_catalog_kb,
     get_back_to_shop_kb,
 )
+from .test_report import (
+    get_test_report_menu_kb,
+    get_test_subjects_kb,
+    get_month_test_kb,
+    get_back_to_test_report_kb,
+)
 
 __all__ = [
     "get_main_menu_kb",
@@ -36,4 +42,8 @@ __all__ = [
     "get_exchange_points_kb",
     "get_bonus_catalog_kb",
     "get_back_to_shop_kb",
+    "get_test_report_menu_kb",
+    "get_test_subjects_kb",
+    "get_month_test_kb",
+    "get_back_to_test_report_kb",
 ]
