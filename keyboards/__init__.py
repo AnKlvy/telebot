@@ -35,6 +35,13 @@ from .trial_ent import (
     get_analytics_subjects_kb,
     get_back_to_analytics_kb,
 )
+from .curator_contact import (
+    get_curator_subjects_kb,
+    get_back_to_curator_kb,
+)
+from .account import (
+    get_account_kb,
+)
 
 __all__ = [
     "get_main_menu_kb",
@@ -63,4 +70,7 @@ __all__ = [
     "get_after_trial_ent_kb",
     "get_analytics_subjects_kb",
     "get_back_to_analytics_kb",
+    "get_curator_subjects_kb",
+    "get_back_to_curator_kb",
+    "get_account_kb",
 ]
