@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from keyboards.test_report import (
+from ..keyboards.test_report import (
     get_test_report_menu_kb, 
     get_test_subjects_kb, 
     get_month_test_kb,

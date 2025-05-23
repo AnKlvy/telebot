@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from keyboards.shop import get_shop_menu_kb, get_exchange_points_kb, get_back_to_shop_kb
+from ..keyboards.shop import get_shop_menu_kb, get_exchange_points_kb, get_back_to_shop_kb
 
 router = Router()
 

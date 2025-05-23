@@ -3,21 +3,45 @@ import logging
 import sys
 from os import getenv
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Message
 from dotenv import load_dotenv
 
-from handlers import router, show_main_menu
+from student.handlers import router as student_router
+from student.handlers.homework import show_main_menu
+from curator.handlers import router as curator_router
+from curator.handlers.main import show_curator_main_menu
+from middlewares.role_middleware import RoleMiddleware
 
 load_dotenv()
 
 TOKEN = getenv("BOT_TOKEN")
 
+async def start_command(message: Message, user_role: str):
+    """Обработчик команды /start, перенаправляющий на соответствующие функции"""
+    if user_role == "curator":
+        await show_curator_main_menu(message)
+    else:  # По умолчанию считаем пользователя студентом
+        await show_main_menu(message)
+
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
-    dp.include_router(router)
+    
+    # Регистрируем middleware для определения роли пользователя
+    dp.message.middleware(RoleMiddleware())
+    dp.callback_query.middleware(RoleMiddleware())
+    
+    # Регистрируем обработчик команды /start
+    dp.message.register(start_command, CommandStart())
+    
+    # Включаем роутеры для разных ролей
+    dp.include_router(student_router)
+    dp.include_router(curator_router)
+    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

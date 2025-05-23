@@ -58,7 +58,10 @@ def get_test_answers_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="A", callback_data="answer_A")],
         [InlineKeyboardButton(text="B", callback_data="answer_B")],
         [InlineKeyboardButton(text="C", callback_data="answer_C")],
-        [InlineKeyboardButton(text="D", callback_data="answer_D")]
+        [InlineKeyboardButton(text="D", callback_data="answer_D")],
+        # Пустая строка для визуального разделения
+        [InlineKeyboardButton(text="➖➖➖➖➖➖➖➖", callback_data="separator")],
+        [InlineKeyboardButton(text="❌ Завершить тест", callback_data="end_trial_ent")]
     ])
 
 def get_after_trial_ent_kb() -> InlineKeyboardMarkup:

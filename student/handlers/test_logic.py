@@ -1,7 +1,6 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
-
-from keyboards import get_test_answers_kb, get_after_test_kb
+from ..keyboards.homework import get_test_answers_kb, get_after_test_kb
 
 # Словарь с вопросами и правильными ответами
 TEST_QUESTIONS = {

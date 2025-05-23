@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from keyboards.curator_contact import get_curator_subjects_kb, get_back_to_curator_kb
+from ..keyboards.curator_contact import get_curator_subjects_kb, get_back_to_curator_kb
 
 router = Router()
 

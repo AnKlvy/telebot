@@ -1,8 +1,8 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from keyboards.trial_ent import (
+from ..keyboards.trial_ent import (
     get_trial_ent_start_kb,
     get_required_subjects_kb,
     get_profile_subjects_kb,
@@ -25,6 +25,7 @@ class TrialEntStates(StatesGroup):
     results = State()
     analytics_subjects = State()
     subject_analytics = State()
+    confirming_end = State()
 
 @router.callback_query(F.data == "trial_ent")
 async def show_trial_ent_menu(callback: CallbackQuery, state: FSMContext):
@@ -123,6 +124,35 @@ async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
     for _ in profile_subjects:
         total_questions += 50  # Каждый профильный предмет - 50 вопросов
     
+    # Предварительно загружаем все вопросы
+    all_questions = []
+    current_question_num = 1
+    
+    for subject in all_subjects:
+        subject_name = get_subject_name(subject)
+        question_count = 20 if subject == "kz" else 10 if subject == "mathlit" else 50
+        
+        for i in range(question_count):
+            # Генерируем вопрос (в реальном приложении загрузка из БД)
+            question = {
+                "number": current_question_num,
+                "subject": subject,
+                "subject_name": subject_name,
+                "text": f"Вопрос по предмету {subject_name}",
+                "options": {
+                    "A": "Вариант A",
+                    "B": "Вариант B",
+                    "C": "Вариант C",
+                    "D": "Вариант D"
+                },
+                "correct": "A"  # В реальном приложении - правильный ответ
+            }
+            all_questions.append(question)
+            current_question_num += 1
+    
+    # Создаем клавиатуру один раз
+    answers_keyboard = get_test_answers_kb()
+    
     # Сохраняем информацию для последующего использования
     await state.update_data(
         test_started=True,
@@ -136,109 +166,144 @@ async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
             **{subject: 50 for subject in profile_subjects}
         },
         correct_answers={subject: 0 for subject in all_subjects},
-        all_subjects=all_subjects
+        all_subjects=all_subjects,
+        all_questions=all_questions,  # Сохраняем все вопросы
+        answers_keyboard=answers_keyboard  # Сохраняем клавиатуру
     )
     
     # Показываем первый вопрос
-    await show_next_question(callback, state)
+    await show_question(callback, state, 1)
     await state.set_state(TrialEntStates.test_in_progress)
 
-async def show_next_question(callback: CallbackQuery, state: FSMContext):
-    """Показать следующий вопрос теста"""
+def get_subject_name(subject_code):
+    """Получить название предмета по коду"""
+    subject_names = {
+        "kz": "История Казахстана",
+        "mathlit": "Математическая грамотность",
+        "math": "Математика",
+        "geo": "География",
+        "bio": "Биология",
+        "chem": "Химия",
+        "inf": "Информатика",
+        "world": "Всемирная история"
+    }
+    return subject_names.get(subject_code, "")
+
+async def show_question(callback: CallbackQuery, state: FSMContext, question_number: int):
+    """Показать конкретный вопрос теста"""
     user_data = await state.get_data()
-    current_subject = user_data.get("current_subject")
-    subject_questions_left = user_data.get("subject_questions_left", {})
-    current_question = user_data.get("current_question", 1)
+    all_questions = user_data.get("all_questions", [])
     total_questions = user_data.get("total_questions", 0)
+    answers_keyboard = user_data.get("answers_keyboard", get_test_answers_kb())
     
-    # Проверяем, остались ли вопросы по текущему предмету
-    if current_subject and subject_questions_left.get(current_subject, 0) > 0:
-        # Генерируем вопрос для текущего предмета
-        # В реальном приложении здесь будет логика получения вопроса из базы данных
-        
-        # Определяем название предмета для отображения
-        subject_names = {
-            "kz": "История Казахстана",
-            "mathlit": "Математическая грамотность",
-            "math": "Математика",
-            "geo": "География",
-            "bio": "Биология",
-            "chem": "Химия",
-            "inf": "Информатика",
-            "world": "Всемирная история"
-        }
-        subject_name = subject_names.get(current_subject, "")
-        
-        # Пример вопроса (в реальном приложении будет загружаться из БД)
-        question_text = f"Вопрос по предмету {subject_name}"
-        options = {
-            "A": "Вариант A",
-            "B": "Вариант B",
-            "C": "Вариант C",
-            "D": "Вариант D"
-        }
-        
-        options_text = "\n".join([f"{key}) {value}" for key, value in options.items()])
-        
-        await callback.message.edit_text(
-            f"Вопрос {current_question}/{total_questions}\n"
-            f"Предмет: {subject_name}\n\n"
-            f"{question_text}\n\n"
-            f"{options_text}",
-            reply_markup=get_test_answers_kb()
-        )
-    else:
-        # Если вопросы по текущему предмету закончились, переходим к следующему предмету
-        all_subjects = user_data.get("all_subjects", [])
-        current_subject_index = user_data.get("current_subject_index", 0)
-        
-        # Проверяем, есть ли еще предметы
-        if current_subject_index + 1 < len(all_subjects):
-            # Переходим к следующему предмету
-            next_subject_index = current_subject_index + 1
-            next_subject = all_subjects[next_subject_index]
-            
-            await state.update_data(
-                current_subject_index=next_subject_index,
-                current_subject=next_subject
-            )
-            
-            # Показываем вопрос по новому предмету
-            await show_next_question(callback, state)
-        else:
-            # Если все предметы пройдены, завершаем тест
-            await finish_trial_ent(callback, state)
+    if question_number > len(all_questions):
+        # Если вопросы закончились, завершаем тест
+        await finish_trial_ent(callback, state)
+        return
+    
+    # Получаем вопрос из предварительно загруженного списка
+    question = all_questions[question_number - 1]
+    
+    # Формируем сообщение более эффективно
+    message_text = f"Вопрос {question_number}/{total_questions}\nПредмет: {question['subject_name']}\n\n{question['text']}\n\n"
+    
+    # Добавляем варианты ответов
+    for key, value in question["options"].items():
+        message_text += f"{key}) {value}\n"
+    
+    # Используем edit_text с минимальным форматированием
+    await callback.message.edit_text(
+        text=message_text,
+        reply_markup=answers_keyboard
+    )
 
 @router.callback_query(TrialEntStates.test_in_progress, F.data.startswith("answer_"))
 async def process_answer(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа на вопрос теста"""
+    # Сразу показываем пользователю, что его ответ принят
+    await callback.answer("✓", show_alert=False)
+    
     selected_answer = callback.data.replace("answer_", "")
     user_data = await state.get_data()
-    current_subject = user_data.get("current_subject")
-    subject_questions_left = user_data.get("subject_questions_left", {})
-    correct_answers = user_data.get("correct_answers", {})
     current_question = user_data.get("current_question", 1)
+    all_questions = user_data.get("all_questions", [])
     
-    # В реальном приложении здесь будет логика проверки правильности ответа
-    # Для примера считаем, что ответ правильный с вероятностью 70%
-    import random
-    is_correct = random.random() < 0.7
+    if current_question <= len(all_questions):
+        question = all_questions[current_question - 1]
+        current_subject = question["subject"]
+        
+        # Проверяем правильность ответа
+        is_correct = selected_answer == question["correct"]
+        
+        # Обновляем счетчики
+        correct_answers = user_data.get("correct_answers", {})
+        if is_correct:
+            correct_answers[current_subject] = correct_answers.get(current_subject, 0) + 1
+        
+        # Обновляем данные состояния одним вызовом
+        user_data["current_question"] = current_question + 1
+        user_data["correct_answers"] = correct_answers
+        
+        if "subject_questions_left" in user_data:
+            user_data["subject_questions_left"][current_subject] -= 1
+        
+        await state.set_data(user_data)
+        
+        # Показываем следующий вопрос
+        await show_question(callback, state, current_question + 1)
+    else:
+        # Если все вопросы пройдены, завершаем тест
+        await finish_trial_ent(callback, state)
+
+@router.callback_query(TrialEntStates.test_in_progress, F.data == "end_trial_ent")
+async def end_trial_ent_early(callback: CallbackQuery, state: FSMContext):
+    """Досрочное завершение пробного ЕНТ"""
+    # Получаем данные о текущем тесте
+    data = await state.get_data()
+    current_question = data.get("current_question", 1)
+    total_questions = data.get("total_questions", 130)
     
-    # Обновляем счетчики
-    if is_correct:
-        correct_answers[current_subject] = correct_answers.get(current_subject, 0) + 1
-    
-    subject_questions_left[current_subject] = subject_questions_left.get(current_subject, 0) - 1
-    
-    # Обновляем данные состояния
-    await state.update_data(
-        current_question=current_question + 1,
-        subject_questions_left=subject_questions_left,
-        correct_answers=correct_answers
+    # Спрашиваем подтверждение
+    await callback.message.edit_text(
+        f"Вы уверены, что хотите завершить тест?\n"
+        f"Вы ответили на {current_question-1} из {total_questions} вопросов.\n"
+        f"Результаты будут сохранены только для отвеченных вопросов.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, завершить", callback_data="confirm_end_test")],
+            [InlineKeyboardButton(text="🔄 Нет, продолжить", callback_data="continue_test")]
+        ])
     )
+    # Сохраняем текущее состояние, чтобы можно было вернуться к тесту
+    await state.update_data(previous_state="test_in_progress")
+    # Временно меняем состояние для обработки подтверждения
+    await state.set_state("confirming_end")
+
+@router.callback_query(lambda c: c.data == "confirm_end_test" and c.message.chat.id)
+async def confirm_end_test(callback: CallbackQuery, state: FSMContext):
+    """Подтверждение завершения теста"""
+    # Получаем данные о тесте
+    data = await state.get_data()
     
-    # Показываем следующий вопрос
-    await show_next_question(callback, state)
+    # Здесь можно добавить логику сохранения результатов
+    
+    # Показываем результаты теста
+    await callback.message.edit_text(
+        "Тест завершен досрочно.\n"
+        "Ваши результаты сохранены.",
+        reply_markup=get_after_trial_ent_kb()
+    )
+    await state.set_state(TrialEntStates.results)
+
+@router.callback_query(lambda c: c.data == "continue_test" and c.message.chat.id)
+async def continue_test(callback: CallbackQuery, state: FSMContext):
+    """Продолжение теста после отмены завершения"""
+    # Получаем данные о текущем вопросе
+    data = await state.get_data()
+    current_question = data.get("current_question", 1)
+    
+    # Возвращаемся к тесту
+    await show_question(callback, state, current_question)
+    await state.set_state(TrialEntStates.test_in_progress)
 
 async def finish_trial_ent(callback: CallbackQuery, state: FSMContext):
     """Завершение пробного ЕНТ и показ результатов"""
