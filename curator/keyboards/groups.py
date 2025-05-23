@@ -24,8 +24,5 @@ def get_group_students_kb(group_id: str) -> InlineKeyboardMarkup:
 def get_student_profile_kb() -> InlineKeyboardMarkup:
     """Клавиатура для карточки ученика"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Посмотреть ДЗ", callback_data="view_student_homeworks")],
-        [InlineKeyboardButton(text="📊 Статистика", callback_data="view_student_stats")],
-        [InlineKeyboardButton(text="📩 Написать сообщение", callback_data="message_to_student")],
         [InlineKeyboardButton(text="⬅️ Назад к списку", callback_data="back_to_students")]
     ])
