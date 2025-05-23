@@ -6,7 +6,7 @@ from os import getenv
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from dotenv import load_dotenv
 
@@ -27,6 +27,10 @@ async def start_command(message: Message, user_role: str):
     else:  # По умолчанию считаем пользователя студентом
         await show_main_menu(message)
 
+async def curator_command(message: Message):
+    """Обработчик команды /curator, открывающий меню куратора"""
+    await show_curator_main_menu(message)
+
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
@@ -37,6 +41,9 @@ async def main() -> None:
     
     # Регистрируем обработчик команды /start
     dp.message.register(start_command, CommandStart())
+    
+    # Регистрируем обработчик команды /curator
+    dp.message.register(curator_command, Command("curator"))
     
     # Включаем роутеры для разных ролей
     dp.include_router(student_router)
