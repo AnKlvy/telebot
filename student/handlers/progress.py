@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from ..keyboards.progress import get_progress_menu_kb, get_subjects_progress_kb, get_back_to_progress_kb
+from common.statistics import get_student_topics_stats, format_student_topics_stats
 
 router = Router()
 
@@ -50,43 +51,14 @@ async def show_subject_progress(callback: CallbackQuery, state: FSMContext):
     """Показать прогресс по выбранному предмету"""
     subject_id = callback.data.replace("progress_sub_", "")
     
-    # Определяем название предмета
-    subject_name = "Химия"  # В реальном приложении это будет определяться по subject_id
+    # Определяем ID ученика (в реальном приложении это будет из контекста пользователя)
+    student_id = "student2"  # Например, Аружан Ахметова
     
-    # Пример данных о прогрессе (в реальном приложении будут загружаться из БД)
-    topics_progress = {
-        "Алканы": 90,
-        "Изомерия": 33,
-        "Кислоты": 60,
-        "Циклоалканы": None  # None означает, что тема не проверена
-    }
+    # Получаем данные о студенте из общего компонента
+    student_data = get_student_topics_stats(student_id)
     
-    # Формируем текст с прогрессом
-    progress_text = f"📗 Прогресс по {subject_name}\n"
-    
-    # Добавляем информацию о каждой теме
-    for topic, percentage in topics_progress.items():
-        if percentage is None:
-            progress_text += f"• {topic} — ❌ Не проверено\n"
-        else:
-            progress_text += f"• {topic} — {percentage}%\n"
-    
-    # Определяем сильные и слабые темы
-    strong_topics = [topic for topic, percentage in topics_progress.items() 
-                    if percentage is not None and percentage >= 80]
-    weak_topics = [topic for topic, percentage in topics_progress.items() 
-                  if percentage is not None and percentage <= 40]
-    
-    # Добавляем информацию о сильных и слабых темах
-    if strong_topics:
-        progress_text += "\n🟢 Сильные темы (≥80%):\n"
-        for topic in strong_topics:
-            progress_text += f"• {topic}\n"
-    
-    if weak_topics:
-        progress_text += "\n🔴 Слабые темы (≤40%):\n"
-        for topic in weak_topics:
-            progress_text += f"• {topic}\n"
+    # Форматируем статистику в текст
+    progress_text = format_student_topics_stats(student_data)
     
     await callback.message.edit_text(
         progress_text,
