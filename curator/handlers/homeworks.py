@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from ..keyboards.main import get_curator_main_menu_kb
-from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb
+from ..keyboards.common import get_courses_kb, get_subjects_kb, get_lessons_kb
 from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb, get_students_by_homework_kb
 
 router = Router()

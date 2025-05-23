@@ -6,7 +6,7 @@ def get_courses_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
         [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_math")],
-        get_universal_back_button()
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_previous")]
     ])
 
 def get_subjects_kb() -> InlineKeyboardMarkup:
@@ -21,7 +21,7 @@ def get_subjects_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data="subject_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data="subject_world")],
         [InlineKeyboardButton(text="Грамотность чтения", callback_data="subject_read")],
-        get_universal_back_button()
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_previous")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -44,19 +44,10 @@ def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(get_universal_back_button())
+    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_previous")])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_universal_back_button(text: str = "⬅️ Назад", callback_data: str = "back_to_previous") -> List[InlineKeyboardButton]:
-    """
-    Универсальная кнопка назад с настраиваемым текстом и callback_data
-    
-    Args:
-        text (str): Текст кнопки (по умолчанию "⬅️ Назад")
-        callback_data (str): Данные для callback (по умолчанию "back_to_previous")
-        
-    Returns:
-        List[InlineKeyboardButton]: Список с одной кнопкой назад
-    """
-    return [InlineKeyboardButton(text=text, callback_data=callback_data)]
+def get_universal_back_button() -> List[InlineKeyboardButton]:
+    """Универсальная кнопка назад"""
+    return [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_previous")]
