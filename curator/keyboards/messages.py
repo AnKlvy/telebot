@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from .common import get_universal_back_button
+from common.keyboards import get_universal_back_button
 
 def get_messages_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню сообщений"""
