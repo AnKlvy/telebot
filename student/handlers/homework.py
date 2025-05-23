@@ -133,7 +133,35 @@ STATE_HANDLERS = {
     # Для test_in_progress не нужен обработчик, так как мы переходим к confirmation
 }
 
-
+@router.callback_query(F.data == "back")
+async def go_back(callback: CallbackQuery, state: FSMContext):
+    current_state = await state.get_state()
+    
+    if not current_state or current_state not in STATE_TRANSITIONS:
+        # Если текущего состояния нет или оно не в словаре переходов, возвращаемся в главное меню
+        await callback.message.delete()
+        await show_main_menu(callback.message)
+        await state.clear()
+        return
+    
+    # Получаем предыдущее состояние из словаря переходов
+    prev_state = STATE_TRANSITIONS[current_state]
+    
+    if prev_state is None:
+        # Если предыдущее состояние None, возвращаемся в главное меню
+        await callback.message.delete()
+        await show_main_menu(callback.message)
+        await state.clear()
+        return
+    
+    # Вызываем соответствующий обработчик для предыдущего состояния
+    if prev_state in STATE_HANDLERS:
+        await STATE_HANDLERS[prev_state](callback, state)
+    else:
+        # Если обработчик не найден, возвращаемся в главное меню
+        await callback.message.delete()
+        await show_main_menu(callback.message)
+        await state.clear()
 
 @router.callback_query(F.data == "back_to_main_menu")
 async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):

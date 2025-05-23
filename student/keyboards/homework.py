@@ -16,7 +16,7 @@ def get_courses_kb() -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
         [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_math")],
-        get_universal_back_button()
+        get_universal_back_button(callback_data="back")
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -31,7 +31,7 @@ def get_subjects_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data="sub_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data="sub_world")],
         [InlineKeyboardButton(text="Грамотность чтения", callback_data="sub_read")],
-        get_universal_back_button()
+        get_universal_back_button(callback_data="back")
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -40,7 +40,7 @@ def get_lessons_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="1. Алканы", callback_data="lesson_alkanes")],
         [InlineKeyboardButton(text="2. Изомерия", callback_data="lesson_isomeria")],
         [InlineKeyboardButton(text="3. Кислоты", callback_data="lesson_acids")],
-        get_universal_back_button()
+        get_universal_back_button(callback_data="back")
     ])
 
 def get_homeworks_kb() -> InlineKeyboardMarkup:
@@ -48,13 +48,13 @@ def get_homeworks_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Базовое", callback_data="homework_basic")],
         [InlineKeyboardButton(text="Углублённое", callback_data="homework_advanced")],
         [InlineKeyboardButton(text="Повторение", callback_data="homework_review")],
-        get_universal_back_button()
+        get_universal_back_button(callback_data="back")
     ])
 
 def get_confirm_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="▶️ Начать тест", callback_data="start_test")],
-        get_universal_back_button()
+        get_universal_back_button(callback_data="back")
     ])
 
 def get_test_answers_kb() -> InlineKeyboardMarkup:
