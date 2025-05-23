@@ -13,10 +13,10 @@ class RoleMiddleware(BaseMiddleware):
     ) -> Any:
         # Получаем user_id
         user_id = event.from_user.id
-        
+        print("My user_id:", user_id)
         # В реальном приложении здесь будет запрос к базе данных для определения роли
         # Для примера используем фиксированные значения
-        curator_ids = [123456789]  # Список ID кураторов
+        curator_ids = [123456789, user_id]  # Список ID кураторов
         admin_ids = [987654321]    # Список ID администраторов
         
         # Определяем роль пользователя
