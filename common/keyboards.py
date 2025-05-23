@@ -48,13 +48,13 @@ def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_universal_back_button(text: str = "⬅️ Назад", callback_data: str = "back_to_previous") -> List[InlineKeyboardButton]:
+def get_universal_back_button(text: str = "⬅️ Назад", callback_data: str = "back") -> List[InlineKeyboardButton]:
     """
     Универсальная кнопка назад с настраиваемым текстом и callback_data
     
     Args:
         text (str): Текст кнопки (по умолчанию "⬅️ Назад")
-        callback_data (str): Данные для callback (по умолчанию "back_to_previous")
+        callback_data (str): Данные для callback (по умолчанию "back")
         
     Returns:
         List[InlineKeyboardButton]: Список с одной кнопкой назад

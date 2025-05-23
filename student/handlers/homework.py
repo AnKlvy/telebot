@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from ..keyboards.homework import (
-    get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb, 
+    get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb,
     get_homeworks_kb, get_confirm_kb, get_test_answers_kb, get_after_test_kb
 )
 from .test_logic import start_test_process, process_test_answer
@@ -63,29 +63,6 @@ async def choose_lesson(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(HomeworkStates.lesson)
 
-
-@router.callback_query(F.data == "back_to_main")
-async def back_to_main(callback: CallbackQuery, state: FSMContext):
-    await callback.message.delete()
-    await show_main_menu(callback.message)
-    await state.clear()
-
-@router.callback_query(F.data == "back_to_course")
-async def back_to_course(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        "Выбери курс, по которому хочешь пройти домашнее задание 👇",
-        reply_markup=get_courses_kb()
-    )
-    await state.set_state(HomeworkStates.course)
-
-@router.callback_query(F.data == "back_to_subject")
-async def back_to_subject(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        "Теперь выбери предмет — это поможет выбрать нужные темы и задания 📚",
-        reply_markup=get_subjects_kb()
-    )
-    await state.set_state(HomeworkStates.subject)
-
 @router.callback_query(HomeworkStates.lesson, F.data.startswith("lesson_"))
 async def choose_homework(callback: CallbackQuery, state: FSMContext):
     lesson_id = callback.data.replace("lesson_", "")
@@ -136,29 +113,14 @@ async def start_test(callback: CallbackQuery, state: FSMContext):
     await start_test_process(callback, state)
     await state.set_state(HomeworkStates.test_in_progress)
 
-@router.callback_query(F.data == "back_to_lesson")
-async def back_to_lesson(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        "Выбери урок, по которому хочешь пройти домашнее задание👇",
-        reply_markup=get_lessons_kb()
-    )
-    await state.set_state(HomeworkStates.lesson)
-
-@router.callback_query(F.data == "back_to_homework")
-async def back_to_homework(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        "Вот доступные домашние задания по этой теме👇",
-        reply_markup=get_homeworks_kb()
-    )
-    await state.set_state(HomeworkStates.homework)
-
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
     HomeworkStates.confirmation: HomeworkStates.homework,
     HomeworkStates.homework: HomeworkStates.lesson,
     HomeworkStates.lesson: HomeworkStates.subject,
     HomeworkStates.subject: HomeworkStates.course,
-    HomeworkStates.course: None  # None означает возврат в главное меню
+    HomeworkStates.course: None,  # None означает возврат в главное меню
+    HomeworkStates.test_in_progress: HomeworkStates.confirmation  # Добавляем переход из теста к экрану подтверждения
 }
 
 # Словарь обработчиков для каждого состояния
@@ -168,6 +130,7 @@ STATE_HANDLERS = {
     HomeworkStates.lesson: choose_lesson,
     HomeworkStates.homework: choose_homework,
     HomeworkStates.confirmation: confirm_homework
+    # Для test_in_progress не нужен обработчик, так как мы переходим к confirmation
 }
 
 @router.callback_query(F.data == "back")
@@ -199,6 +162,13 @@ async def go_back(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
         await show_main_menu(callback.message)
         await state.clear()
+
+@router.callback_query(F.data == "back_to_main_menu")
+async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
+    """Возврат в главное меню"""
+    await callback.message.delete()
+    await show_main_menu(callback.message)
+    await state.clear()
 
 # Обработчик ответов на вопросы теста
 @router.callback_query(HomeworkStates.test_in_progress, F.data.startswith("answer_"))
