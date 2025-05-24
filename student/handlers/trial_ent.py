@@ -465,21 +465,6 @@ async def retry_trial_ent(callback: CallbackQuery, state: FSMContext):
     """Пройти пробный ЕНТ еще раз"""
     await show_trial_ent_menu(callback, state)
 
-@router.callback_query(F.data == "back_to_trial_ent")
-async def back_to_trial_ent(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в меню пробного ЕНТ"""
-    await show_trial_ent_menu(callback, state)
-
-@router.callback_query(F.data == "back_to_required_subjects")
-async def back_to_required_subjects(callback: CallbackQuery, state: FSMContext):
-    """Вернуться к выбору обязательных предметов"""
-    await choose_required_subjects(callback, state)
-
-@router.callback_query(F.data == "back_to_profile_subjects")
-async def back_to_profile_subjects(callback: CallbackQuery, state: FSMContext):
-    """Вернуться к выбору профильных предметов"""
-    await choose_profile_subjects(callback, state)
-
 @router.callback_query(F.data == "back_to_trial_ent_results")
 async def back_to_trial_ent_results(callback: CallbackQuery, state: FSMContext):
     """Вернуться к результатам пробного ЕНТ"""

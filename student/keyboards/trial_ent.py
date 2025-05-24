@@ -51,7 +51,7 @@ def get_second_profile_subject_kb(first_subject: str) -> InlineKeyboardMarkup:
         if callback != first_subject:
             buttons.append([InlineKeyboardButton(text=name, callback_data=f"second_{callback}")])
     
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_profile_subjects")])
+    buttons.append(get_universal_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
