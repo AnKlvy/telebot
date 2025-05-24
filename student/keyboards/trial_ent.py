@@ -6,6 +6,7 @@ def get_trial_ent_start_kb() -> InlineKeyboardMarkup:
     """Клавиатура для начала пробного ЕНТ"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="▶️ Начать пробный ЕНТ", callback_data="start_trial_ent")],
+        [InlineKeyboardButton(text="📊 Аналитика прошлых тестов", callback_data="view_analytics")],
         *get_main_menu_back_button()
     ])
 
@@ -96,7 +97,7 @@ def get_analytics_subjects_kb(subjects: list) -> InlineKeyboardMarkup:
         elif subject == "world":
             buttons.append([InlineKeyboardButton(text="Всемирная история", callback_data="analytics_world")])
     
-    buttons.append(*get_main_menu_back_button())
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

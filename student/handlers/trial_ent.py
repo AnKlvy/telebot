@@ -17,6 +17,7 @@ from .test_logic import process_test_answer
 router = Router()
 
 class TrialEntStates(StatesGroup):
+    subject_analytics = State()
     main = State()
     required_subjects = State()
     profile_subjects = State()
@@ -24,7 +25,6 @@ class TrialEntStates(StatesGroup):
     test_in_progress = State()
     results = State()
     analytics_subjects = State()
-    subject_analytics = State()
     confirming_end = State()
 
 @router.callback_query(F.data == "trial_ent")
@@ -362,12 +362,28 @@ async def finish_trial_ent(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(TrialEntStates.results)
 
-@router.callback_query(TrialEntStates.results, F.data == "view_analytics")
-async def show_analytics_subjects(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "view_analytics")
+async def show_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать список предметов для просмотра аналитики"""
     user_data = await state.get_data()
     required_subjects = user_data.get("required_subjects", [])
     profile_subjects = user_data.get("profile_subjects", [])
+    
+    # Сохраняем текущее состояние, чтобы знать, куда возвращаться
+    current_state = await state.get_state()
+    await state.update_data(previous_analytics_state=current_state)
+    
+    # Проверяем, есть ли результаты теста
+    test_results = user_data.get("test_results", {})
+    
+    if not test_results and (not required_subjects or not profile_subjects):
+        # Если нет результатов и не выбраны предметы (пользователь не проходил тест)
+        await callback.message.edit_text(
+            "Для просмотра аналитики необходимо сначала пройти тест.",
+            reply_markup=get_trial_ent_start_kb()
+        )
+        await state.set_state(TrialEntStates.main)
+        return
     
     # Формируем список всех предметов, по которым проходил тест
     all_subjects = required_subjects + profile_subjects
@@ -506,4 +522,12 @@ async def back_to_trial_ent_results(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "back_to_analytics_subjects")
 async def back_to_analytics_subjects(callback: CallbackQuery, state: FSMContext):
     """Вернуться к выбору предмета для аналитики"""
-    await show_analytics_subjects(callback, state)
+    user_data = await state.get_data()
+    previous_state = user_data.get("previous_analytics_state")
+    
+    if previous_state == TrialEntStates.results:
+        # Если пришли из результатов теста, возвращаемся туда
+        await back_to_trial_ent_results(callback, state)
+    else:
+        # В остальных случаях показываем список предметов
+        await show_subjects(callback, state)
