@@ -27,7 +27,7 @@ async def show_student_main_menu(message: Message):
         reply_markup=get_student_main_menu_kb()
     )
 
-@router.callback_query(F.data == "back_to_main_menu")
+@router.callback_query(F.data == "back_to_main")
 async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
     """Возврат в главное меню"""
     await callback.message.delete()
