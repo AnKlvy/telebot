@@ -112,15 +112,6 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(CuratorGroupStates.student_profile)
 
-@router.callback_query(F.data == "back_to_curator_main")
-async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в главное меню куратора"""
-    await callback.message.edit_text(
-        "Добро пожаловать в панель куратора!\n"
-        "Выберите действие из меню ниже:",
-        reply_markup=get_curator_main_menu_kb()
-    )
-    await state.clear()
 
 @router.callback_query(F.data == "back_to_groups")
 async def back_to_groups_list(callback: CallbackQuery, state: FSMContext):

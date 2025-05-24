@@ -1,12 +1,13 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_main_menu_back_button
+from common.keyboards import get_main_menu_back_button, get_universal_back_button
+
 
 def get_messages_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню сообщений"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📩 Индивидуальное сообщение", callback_data="individual_message")],
         [InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="mass_message")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_curator_main")]
+        *get_main_menu_back_button()
     ])
 
 def get_groups_for_message_kb() -> InlineKeyboardMarkup:
@@ -26,7 +27,7 @@ def get_groups_for_message_kb() -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(*get_main_menu_back_button())
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -55,7 +56,7 @@ def get_students_for_message_kb(group_id: str) -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_groups_message")])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -63,5 +64,5 @@ def get_confirm_message_kb() -> InlineKeyboardMarkup:
     """Клавиатура подтверждения отправки сообщения"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Отправить", callback_data="send_message")],
-        [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_message")]
+        get_universal_back_button("❌ Отменить")
     ])

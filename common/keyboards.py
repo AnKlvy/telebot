@@ -45,7 +45,7 @@ def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(*get_main_menu_back_button())
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

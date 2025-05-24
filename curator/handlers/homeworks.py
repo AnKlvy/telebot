@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from ..keyboards.main import get_curator_main_menu_kb
-from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb
+from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb, get_main_menu_back_button
 from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb, get_students_by_homework_kb
 
 class CuratorHomeworkStates(StatesGroup):
@@ -172,23 +172,8 @@ async def show_group_stats(callback: CallbackQuery, state: FSMContext):
         f"Средний % выполнения: {stats['avg_completion']}% {formula_explanation}\n\n"
         f"{lagging_text}",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_homework_menu")]
+            *get_main_menu_back_button()
         ])
     )
     await state.set_state(CuratorHomeworkStates.group_stats_result)
 
-# Обработчики для навигации
-@router.callback_query(F.data == "back_to_curator_main")
-async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в главное меню куратора"""
-    await callback.message.edit_text(
-        "Добро пожаловать в панель куратора!\n"
-        "Выберите действие из меню ниже:",
-        reply_markup=get_curator_main_menu_kb()
-    )
-    await state.clear()
-
-@router.callback_query(F.data == "back_to_homework_menu")
-async def back_to_homework_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в меню домашних заданий"""
-    await show_homework_menu(callback, state)

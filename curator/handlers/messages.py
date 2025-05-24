@@ -275,10 +275,3 @@ async def back_to_messages_menu(callback: CallbackQuery, state: FSMContext):
     """Вернуться в меню сообщений"""
     await show_messages_menu(callback, state)
 
-@router.callback_query(F.data == "back_to_curator_main")
-async def back_to_curator_main(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в главное меню куратора"""
-    from .main import show_curator_main_menu
-    await callback.message.delete()
-    await show_curator_main_menu(callback.message)
-    await state.clear()

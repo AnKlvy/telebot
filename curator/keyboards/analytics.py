@@ -28,7 +28,7 @@ def get_groups_for_analytics_kb() -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(*get_main_menu_back_button())
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -57,7 +57,7 @@ def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(*get_main_menu_back_button())
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

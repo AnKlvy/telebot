@@ -1,13 +1,17 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+from common.keyboards import get_main_menu_back_button
+
+
 def get_curator_groups_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора группы куратора"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📗 Химия — Премиум", callback_data="group_chem_premium")],
         [InlineKeyboardButton(text="📘 Биология — Интенсив", callback_data="group_bio_intensive")],
         [InlineKeyboardButton(text="📕 История — Базовый", callback_data="group_history_basic")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_curator_main")]
+        *get_main_menu_back_button()
     ])
+
 
 def get_group_students_kb(group_id: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора ученика в группе"""
@@ -16,13 +20,14 @@ def get_group_students_kb(group_id: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="👤 Аружан Ахметова", callback_data="student_1")],
         [InlineKeyboardButton(text="👤 Мадияр Сапаров", callback_data="student_2")],
         [InlineKeyboardButton(text="👤 Диана Ержанова", callback_data="student_3")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_groups")]
+        *get_main_menu_back_button()
     ]
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 def get_student_profile_kb() -> InlineKeyboardMarkup:
     """Клавиатура для карточки ученика"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад к списку", callback_data="back_to_students")]
+        *get_main_menu_back_button()
     ])
