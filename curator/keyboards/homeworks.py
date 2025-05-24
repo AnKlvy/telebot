@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_universal_back_button
+from common.keyboards import get_main_menu_back_button
 
 def get_homework_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню домашних заданий"""
@@ -27,7 +27,7 @@ def get_groups_kb(course_id: str = None) -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(get_universal_back_button())
+    buttons.append(*get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -74,6 +74,6 @@ def get_students_by_homework_kb(lesson_id: str) -> InlineKeyboardMarkup:
                 )
             ])
     
-    buttons.append(get_universal_back_button())
+    buttons.append(*get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)

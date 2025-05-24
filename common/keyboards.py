@@ -1,12 +1,13 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
+
 
 def get_courses_kb() -> InlineKeyboardMarkup:
     """Общая клавиатура выбора курса"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
         [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_math")],
-        get_universal_back_button()
+        *get_main_menu_back_button()
     ])
 
 def get_subjects_kb() -> InlineKeyboardMarkup:
@@ -21,7 +22,7 @@ def get_subjects_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data="subject_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data="subject_world")],
         [InlineKeyboardButton(text="Грамотность чтения", callback_data="subject_read")],
-        get_universal_back_button()
+        *get_main_menu_back_button()
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -44,7 +45,7 @@ def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append(get_universal_back_button())
+    buttons.append(*get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -60,3 +61,8 @@ def get_universal_back_button(text: str = "⬅️ Назад", callback_data: st
         List[InlineKeyboardButton]: Список с одной кнопкой назад
     """
     return [InlineKeyboardButton(text=text, callback_data=callback_data)]
+
+def get_main_menu_back_button() -> [List[InlineKeyboardButton], List[InlineKeyboardButton]]:
+    """Кнопка возврата в главное меню"""
+    return [get_universal_back_button(), get_universal_back_button("🏠 Главное меню", "back_to_main")]
+

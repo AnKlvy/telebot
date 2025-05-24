@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_universal_back_button
+from common.keyboards import get_main_menu_back_button, get_universal_back_button
+
 
 def get_test_report_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню тест-отчета"""
@@ -7,7 +8,7 @@ def get_test_report_menu_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🟢 Входной тест курса", callback_data="course_entry_test")],
         [InlineKeyboardButton(text="📅 Входной тест месяца", callback_data="month_entry_test")],
         [InlineKeyboardButton(text="📅 Контрольный тест месяца", callback_data="month_control_test")],
-        get_universal_back_button("🏠 Главное меню", "back_to_main")
+        *get_main_menu_back_button()
     ])
 
 def get_test_subjects_kb(test_type: str) -> InlineKeyboardMarkup:
@@ -22,7 +23,7 @@ def get_test_subjects_kb(test_type: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data=f"{test_type}_sub_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data=f"{test_type}_sub_world")],
         [InlineKeyboardButton(text="Грамотность чтения", callback_data=f"{test_type}_sub_read")],
-        get_universal_back_button("⬅️ Назад", "back_to_test_report")
+        *get_main_menu_back_button()
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -32,7 +33,8 @@ def get_month_test_kb(test_type: str, subject_id: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Месяц 1", callback_data=f"{test_type}_{subject_id}_month_1")],
         [InlineKeyboardButton(text="Месяц 2", callback_data=f"{test_type}_{subject_id}_month_2")],
         [InlineKeyboardButton(text="Месяц 3", callback_data=f"{test_type}_{subject_id}_month_3")],
-        get_universal_back_button("⬅️ Назад", f"back_to_{test_type}_subjects")
+        get_universal_back_button("⬅️ Назад", f"back_to_{test_type}_subjects"),
+        get_universal_back_button("🏠 Главное меню", "back_to_main")
     ])
 
 def get_back_to_test_report_kb() -> InlineKeyboardMarkup:

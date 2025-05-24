@@ -1,12 +1,12 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_universal_back_button
+from common.keyboards import get_main_menu_back_button
 
 def get_progress_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню прогресса"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📋 Общая статистика", callback_data="general_stats")],
         [InlineKeyboardButton(text="📈 Понимание по темам", callback_data="topics_understanding")],
-        get_universal_back_button("🏠 Главное меню", "back_to_main")
+         *get_main_menu_back_button()
     ])
 
 def get_subjects_progress_kb() -> InlineKeyboardMarkup:
@@ -21,13 +21,12 @@ def get_subjects_progress_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data="progress_sub_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data="progress_sub_world")],
         [InlineKeyboardButton(text="Грамотность чтения", callback_data="progress_sub_read")],
-        get_universal_back_button("⬅️ Назад", "back_to_progress")
+        *get_main_menu_back_button()
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_back_to_progress_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню прогресса"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        get_universal_back_button("⬅️ Назад", "back_to_progress"),
-        get_universal_back_button("🏠 Главное меню", "back_to_main")
+        *get_main_menu_back_button()
     ])
