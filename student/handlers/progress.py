@@ -10,6 +10,7 @@ router = Router()
 class ProgressStates(StatesGroup):
     main = State()
     subjects = State()
+    common_stats = State()
     subject_details = State()
 
 @router.callback_query(F.data == "progress")
@@ -36,6 +37,7 @@ async def show_general_stats(callback: CallbackQuery, state: FSMContext):
         f"📋 Выполнено домашних заданий: {completed_homeworks}",
         reply_markup=get_back_to_progress_kb()
     )
+    await state.set_state(ProgressStates.common_stats)
 
 @router.callback_query(ProgressStates.main, F.data == "topics_understanding")
 async def show_subjects_list(callback: CallbackQuery, state: FSMContext):
@@ -65,8 +67,3 @@ async def show_subject_progress(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_back_to_progress_kb()
     )
     await state.set_state(ProgressStates.subject_details)
-
-@router.callback_query(F.data == "back_to_progress")
-async def back_to_progress_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в меню прогресса"""
-    await show_progress_menu(callback, state)
