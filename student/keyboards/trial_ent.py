@@ -29,7 +29,7 @@ def get_profile_subjects_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="Информатика", callback_data="prof_sub_inf")],
         [InlineKeyboardButton(text="Всемирная история", callback_data="prof_sub_world")],
         [InlineKeyboardButton(text="Нет профильных предметов", callback_data="prof_sub_none")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_required_subjects")]
+        *get_main_menu_back_button()
     ])
 
 def get_second_profile_subject_kb(first_subject: str) -> InlineKeyboardMarkup:
@@ -51,7 +51,7 @@ def get_second_profile_subject_kb(first_subject: str) -> InlineKeyboardMarkup:
         if callback != first_subject:
             buttons.append([InlineKeyboardButton(text=name, callback_data=f"second_{callback}")])
     
-    buttons.append(get_universal_back_button())
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -63,7 +63,7 @@ def get_test_answers_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="C", callback_data="answer_C")],
         [InlineKeyboardButton(text="D", callback_data="answer_D")],
         # Пустая строка для визуального разделения
-        [InlineKeyboardButton(text="➖➖➖➖➖➖➖➖", callback_data="separator")],
+        # [InlineKeyboardButton(text="\u200B", callback_data="separator")],
         [InlineKeyboardButton(text="❌ Завершить тест", callback_data="end_trial_ent")]
     ])
 
