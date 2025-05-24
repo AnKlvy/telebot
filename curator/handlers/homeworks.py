@@ -132,45 +132,64 @@ async def show_group_stats(callback: CallbackQuery, state: FSMContext):
     
     # В реальном приложении здесь будет запрос к базе данных
     # для получения статистики по группе
-    group_stats = {
+    group_data = {
         "group1": {
             "name": "Интенсив. География",
-            "avg_completion": 75,
-            "lagging_students": [
-                {"id": "user1", "name": "Алтынай Ерланова"}
+            "subject": "Химия",
+            "homework_completion": 75,
+            "topics": {
+                "Алканы": 82,
+                "Изомерия": 37,
+                "Кислоты": 66
+            },
+            "rating": [
+                {"name": "Аружан", "points": 870},
+                {"name": "Диана", "points": 800},
+                {"name": "Мадияр", "points": 780}
             ]
         },
         "group2": {
             "name": "Интенсив. Математика",
-            "avg_completion": 82,
-            "lagging_students": [
-                {"id": "user2", "name": "Арман Сериков"}
+            "subject": "Химия",
+            "homework_completion": 80,
+            "topics": {
+                "Алканы": 78,
+                "Изомерия": 42,
+                "Кислоты": 70
+            },
+            "rating": [
+                {"name": "Арман", "points": 850},
+                {"name": "Алия", "points": 820},
+                {"name": "Диас", "points": 790}
             ]
         }
     }
     
-    stats = group_stats.get(group_id, {
+    stats = group_data.get(group_id, {
         "name": "Неизвестная группа",
-        "avg_completion": 0,
-        "lagging_students": []
+        "subject": "Неизвестный предмет",
+        "homework_completion": 0,
+        "topics": {},
+        "rating": []
     })
     
-    # Формируем текст с отстающими учениками
-    lagging_text = ""
-    if stats["lagging_students"]:
-        lagging_text = "Список отстающих (не выполняют ДЗ 5 дней подряд):\n"
-        for student in stats["lagging_students"]:
-            lagging_text += f"• {student['name']}\n"
-    else:
-        lagging_text = "Отстающих учеников нет."
+    # Формируем текст с рейтингом
+    rating_text = ""
+    if stats["rating"]:
+        rating_text = "📋 Рейтинг по баллам:\n"
+        for i, student in enumerate(stats["rating"], 1):
+            rating_text += f"{i}. {student['name']} — {student['points']} баллов\n"
     
-    # Добавляем пояснение к формуле расчета
-    formula_explanation = "(формула: % выполнения ДЗ = (выполнено единожды / все дз курса) * 100% и после сумма всех процентов и деление на количество учеников в группе)"
+    # Формируем текст с темами
+    topics_text = "📈 Средний % понимания по микротемам:\n"
+    for topic, percentage in stats["topics"].items():
+        topics_text += f"• {topic} — {percentage}%\n"
     
     await callback.message.edit_text(
-        f"Статистика по группе: {stats['name']}\n\n"
-        f"Средний % выполнения: {stats['avg_completion']}% {formula_explanation}\n\n"
-        f"{lagging_text}",
+        f"📗 {stats['subject']}\n"
+        f"📊 Средний % выполнения ДЗ: {stats['homework_completion']}%\n"
+        f"{topics_text}\n"
+        f"{rating_text}",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             *get_main_menu_back_button()
         ])
