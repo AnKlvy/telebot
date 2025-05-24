@@ -1,22 +1,12 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
+from ..states import CuratorHomeworkStates
 from ..keyboards.main import get_curator_main_menu_kb
 from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb
 from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb, get_students_by_homework_kb
 
 router = Router()
-
-class HomeworkStates(StatesGroup):
-    main = State()
-    student_stats_course = State()
-    student_stats_group = State()
-    student_stats_subject = State()
-    student_stats_lesson = State()
-    student_stats_list = State()
-    group_stats_group = State()
-    group_stats_result = State()
 
 @router.callback_query(F.data == "curator_homeworks")
 async def show_homework_menu(callback: CallbackQuery, state: FSMContext):
@@ -25,19 +15,19 @@ async def show_homework_menu(callback: CallbackQuery, state: FSMContext):
         "Выберите тип статистики:",
         reply_markup=get_homework_menu_kb()
     )
-    await state.set_state(HomeworkStates.main)
+    await state.set_state(CuratorHomeworkStates.homework_menu)
 
 # Обработчики для статистики по ученику
-@router.callback_query(HomeworkStates.main, F.data == "hw_student_stats")
+@router.callback_query(CuratorHomeworkStates.homework_menu, F.data == "hw_student_stats")
 async def select_student_stats_course(callback: CallbackQuery, state: FSMContext):
     """Выбор курса для статистики по ученику"""
     await callback.message.edit_text(
         "Выберите курс:",
         reply_markup=get_courses_kb()
     )
-    await state.set_state(HomeworkStates.student_stats_course)
+    await state.set_state(CuratorHomeworkStates.student_stats_course)
 
-@router.callback_query(HomeworkStates.student_stats_course, F.data.startswith("course_"))
+@router.callback_query(CuratorHomeworkStates.student_stats_course, F.data.startswith("course_"))
 async def select_student_stats_group(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для статистики по ученику"""
     course_id = callback.data.replace("course_", "")
@@ -47,9 +37,9 @@ async def select_student_stats_group(callback: CallbackQuery, state: FSMContext)
         "Выберите группу:",
         reply_markup=get_groups_kb(course_id)
     )
-    await state.set_state(HomeworkStates.student_stats_group)
+    await state.set_state(CuratorHomeworkStates.student_stats_group)
 
-@router.callback_query(HomeworkStates.student_stats_group, F.data.startswith("hw_group_"))
+@router.callback_query(CuratorHomeworkStates.student_stats_group, F.data.startswith("hw_group_"))
 async def select_student_stats_subject(callback: CallbackQuery, state: FSMContext):
     """Выбор предмета для статистики по ученику"""
     group_id = callback.data.replace("hw_group_", "")
@@ -59,9 +49,9 @@ async def select_student_stats_subject(callback: CallbackQuery, state: FSMContex
         "Выберите предмет:",
         reply_markup=get_subjects_kb()
     )
-    await state.set_state(HomeworkStates.student_stats_subject)
+    await state.set_state(CuratorHomeworkStates.student_stats_subject)
 
-@router.callback_query(HomeworkStates.student_stats_subject, F.data.startswith("subject_"))
+@router.callback_query(CuratorHomeworkStates.student_stats_subject, F.data.startswith("subject_"))
 async def select_student_stats_lesson(callback: CallbackQuery, state: FSMContext):
     """Выбор урока для статистики по ученику"""
     subject_id = callback.data.replace("subject_", "")
@@ -71,9 +61,9 @@ async def select_student_stats_lesson(callback: CallbackQuery, state: FSMContext
         "Выберите урок:",
         reply_markup=get_lessons_kb(subject_id)
     )
-    await state.set_state(HomeworkStates.student_stats_lesson)
+    await state.set_state(CuratorHomeworkStates.student_stats_lesson)
 
-@router.callback_query(HomeworkStates.student_stats_lesson, F.data.startswith("lesson_"))
+@router.callback_query(CuratorHomeworkStates.student_stats_lesson, F.data.startswith("lesson_"))
 async def show_student_stats_list(callback: CallbackQuery, state: FSMContext):
     """Показать список учеников с выполненными и невыполненными ДЗ"""
     lesson_id = callback.data.replace("lesson_", "")
@@ -112,19 +102,19 @@ async def show_student_stats_list(callback: CallbackQuery, state: FSMContext):
         "Выберите ученика для просмотра детальной информации или напишите сообщение:",
         reply_markup=get_students_by_homework_kb(lesson_id)
     )
-    await state.set_state(HomeworkStates.student_stats_list)
+    await state.set_state(CuratorHomeworkStates.student_stats_list)
 
 # Обработчики для статистики по группе
-@router.callback_query(HomeworkStates.main, F.data == "hw_group_stats")
+@router.callback_query(CuratorHomeworkStates.homework_menu, F.data == "hw_group_stats")
 async def select_group_stats_group(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для статистики по группе"""
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики:",
         reply_markup=get_groups_kb()
     )
-    await state.set_state(HomeworkStates.group_stats_group)
+    await state.set_state(CuratorHomeworkStates.group_stats_group)
 
-@router.callback_query(HomeworkStates.group_stats_group, F.data.startswith("hw_group_"))
+@router.callback_query(CuratorHomeworkStates.group_stats_group, F.data.startswith("hw_group_"))
 async def show_group_stats(callback: CallbackQuery, state: FSMContext):
     """Показать статистику по группе"""
     group_id = callback.data.replace("hw_group_", "")
@@ -174,7 +164,7 @@ async def show_group_stats(callback: CallbackQuery, state: FSMContext):
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_homework_menu")]
         ])
     )
-    await state.set_state(HomeworkStates.group_stats_result)
+    await state.set_state(CuratorHomeworkStates.group_stats_result)
 
 # Обработчики для навигации
 @router.callback_query(F.data == "back_to_curator_main")
@@ -191,25 +181,3 @@ async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
 async def back_to_homework_menu(callback: CallbackQuery, state: FSMContext):
     """Вернуться в меню домашних заданий"""
     await show_homework_menu(callback, state)
-
-@router.callback_query(F.data == "back_to_previous")
-async def back_to_previous_state(callback: CallbackQuery, state: FSMContext):
-    """Вернуться на предыдущий шаг"""
-    current_state = await state.get_state()
-    
-    # Определяем предыдущее состояние и соответствующий обработчик
-    if current_state == HomeworkStates.student_stats_course.state:
-        await show_homework_menu(callback, state)
-    elif current_state == HomeworkStates.student_stats_group.state:
-        await select_student_stats_course(callback, state)
-    elif current_state == HomeworkStates.student_stats_subject.state:
-        await select_student_stats_group(callback, state)
-    elif current_state == HomeworkStates.student_stats_lesson.state:
-        await select_student_stats_subject(callback, state)
-    elif current_state == HomeworkStates.student_stats_list.state:
-        await select_student_stats_lesson(callback, state)
-    elif current_state == HomeworkStates.group_stats_group.state:
-        await show_homework_menu(callback, state)
-    else:
-        # Если не удалось определить предыдущее состояние, возвращаемся в меню
-        await show_homework_menu(callback, state)

@@ -10,6 +10,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from dotenv import load_dotenv
 from common.handlers import router as common_router
+from common.navigation import register_handlers
 from student.handlers import router as student_router
 from student.handlers.homework import show_main_menu
 from curator.handlers import router as curator_router
@@ -49,7 +50,7 @@ async def main() -> None:
     dp.include_router(common_router)  # Добавляем первым, чтобы команды /start и /curator были обработаныasync def go_back(callback: CallbackQuery, state: FSMContext, **data):
     dp.include_router(student_router)
     dp.include_router(curator_router)
-    
+    register_handlers()  # ← перенос сюда
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
