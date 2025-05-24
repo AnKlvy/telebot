@@ -1,10 +1,21 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from ..states import CuratorHomeworkStates
+from aiogram.fsm.state import State, StatesGroup
 from ..keyboards.main import get_curator_main_menu_kb
 from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb
 from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb, get_students_by_homework_kb
+
+class CuratorHomeworkStates(StatesGroup):
+    group_stats_result = State()
+    student_stats_subject = State()
+    student_stats_group = State()
+    homework_menu = State()
+    student_stats_course = State()
+    student_stats_lesson = State()
+    student_stats_list = State()
+    group_stats_group = State()
+
 
 router = Router()
 

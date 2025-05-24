@@ -70,10 +70,16 @@ navigation_manager = NavigationManager()
 
 # Импортируем словари переходов и обработчиков
 from student.states import STATE_TRANSITIONS as STUDENT_TRANSITIONS, STATE_HANDLERS as STUDENT_HANDLERS
-from curator.states import STATE_TRANSITIONS as CURATOR_TRANSITIONS, STATE_HANDLERS as CURATOR_HANDLERS
+from curator.states_homework import STATE_TRANSITIONS as CURATOR_TRANSITIONS, STATE_HANDLERS as CURATOR_HANDLERS
+from curator.states_analytics import STATE_TRANSITIONS as ANALYTICS_TRANSITIONS, STATE_HANDLERS as ANALYTICS_HANDLERS
 
 # Регистрируем роли
 def register_handlers():
     from curator.handlers.main import show_curator_main_menu
+
+    # Объединяем словари переходов и обработчиков для куратора
+    curator_transitions = {**CURATOR_TRANSITIONS, **ANALYTICS_TRANSITIONS}
+    curator_handlers = {**CURATOR_HANDLERS, **ANALYTICS_HANDLERS}
+
     navigation_manager.register_role("student", STUDENT_TRANSITIONS, {None: show_main_menu, **STUDENT_HANDLERS})
-    navigation_manager.register_role("curator", CURATOR_TRANSITIONS, {None: show_curator_main_menu, **CURATOR_HANDLERS})
+    navigation_manager.register_role("curator", curator_transitions, {None: show_curator_main_menu, **curator_handlers})

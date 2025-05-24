@@ -1,8 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-from ..keyboards.main import get_curator_main_menu_kb
 from ..keyboards.analytics import (
     get_analytics_menu_kb, get_groups_for_analytics_kb, 
     get_students_for_analytics_kb, get_back_to_analytics_kb
@@ -11,8 +9,7 @@ from common.statistics import (
     get_student_topics_stats, get_group_stats,
     format_student_topics_stats, format_group_stats
 )
-
-router = Router()
+from aiogram.fsm.state import State, StatesGroup
 
 class AnalyticsStates(StatesGroup):
     main = State()
@@ -21,6 +18,9 @@ class AnalyticsStates(StatesGroup):
     student_stats = State()
     select_group_for_group = State()
     group_stats = State()
+
+
+router = Router()
 
 @router.callback_query(F.data == "curator_analytics")
 async def show_analytics_menu(callback: CallbackQuery, state: FSMContext):
@@ -96,19 +96,3 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_back_to_analytics_kb()
     )
     await state.set_state(AnalyticsStates.group_stats)
-
-# Обработчики для навигации
-@router.callback_query(F.data == "back_to_analytics_menu")
-async def back_to_analytics_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в меню аналитики"""
-    await show_analytics_menu(callback, state)
-
-@router.callback_query(F.data == "back_to_analytics_groups")
-async def back_to_analytics_groups(callback: CallbackQuery, state: FSMContext):
-    """Вернуться к выбору группы"""
-    current_state = await state.get_state()
-    
-    if current_state == AnalyticsStates.select_student.state:
-        await select_group_for_student_analytics(callback, state)
-    else:
-        await select_group_for_group_analytics(callback, state)

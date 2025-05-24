@@ -1,25 +1,14 @@
-from aiogram.fsm.state import State, StatesGroup
-
-class CuratorHomeworkStates(StatesGroup):
-    group_stats_result = State()
-    student_stats_subject = State()
-    student_stats_group = State()
-    homework_menu = State()
-    student_stats_course = State()
-    student_stats_lesson = State()
-    student_stats_list = State()
-    group_stats_group = State()
-
 # Импортируем обработчики после определения класса состояний
 from curator.handlers.homeworks import (
-    show_homework_menu, 
+    show_homework_menu,
     select_student_stats_course,
     select_student_stats_group,
     select_student_stats_subject,
-    select_student_stats_lesson, 
-    show_student_stats_list, 
+    select_student_stats_lesson,
+    show_student_stats_list,
     select_group_stats_group,
-    show_group_stats
+    show_group_stats,
+    CuratorHomeworkStates
 )
 
 # Словарь переходов между состояниями
