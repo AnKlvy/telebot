@@ -196,7 +196,7 @@ async def send_mass_message(callback: CallbackQuery, state: FSMContext):
     # Словарь с учениками по группам (в реальном приложении это будет из БД)
     group_students = {
         "group1": [
-            {"id": "student1", "telegram_id": 123456789, "name": "Медина Махамбет"},
+            {"id": "student1", "telegram_id": 7265679697, "name": "Медина Махамбет"},
             {"id": "student2", "telegram_id": 987654321, "name": "Алтынай Ерланова"}
         ],
         "group2": [

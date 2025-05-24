@@ -1,5 +1,8 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+from common.keyboards import get_universal_back_button
+
+
 def get_analytics_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
     return InlineKeyboardMarkup(inline_keyboard=[

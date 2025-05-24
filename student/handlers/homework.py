@@ -1,5 +1,4 @@
 from aiogram import Router, F
-from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -19,15 +18,6 @@ class HomeworkStates(StatesGroup):
     confirmation = State()
     test_in_progress = State()  # Новое состояние
 
-@router.message(CommandStart())
-async def main_menu_command(message: Message, user_role: str = None):
-    # Если роль не передана или это студент, показываем меню студента
-    if user_role is None or user_role == "student":
-        await show_main_menu(message)
-
-@router.message(F.text.func(lambda text: text.lower() == "меню"), F.func(lambda msg, data: data["user_role"] == "student"))
-async def main_menu_text(message: Message):
-    await show_main_menu(message)
 
 async def show_main_menu(message: Message):
     await message.answer(
