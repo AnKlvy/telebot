@@ -12,10 +12,13 @@ router = Router()
 
 class MessageStates(StatesGroup):
     main = State()
-    select_group = State()
+    # Состояния для индивидуальных сообщений
+    select_group_individual = State()
     select_student = State()
     enter_individual_message = State()
     confirm_individual_message = State()
+    # Состояния для массовых сообщений
+    select_group_mass = State()
     enter_mass_message = State()
     confirm_mass_message = State()
 
@@ -36,14 +39,14 @@ async def select_group_for_individual(callback: CallbackQuery, state: FSMContext
         "Выберите группу ученика:",
         reply_markup=get_groups_for_message_kb()
     )
-    await state.set_state(MessageStates.select_group)
+    await state.set_state(MessageStates.select_group_individual)
 
-@router.callback_query(MessageStates.select_group, F.data.startswith("msg_group_"))
+@router.callback_query(MessageStates.select_group_individual, F.data.startswith("msg_group_"))
 async def select_student_for_message(callback: CallbackQuery, state: FSMContext):
     """Выбор ученика для индивидуального сообщения"""
     group_id = callback.data.replace("msg_group_", "")
     await state.update_data(selected_group=group_id)
-    
+
     await callback.message.edit_text(
         "Выберите ученика для отправки сообщения:",
         reply_markup=get_students_for_message_kb(group_id)
@@ -54,7 +57,7 @@ async def select_student_for_message(callback: CallbackQuery, state: FSMContext)
 async def enter_individual_message(callback: CallbackQuery, state: FSMContext):
     """Ввод текста индивидуального сообщения"""
     student_id = callback.data.replace("msg_student_", "")
-    
+
     # В реальном приложении здесь будет запрос к базе данных
     student_names = {
         "student1": "Медина Махамбет",
@@ -62,11 +65,11 @@ async def enter_individual_message(callback: CallbackQuery, state: FSMContext):
         "student3": "Арман Сериков",
         "student4": "Аружан Ахметова"
     }
-    
+
     student_name = student_names.get(student_id, "Неизвестный ученик")
-    
+
     await state.update_data(selected_student=student_id, student_name=student_name)
-    
+
     await callback.message.edit_text(
         f"Введите текст сообщения для ученика {student_name}:"
     )
@@ -78,9 +81,9 @@ async def confirm_individual_message(message: Message, state: FSMContext):
     message_text = message.text
     user_data = await state.get_data()
     student_name = user_data.get("student_name", "Неизвестный ученик")
-    
+
     await state.update_data(message_text=message_text)
-    
+
     # Используем message.answer вместо callback.message.edit_text
     await message.answer(
         f"Проверьте сообщение для ученика {student_name}:\n\n"
@@ -96,10 +99,10 @@ async def send_individual_message(callback: CallbackQuery, state: FSMContext):
     student_id = user_data.get("selected_student")
     student_name = user_data.get("student_name", "Неизвестный ученик")
     message_text = user_data.get("message_text", "")
-    
+
     # Получаем бота из контекста
     bot = callback.bot
-    
+
     # Словарь с Telegram ID учеников (в реальном приложении это будет из БД)
     student_telegram_ids = {
         "student1": 7265679697,  # Замените на реальный ID
@@ -107,10 +110,10 @@ async def send_individual_message(callback: CallbackQuery, state: FSMContext):
         "student3": 123123123,  # Замените на реальный ID
         "student4": 321321321   # Замените на реальный ID
     }
-    
+
     # Получаем Telegram ID ученика
     telegram_id = student_telegram_ids.get(student_id)
-    
+
     success = False
     if telegram_id:
         try:
@@ -122,7 +125,7 @@ async def send_individual_message(callback: CallbackQuery, state: FSMContext):
             success = True
         except Exception as e:
             print(f"Ошибка при отправке сообщения: {e}")
-    
+
     if success:
         await callback.message.edit_text(
             f"✅ Сообщение успешно отправлено ученику {student_name}!",
@@ -133,7 +136,7 @@ async def send_individual_message(callback: CallbackQuery, state: FSMContext):
             f"❌ Не удалось отправить сообщение ученику {student_name}. Проверьте ID ученика.",
             reply_markup=get_messages_menu_kb()
         )
-    
+
     await state.set_state(MessageStates.main)
 
 # Обработчики для массовой рассылки
@@ -144,9 +147,9 @@ async def select_group_for_mass(callback: CallbackQuery, state: FSMContext):
         "Выберите группу для массовой рассылки:",
         reply_markup=get_groups_for_message_kb()
     )
-    await state.set_state(MessageStates.select_group)
+    await state.set_state(MessageStates.select_group_mass)
 
-@router.callback_query(MessageStates.select_group, F.data.startswith("msg_group_"))
+@router.callback_query(MessageStates.select_group_mass, F.data.startswith("msg_group_"))
 async def enter_mass_message(callback: CallbackQuery, state: FSMContext):
     """Ввод текста массовой рассылки"""
     group_id = callback.data.replace("msg_group_", "")
@@ -197,11 +200,11 @@ async def send_mass_message(callback: CallbackQuery, state: FSMContext):
     group_students = {
         "group1": [
             {"id": "student1", "telegram_id": 7265679697, "name": "Медина Махамбет"},
-            {"id": "student2", "telegram_id": 987654321, "name": "Алтынай Ерланова"}
+            {"id": "student2", "telegram_id": 955518340, "name": "Андрей Климов"}
         ],
         "group2": [
-            {"id": "student3", "telegram_id": 123123123, "name": "Арман Сериков"},
-            {"id": "student4", "telegram_id": 321321321, "name": "Аружан Ахметова"}
+            {"id": "student3", "telegram_id": 7265679697, "name": "Арман Сериков"},
+            {"id": "student4", "telegram_id": 955518340, "name": "Аружан Ахметова"}
         ]
     }
     
