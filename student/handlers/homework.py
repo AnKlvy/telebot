@@ -1,12 +1,20 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from ..states import HomeworkStates, STATE_TRANSITIONS, STATE_HANDLERS
 from ..keyboards.homework import (
     get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb,
     get_homeworks_kb, get_confirm_kb, get_test_answers_kb, get_after_test_kb
 )
 from .test_logic import start_test_process, process_test_answer
+from aiogram.fsm.state import State, StatesGroup
+
+class HomeworkStates(StatesGroup):
+    course = State()
+    subject = State()
+    lesson = State()
+    homework = State()
+    confirmation = State()
+    test_in_progress = State()
 
 router = Router()
 

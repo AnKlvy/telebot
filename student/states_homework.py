@@ -1,12 +1,5 @@
-from aiogram.fsm.state import State, StatesGroup
-
-class HomeworkStates(StatesGroup):
-    course = State()
-    subject = State()
-    lesson = State()
-    homework = State()
-    confirmation = State()
-    test_in_progress = State()
+from student.handlers.homework import HomeworkStates, confirm_homework, choose_homework, choose_lesson, choose_subject, \
+    choose_course
 
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
@@ -20,9 +13,9 @@ STATE_TRANSITIONS = {
 
 # Словарь обработчиков для каждого состояния
 STATE_HANDLERS = {
-    HomeworkStates.course: "choose_course",
-    HomeworkStates.subject: "choose_subject",
-    HomeworkStates.lesson: "choose_lesson",
-    HomeworkStates.homework: "choose_homework",
-    HomeworkStates.confirmation: "confirm_homework"
+    HomeworkStates.course: choose_course,
+    HomeworkStates.subject: choose_subject,
+    HomeworkStates.lesson: choose_lesson,
+    HomeworkStates.homework: choose_homework,
+    HomeworkStates.confirmation: confirm_homework
 }
