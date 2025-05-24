@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from common.handlers import router as common_router
 from common.navigation import register_handlers
 from student.handlers import router as student_router
-from student.handlers.homework import show_main_menu
+from student.handlers.main import show_student_main_menu
 from curator.handlers import router as curator_router
 from curator.handlers.main import show_curator_main_menu
 from middlewares.role_middleware import RoleMiddleware
@@ -26,7 +26,7 @@ async def start_command(message: Message, user_role: str):
     if user_role == "curator":
         await show_curator_main_menu(message)
     else:  # По умолчанию считаем пользователя студентом
-        await show_main_menu(message)
+        await show_student_main_menu(message)
 
 async def curator_command(message: Message):
     """Обработчик команды /curator, открывающий меню куратора"""

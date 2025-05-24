@@ -1,17 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from common.keyboards import get_universal_back_button
 
-def get_main_menu_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Домашнее задание", callback_data="homework")],
-        [InlineKeyboardButton(text="📊 Мой прогресс", callback_data="progress")],
-        [InlineKeyboardButton(text="🎁 Магазин", callback_data="shop")],
-        [InlineKeyboardButton(text="🧠 Тест-отчет", callback_data="test_report")],
-        [InlineKeyboardButton(text="🧪 Пробный ЕНТ", callback_data="trial_ent")],
-        [InlineKeyboardButton(text="📞 Связь с куратором", callback_data="curator")],
-        [InlineKeyboardButton(text="❓ Аккаунт", callback_data="account")]
-    ])
-
 def get_courses_kb() -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
@@ -71,6 +60,6 @@ def get_after_test_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 Пройти ещё раз", callback_data="retry_test")],
         [InlineKeyboardButton(text="📊 Мой прогресс", callback_data="progress")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main_menu")]
+        get_universal_back_button("🏠 Главное меню", "back_to_main")
     ])
 

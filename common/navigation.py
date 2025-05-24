@@ -2,7 +2,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from typing import Dict, Callable, Any, Optional
 
-from student.handlers import show_main_menu
+from student.handlers.main import show_student_main_menu
 
 
 class NavigationManager:
@@ -72,6 +72,7 @@ navigation_manager = NavigationManager()
 from student.states.states_homework import STATE_TRANSITIONS as STUDENT_TRANSITIONS, STATE_HANDLERS as STUDENT_HANDLERS
 from curator.states.states_homework import STATE_TRANSITIONS as CURATOR_TRANSITIONS, STATE_HANDLERS as CURATOR_HANDLERS
 from curator.states.states_analytics import STATE_TRANSITIONS as ANALYTICS_TRANSITIONS, STATE_HANDLERS as ANALYTICS_HANDLERS
+from student.states.states_curator_contact import STATE_TRANSITIONS as CURATOR_CONTACT_TRANSITIONS, STATE_HANDLERS as CURATOR_CONTACT_HANDLERS
 
 # Регистрируем роли
 def register_handlers():
@@ -81,5 +82,9 @@ def register_handlers():
     curator_transitions = {**CURATOR_TRANSITIONS, **ANALYTICS_TRANSITIONS}
     curator_handlers = {**CURATOR_HANDLERS, **ANALYTICS_HANDLERS}
 
-    navigation_manager.register_role("student", STUDENT_TRANSITIONS, {None: show_main_menu, **STUDENT_HANDLERS})
+    # Объединяем словари переходов и обработчиков для студента
+    student_transitions = {**STUDENT_TRANSITIONS, **CURATOR_CONTACT_TRANSITIONS}
+    student_handlers = {**STUDENT_HANDLERS, **CURATOR_CONTACT_HANDLERS}
+
+    navigation_manager.register_role("student", student_transitions, {None: show_student_main_menu, **student_handlers})
     navigation_manager.register_role("curator", curator_transitions, {None: show_curator_main_menu, **curator_handlers})

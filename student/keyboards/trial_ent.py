@@ -1,10 +1,11 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from common.keyboards import get_universal_back_button
 
 def get_trial_ent_start_kb() -> InlineKeyboardMarkup:
     """Клавиатура для начала пробного ЕНТ"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="▶️ Начать пробный ЕНТ", callback_data="start_trial_ent")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        get_universal_back_button("🏠 Главное меню", "back_to_main")
     ])
 
 def get_required_subjects_kb() -> InlineKeyboardMarkup:
@@ -13,7 +14,7 @@ def get_required_subjects_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="История Казахстана", callback_data="req_sub_kz")],
         [InlineKeyboardButton(text="Математическая грамотность", callback_data="req_sub_mathlit")],
         [InlineKeyboardButton(text="История Казахстана и Математическая грамотность", callback_data="req_sub_both")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_trial_ent")]
+        get_universal_back_button("⬅️ Назад", "back_to_trial_ent")
     ])
 
 def get_profile_subjects_kb() -> InlineKeyboardMarkup:
@@ -69,7 +70,7 @@ def get_after_trial_ent_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Посмотреть аналитику", callback_data="view_analytics")],
         [InlineKeyboardButton(text="🔄 Пройти ещё раз", callback_data="retry_trial_ent")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        get_universal_back_button("🏠 Главное меню", "back_to_main")
     ])
 
 def get_analytics_subjects_kb(subjects: list) -> InlineKeyboardMarkup:
@@ -94,13 +95,13 @@ def get_analytics_subjects_kb(subjects: list) -> InlineKeyboardMarkup:
         elif subject == "world":
             buttons.append([InlineKeyboardButton(text="Всемирная история", callback_data="analytics_world")])
     
-    buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_trial_ent_results")])
+    buttons.append(get_universal_back_button("⬅️ Назад", "back_to_trial_ent_results"))
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата к выбору предмета для аналитики"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад к выбору предмета", callback_data="back_to_analytics_subjects")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        get_universal_back_button("⬅️ Назад к выбору предмета", "back_to_analytics_subjects"),
+        get_universal_back_button("🏠 Главное меню", "back_to_main")
     ])

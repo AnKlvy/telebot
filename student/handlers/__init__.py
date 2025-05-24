@@ -1,4 +1,4 @@
-from .homework import router as homework_router, show_main_menu
+from .homework import router as homework_router
 from .progress import router as progress_router
 from .shop import router as shop_router
 from .test_report import router as test_report_router
@@ -14,4 +14,4 @@ router.include_router(trial_ent_router)
 router.include_router(curator_contact_router)
 router.include_router(account_router)
 
-__all__ = ["router", "show_main_menu"]
+__all__ = ["router"]

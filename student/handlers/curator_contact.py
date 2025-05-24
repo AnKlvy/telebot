@@ -24,7 +24,7 @@ async def show_curator_menu(callback: CallbackQuery, state: FSMContext):
 async def show_curator_info(callback: CallbackQuery, state: FSMContext):
     """Показать информацию о кураторе по выбранному предмету"""
     subject_id = callback.data.replace("curator_", "")
-    
+
     # Определяем название предмета
     subject_names = {
         "chem": "Химия",
@@ -33,7 +33,7 @@ async def show_curator_info(callback: CallbackQuery, state: FSMContext):
         "mathlit": "Матемграмотность"
     }
     subject_name = subject_names.get(subject_id, "")
-    
+
     # В реальном приложении здесь будет логика получения информации о кураторе из базы данных
     # Для примера используем фиксированные значения
     curator_info = {
@@ -54,11 +54,11 @@ async def show_curator_info(callback: CallbackQuery, state: FSMContext):
             "telegram": "@mathlit_curator04"
         }
     }
-    
+
     curator = curator_info.get(subject_id, {})
     group = curator.get("group", "")
     telegram = curator.get("telegram", "")
-    
+
     await callback.message.edit_text(
         f"Куратор по предмету {subject_name}:\n"
         f"Группа: {group}\n"
@@ -66,8 +66,3 @@ async def show_curator_info(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_back_to_curator_kb()
     )
     await state.set_state(CuratorStates.curator_info)
-
-@router.callback_query(F.data == "back_to_curator")
-async def back_to_curator_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться к выбору предмета куратора"""
-    await show_curator_menu(callback, state)

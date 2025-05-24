@@ -1,8 +1,10 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+
+from .main import show_student_main_menu
 from ..keyboards.homework import (
-    get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb,
+    get_courses_kb, get_subjects_kb, get_lessons_kb,
     get_homeworks_kb, get_confirm_kb, get_test_answers_kb, get_after_test_kb
 )
 from .test_logic import start_test_process, process_test_answer
@@ -18,13 +20,6 @@ class HomeworkStates(StatesGroup):
 
 router = Router()
 
-async def show_main_menu(message: Message):
-    await message.answer(
-        "Привет 👋\n"
-        "Здесь ты можешь проходить домашки, прокачивать темы, отслеживать свой прогресс и готовиться к ЕНТ.\n"
-        "Ниже — все разделы, которые тебе доступны:",
-        reply_markup=get_main_menu_kb()
-    )
 
 @router.callback_query(F.data == "homework")
 async def choose_course(callback: CallbackQuery, state: FSMContext):
@@ -101,13 +96,6 @@ async def confirm_homework(callback: CallbackQuery, state: FSMContext):
 async def start_test(callback: CallbackQuery, state: FSMContext):
     await start_test_process(callback, state)
     await state.set_state(HomeworkStates.test_in_progress)
-
-@router.callback_query(F.data == "back_to_main_menu")
-async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
-    """Возврат в главное меню"""
-    await callback.message.delete()
-    await show_main_menu(callback.message)
-    await state.clear()
 
 # Обработчик ответов на вопросы теста
 @router.callback_query(HomeworkStates.test_in_progress, F.data.startswith("answer_"))
