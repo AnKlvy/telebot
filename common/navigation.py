@@ -39,8 +39,8 @@ class NavigationManager:
         print(f"DEBUG: Предыдущее состояние: {previous_state}")
         
         if previous_state is None:
-            # Возвращаемся в главное меню
-            print("DEBUG: Возвращаемся в главное меню")
+            # Возвращаемся в главное меню соответствующей роли
+            print(f"DEBUG: Возвращаемся в главное меню для роли: {user_role}")
             handler = handlers.get(None)
             if handler:
                 await callback.message.delete()
@@ -61,6 +61,20 @@ class NavigationManager:
                     await callback.message.delete()
                     await main_handler(callback.message)
                     await state.clear()
+    
+    async def handle_main_menu(self, callback: CallbackQuery, state: FSMContext, user_role: str):
+        """Универсальный обработчик кнопки главного меню"""
+        print(f"DEBUG: Обработка 'главное меню'. Роль: {user_role}")
+        
+        # Получаем обработчики для роли
+        handlers = self.handlers_map.get(user_role, {})
+        
+        # Вызываем обработчик главного меню для соответствующей роли
+        main_handler = handlers.get(None)
+        if main_handler:
+            await callback.message.delete()
+            await main_handler(callback.message)
+            await state.clear()
 
 # Создаем глобальный экземпляр менеджера навигации
 navigation_manager = NavigationManager()
