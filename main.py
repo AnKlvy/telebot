@@ -10,7 +10,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from dotenv import load_dotenv
 from common.handlers import router as common_router
-from common.navigation import register_handlers
+from common.register_handlers_and_transitions import register_handlers
 from student.handlers import router as student_router
 from student.handlers.main import show_student_main_menu
 from curator.handlers import router as curator_router
