@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from dotenv import load_dotenv
-
+from common.handlers import router as common_router
 from student.handlers import router as student_router
 from student.handlers.homework import show_main_menu
 from curator.handlers import router as curator_router
@@ -46,6 +46,7 @@ async def main() -> None:
     dp.message.register(curator_command, Command("curator"))
     
     # Включаем роутеры для разных ролей
+    dp.include_router(common_router)  # Добавляем первым, чтобы команды /start и /curator были обработаныasync def go_back(callback: CallbackQuery, state: FSMContext, **data):
     dp.include_router(student_router)
     dp.include_router(curator_router)
     

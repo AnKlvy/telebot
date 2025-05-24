@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
+from ..states import HomeworkStates, STATE_TRANSITIONS, STATE_HANDLERS
 from ..keyboards.homework import (
     get_main_menu_kb, get_courses_kb, get_subjects_kb, get_lessons_kb,
     get_homeworks_kb, get_confirm_kb, get_test_answers_kb, get_after_test_kb
@@ -9,15 +9,6 @@ from ..keyboards.homework import (
 from .test_logic import start_test_process, process_test_answer
 
 router = Router()
-
-class HomeworkStates(StatesGroup):
-    course = State()
-    subject = State()
-    lesson = State()
-    homework = State()
-    confirmation = State()
-    test_in_progress = State()  # Новое состояние
-
 
 async def show_main_menu(message: Message):
     await message.answer(
@@ -103,28 +94,6 @@ async def start_test(callback: CallbackQuery, state: FSMContext):
     await start_test_process(callback, state)
     await state.set_state(HomeworkStates.test_in_progress)
 
-# Словарь переходов между состояниями
-STATE_TRANSITIONS = {
-    HomeworkStates.confirmation: HomeworkStates.homework,
-    HomeworkStates.homework: HomeworkStates.lesson,
-    HomeworkStates.lesson: HomeworkStates.subject,
-    HomeworkStates.subject: HomeworkStates.course,
-    HomeworkStates.course: None,  # None означает возврат в главное меню
-    HomeworkStates.test_in_progress: HomeworkStates.confirmation  # Добавляем переход из теста к экрану подтверждения
-}
-
-# Словарь обработчиков для каждого состояния
-STATE_HANDLERS = {
-    HomeworkStates.course: choose_course,
-    HomeworkStates.subject: choose_subject,
-    HomeworkStates.lesson: choose_lesson,
-    HomeworkStates.homework: choose_homework,
-    HomeworkStates.confirmation: confirm_homework
-    # Для test_in_progress не нужен обработчик, так как мы переходим к confirmation
-}
-
-
-
 @router.callback_query(F.data == "back_to_main_menu")
 async def back_to_main_menu(callback: CallbackQuery, state: FSMContext):
     """Возврат в главное меню"""
@@ -140,7 +109,6 @@ async def process_answer(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "retry_test")
 async def retry_test(callback: CallbackQuery, state: FSMContext):
-    # Возвращаемся к выбору домашнего задания
     await callback.message.edit_text(
         "Вот доступные домашние задания по этой теме👇",
         reply_markup=get_homeworks_kb()
