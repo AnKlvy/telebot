@@ -112,7 +112,7 @@ async def show_test_question(callback: CallbackQuery, state: FSMContext, questio
     
     if question_number > len(test_questions):
         # Если вопросы закончились, завершаем тест
-        await finish_course_entry_test(callback, state)
+        await finish_test(callback, state)
         return
     
     question = test_questions[question_number - 1]
@@ -177,18 +177,20 @@ async def process_test_answer(callback: CallbackQuery, state: FSMContext):
             await show_test_question(callback, state, next_question)
         else:
             # Иначе завершаем тест
-            await finish_course_entry_test(callback, state)
+            await finish_test(callback, state)
     else:
         # Если все вопросы пройдены, завершаем тест
-        await finish_course_entry_test(callback, state)
+        await finish_test(callback, state)
 
-async def finish_course_entry_test(callback: CallbackQuery, state: FSMContext):
-    """Завершение входного теста курса и показ результатов"""
+async def finish_test(callback: CallbackQuery, state: FSMContext):
+    """Завершение теста и показ результатов"""
     user_data = await state.get_data()
+    test_type = user_data.get("test_type", "")
+    selected_subject = user_data.get("selected_subject", "")
+    selected_month = user_data.get("selected_month", "")
     total_questions = user_data.get("total_questions", 0)
     correct_answers = user_data.get("correct_answers", 0)
     topics_progress = user_data.get("topics_progress", {})
-    selected_subject = user_data.get("selected_subject", "chem")
     
     # Определяем название предмета
     subject_names = {
@@ -210,29 +212,28 @@ async def finish_course_entry_test(callback: CallbackQuery, state: FSMContext):
             percentage = int((data["correct"] / data["total"]) * 100)
             topics_percentages[topic] = percentage
     
-    # Добавляем темы, которые не были проверены
-    all_topics = ["Алканы", "Изомерия", "Кислоты", "Циклоалканы"]  # В реальном приложении это будет список всех тем предмета
-    for topic in all_topics:
-        if topic not in topics_percentages:
-            topics_percentages[topic] = None
+    # Формируем текст с результатами в зависимости от типа теста
+    if test_type == "course_entry":
+        result_text = f"📊 Входной тест курса пройден\nРезультат:\n📗 {subject_name}:\n"
+    elif test_type == "month_entry":
+        result_text = f"📊 Входной тест месяца {selected_month} пройден\nРезультат:\n📗 {subject_name}:\n"
+    elif test_type == "month_control":
+        result_text = f"📊 Контрольный тест месяца {selected_month} пройден\nРезультат:\n📗 {subject_name}:\n"
+    else:
+        result_text = f"📊 Тест пройден\nРезультат:\n📗 {subject_name}:\n"
     
-    # Формируем текст с результатами
-    result_text = f"📊 Входной тест курса пройден\nРезультат:\n📗 {subject_name}:\n"
     result_text += f"Верных: {correct_answers} / {total_questions}\n"
     
     # Добавляем информацию о каждой теме
     for topic, percentage in topics_percentages.items():
-        if percentage is None:
-            result_text += f"• {topic} — ❌ Не проверено\n"
-        else:
-            status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
-            result_text += f"• {topic} — {percentage}% {status}\n"
+        status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
+        result_text += f"• {topic} — {percentage}% {status}\n"
     
     # Определяем сильные и слабые темы
     strong_topics = [topic for topic, percentage in topics_percentages.items() 
-                    if percentage is not None and percentage >= 80]
+                    if percentage >= 80]
     weak_topics = [topic for topic, percentage in topics_percentages.items() 
-                  if percentage is not None and percentage <= 40]
+                  if percentage <= 40]
     
     # Добавляем информацию о сильных и слабых темах
     if strong_topics:
@@ -314,8 +315,8 @@ async def choose_month_entry_month(callback: CallbackQuery, state: FSMContext):
     await state.set_state(TestReportStates.month_entry_month)
 
 @router.callback_query(TestReportStates.month_entry_month, F.data.startswith("month_entry_"))
-async def show_month_entry_test_result(callback: CallbackQuery, state: FSMContext):
-    """Показать результат входного теста месяца"""
+async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора месяца для входного теста месяца"""
     # Получаем данные о выбранном предмете и месяце
     data = callback.data.split("_")
     month = data[-1]
@@ -323,21 +324,64 @@ async def show_month_entry_test_result(callback: CallbackQuery, state: FSMContex
     user_data = await state.get_data()
     subject_id = user_data.get("subject_id", "")
     
-    # Определяем название предмета
-    subject_name = "Химия"  # В реальном приложении это будет определяться по subject_id
+    print(f"DEBUG: Обработка выбора месяца для входного теста: предмет {subject_id}, месяц {month}")
     
-    # Получаем результаты теста
+    # Проверяем, проходил ли пользователь уже этот тест
     test_id = f"month_entry_{subject_id}_{month}"
     test_results = get_test_results(test_id, "student1")  # В реальном приложении здесь будет ID студента
+    print(f"DEBUG: Результаты теста: {test_results}")
     
-    # Форматируем результаты
-    result_text = format_test_result(test_results, subject_name, "month_entry", month)
+    if test_results and test_results.get("total_questions", 0) > 0:
+        # Если тест уже пройден, показываем результаты
+        subject_names = {
+            "kz": "История Казахстана",
+            "mathlit": "Математическая грамотность",
+            "math": "Математика",
+            "geo": "География",
+            "bio": "Биология",
+            "chem": "Химия",
+            "inf": "Информатика",
+            "world": "Всемирная история"
+        }
+        subject_name = subject_names.get(subject_id, "Неизвестный предмет")
+        print(f"DEBUG: Показываем результаты для предмета: {subject_name}, месяц: {month}")
+        
+        # Форматируем результаты
+        result_text = format_test_result(test_results, subject_name, "month_entry", month)
+        
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_test_report_kb()
+        )
+        await state.set_state(TestReportStates.test_result)
+    else:
+        # Если тест еще не пройден, начинаем его
+        print(f"DEBUG: Начинаем тест для предмета: {subject_id}, месяц: {month}")
+        await start_month_entry_test(callback, state, subject_id, month)
+
+async def start_month_entry_test(callback: CallbackQuery, state: FSMContext, subject_id: str, month: str):
+    """Начать входной тест месяца по выбранному предмету и месяцу"""
+    # Сохраняем информацию о выбранном предмете и месяце
+    await state.update_data(selected_subject=subject_id, selected_month=month)
     
-    await callback.message.edit_text(
-        result_text,
-        reply_markup=get_back_to_test_report_kb()
+    # Получаем случайные вопросы для теста
+    # В реальном приложении здесь будет запрос к базе данных
+    test_questions = generate_random_questions(20)  # Для месячного теста меньше вопросов
+    
+    await state.update_data(
+        test_started=True,
+        test_type="month_entry",
+        total_questions=len(test_questions),
+        current_question=1,
+        correct_answers=0,
+        user_answers={},
+        test_questions=test_questions,
+        topics_progress={}  # Для отслеживания прогресса по темам
     )
-    await state.set_state(TestReportStates.test_result)
+    
+    # Показываем первый вопрос
+    await show_test_question(callback, state, 1)
+    await state.set_state(TestReportStates.test_in_progress)
 
 @router.callback_query(TestReportStates.main, F.data == "month_control_test")
 async def choose_month_control_subject(callback: CallbackQuery, state: FSMContext):
@@ -363,8 +407,8 @@ async def choose_month_control_month(callback: CallbackQuery, state: FSMContext)
     await state.set_state(TestReportStates.month_control_month)
 
 @router.callback_query(TestReportStates.month_control_month, F.data.startswith("month_control_"))
-async def show_month_control_test_result(callback: CallbackQuery, state: FSMContext):
-    """Показать результат контрольного теста месяца"""
+async def handle_month_control_month(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора месяца для контрольного теста месяца"""
     # Получаем данные о выбранном предмете и месяце
     data = callback.data.split("_")
     month = data[-1]
@@ -372,24 +416,76 @@ async def show_month_control_test_result(callback: CallbackQuery, state: FSMCont
     user_data = await state.get_data()
     subject_id = user_data.get("subject_id", "")
     
-    # Определяем название предмета
-    subject_name = "Химия"  # В реальном приложении это будет определяться по subject_id
+    print(f"DEBUG: Обработка выбора месяца для контрольного теста: предмет {subject_id}, месяц {month}")
     
-    # Получаем результаты входного и контрольного тестов
+    # Проверяем, проходил ли пользователь уже этот тест
+    test_id = f"month_control_{subject_id}_{month}"
+    test_results = get_test_results(test_id, "student1")  # В реальном приложении здесь будет ID студента
+    print(f"DEBUG: Результаты теста: {test_results}")
+    
+    # Также проверяем, проходил ли пользователь входной тест для этого месяца
     entry_test_id = f"month_entry_{subject_id}_{month}"
-    control_test_id = f"month_control_{subject_id}_{month}"
+    entry_results = get_test_results(entry_test_id, "student1")
     
-    entry_results = get_test_results(entry_test_id, "student1")  # В реальном приложении здесь будет ID студента
-    control_results = get_test_results(control_test_id, "student1")  # В реальном приложении здесь будет ID студента
+    if test_results and test_results.get("total_questions", 0) > 0:
+        # Если тест уже пройден, показываем сравнение результатов
+        subject_names = {
+            "kz": "История Казахстана",
+            "mathlit": "Математическая грамотность",
+            "math": "Математика",
+            "geo": "География",
+            "bio": "Биология",
+            "chem": "Химия",
+            "inf": "Информатика",
+            "world": "Всемирная история"
+        }
+        subject_name = subject_names.get(subject_id, "Неизвестный предмет")
+        print(f"DEBUG: Показываем сравнение для предмета: {subject_name}, месяц: {month}")
+        
+        # Форматируем сравнение результатов
+        result_text = format_test_comparison(entry_results, test_results, subject_name, month)
+        
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_test_report_kb()
+        )
+        await state.set_state(TestReportStates.test_result)
+    else:
+        # Если входной тест не пройден, предлагаем сначала пройти его
+        if not entry_results or entry_results.get("total_questions", 0) == 0:
+            await callback.message.edit_text(
+                "Для прохождения контрольного теста необходимо сначала пройти входной тест месяца.",
+                reply_markup=get_back_to_test_report_kb()
+            )
+            return
+        
+        # Если тест еще не пройден, начинаем его
+        print(f"DEBUG: Начинаем контрольный тест для предмета: {subject_id}, месяц: {month}")
+        await start_month_control_test(callback, state, subject_id, month)
+
+async def start_month_control_test(callback: CallbackQuery, state: FSMContext, subject_id: str, month: str):
+    """Начать контрольный тест месяца по выбранному предмету и месяцу"""
+    # Сохраняем информацию о выбранном предмете и месяце
+    await state.update_data(selected_subject=subject_id, selected_month=month)
     
-    # Форматируем сравнение результатов
-    result_text = format_test_comparison(entry_results, control_results, subject_name, month)
+    # Получаем случайные вопросы для теста
+    # В реальном приложении здесь будет запрос к базе данных
+    test_questions = generate_random_questions(20)  # Для месячного теста меньше вопросов
     
-    await callback.message.edit_text(
-        result_text,
-        reply_markup=get_back_to_test_report_kb()
+    await state.update_data(
+        test_started=True,
+        test_type="month_control",
+        total_questions=len(test_questions),
+        current_question=1,
+        correct_answers=0,
+        user_answers={},
+        test_questions=test_questions,
+        topics_progress={}  # Для отслеживания прогресса по темам
     )
-    await state.set_state(TestReportStates.test_result)
+    
+    # Показываем первый вопрос
+    await show_test_question(callback, state, 1)
+    await state.set_state(TestReportStates.test_in_progress)
 
 @router.callback_query(F.data == "back_to_test_report")
 async def back_to_test_report(callback: CallbackQuery, state: FSMContext):
