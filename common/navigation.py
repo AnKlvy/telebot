@@ -52,7 +52,18 @@ class NavigationManager:
             await state.set_state(previous_state)
             handler = handlers.get(previous_state)
             if handler:
-                await handler(callback, state)
+                # Проверяем количество параметров функции
+                import inspect
+                sig = inspect.signature(handler)
+                param_count = len(sig.parameters)
+
+                # Вызываем обработчик с нужным количеством аргументов
+                if param_count == 2:  # callback, state
+                    await handler(callback, state)
+                elif param_count == 3:  # callback, state, role
+                    await handler(callback, state, user_role)
+                else:
+                    print(f"DEBUG: Неподдерживаемое количество параметров в обработчике: {param_count}")
             else:
                 # Если обработчик не найден, возвращаемся в главное меню
                 print(f"DEBUG: Обработчик для {previous_state} не найден, возвращаемся в главное меню")
