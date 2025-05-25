@@ -1,4 +1,4 @@
-from student.handlers.test_report import TestReportStates, show_test_report_menu, choose_course_entry_subject, show_course_entry_test_result, choose_month_entry_subject, choose_month_entry_month, show_month_entry_test_result, choose_month_control_subject, choose_month_control_month, show_month_control_test_result
+from student.handlers.test_report import TestReportStates, show_test_report_menu, choose_course_entry_subject, choose_month_entry_subject, choose_month_entry_month, choose_month_control_subject, choose_month_control_month
 
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {

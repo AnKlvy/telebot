@@ -43,3 +43,12 @@ def get_back_to_test_report_kb() -> InlineKeyboardMarkup:
         get_universal_back_button("⬅️ Назад к тестам", "back_to_test_report"),
         get_universal_back_button("🏠 Главное меню", "back_to_main")
     ])
+
+def get_test_answers_kb() -> InlineKeyboardMarkup:
+    """Клавиатура с вариантами ответов на вопрос теста"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="A", callback_data="answer_A")],
+        [InlineKeyboardButton(text="B", callback_data="answer_B")],
+        [InlineKeyboardButton(text="C", callback_data="answer_C")],
+        [InlineKeyboardButton(text="D", callback_data="answer_D")]
+    ])
