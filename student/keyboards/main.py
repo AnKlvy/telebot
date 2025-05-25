@@ -6,7 +6,7 @@ def get_student_main_menu_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📝 Домашнее задание", callback_data="homework")],
         [InlineKeyboardButton(text="📊 Мой прогресс", callback_data="progress")],
         [InlineKeyboardButton(text="🎁 Магазин", callback_data="shop")],
-        [InlineKeyboardButton(text="🧠 Тест-отчет", callback_data="test_report")],
+        [InlineKeyboardButton(text="🧠 Тест-отчет", callback_data="student_tests")],
         [InlineKeyboardButton(text="🧪 Пробный ЕНТ", callback_data="trial_ent")],
         [InlineKeyboardButton(text="📞 Связь с куратором", callback_data="curator")],
         [InlineKeyboardButton(text="❓ Аккаунт", callback_data="account")]
