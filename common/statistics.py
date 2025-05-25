@@ -167,15 +167,17 @@ def format_group_stats(group_data: Dict) -> str:
 
 def get_test_results(test_id: str, student_id: str) -> Dict:
     """
-    Получить результаты теста для конкретного ученика
+    Получить результаты теста для студента
     
     Args:
-        test_id: ID теста
-        student_id: ID ученика
+        test_id: Идентификатор теста
+        student_id: Идентификатор студента
         
     Returns:
         Dict: Словарь с результатами теста
     """
+    print(f"DEBUG: Запрос результатов теста: {test_id} для студента: {student_id}")
+    
     # В реальном приложении здесь будет запрос к базе данных
     # Для примера используем фиксированные значения
     test_results = {
@@ -187,6 +189,16 @@ def get_test_results(test_id: str, student_id: str) -> Dict:
                 "Изомерия": 33,
                 "Кислоты": 60,
                 "Циклоалканы": None  # None означает, что тема не проверена
+            }
+        },
+        "course_entry_kz": {
+            "total_questions": 30,
+            "correct_answers": 20,
+            "topics_progress": {
+                "Древняя история": 80,
+                "Средневековье": 60,
+                "Новое время": 40,
+                "Новейшая история": None  # None означает, что тема не проверена
             }
         },
         "month_entry_chem_1": {
@@ -209,11 +221,14 @@ def get_test_results(test_id: str, student_id: str) -> Dict:
         }
     }
     
-    return test_results.get(test_id, {
+    result = test_results.get(test_id, {
         "total_questions": 0,
         "correct_answers": 0,
         "topics_progress": {}
     })
+    
+    print(f"DEBUG: Возвращаемые результаты: {result}")
+    return result
 
 def format_test_result(test_results: Dict, subject_name: str, test_type: str, month: str = None) -> str:
     """

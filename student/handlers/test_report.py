@@ -46,10 +46,12 @@ async def choose_course_entry_subject(callback: CallbackQuery, state: FSMContext
 async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста курса"""
     subject_id = callback.data.replace("course_entry_sub_", "")
+    print(f"DEBUG: Обработка выбора предмета для входного теста курса: {subject_id}")
     
     # Проверяем, проходил ли пользователь уже этот тест
     test_id = f"course_entry_{subject_id}"
     test_results = get_test_results(test_id, "student1")  # В реальном приложении здесь будет ID студента
+    print(f"DEBUG: Результаты теста: {test_results}")
     
     if test_results and test_results.get("total_questions", 0) > 0:
         # Если тест уже пройден, показываем результаты
@@ -64,6 +66,7 @@ async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext
             "world": "Всемирная история"
         }
         subject_name = subject_names.get(subject_id, "Неизвестный предмет")
+        print(f"DEBUG: Показываем результаты для предмета: {subject_name}")
         
         # Форматируем результаты
         result_text = format_test_result(test_results, subject_name, "course_entry")
@@ -75,6 +78,7 @@ async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext
         await state.set_state(TestReportStates.test_result)
     else:
         # Если тест еще не пройден, начинаем его
+        print(f"DEBUG: Начинаем тест для предмета: {subject_id}")
         await start_course_entry_test(callback, state, subject_id)
 
 async def start_course_entry_test(callback: CallbackQuery, state: FSMContext, subject_id: str):
