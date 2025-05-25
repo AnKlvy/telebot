@@ -1,6 +1,6 @@
 from student.handlers.trial_ent import (
     TrialEntStates, show_trial_ent_menu, choose_required_subjects,
-    choose_profile_subjects, process_profile_subject, process_second_profile_subject,
+    choose_profile_subjects, process_profile_subject,
     show_subjects, show_subject_analytics, back_to_trial_ent_results
 )
 
