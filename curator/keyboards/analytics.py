@@ -1,7 +1,9 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 from common.keyboards import get_main_menu_back_button
 
-def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
+
+def get_analytics_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📊 Статистика по ученику", callback_data="student_analytics")],
@@ -9,7 +11,7 @@ def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
     ])
 
-def get_groups_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
+def get_groups_for_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для аналитики"""
     # В реальном приложении здесь будет запрос к базе данных
     groups = [
@@ -60,8 +62,7 @@ def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
-    """Клавиатура возврата в меню аналитики"""
+    """Клавиатура для возврата в меню аналитики"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Назад к аналитике", callback_data="back_to_analytics")],
         *get_main_menu_back_button()
     ])
