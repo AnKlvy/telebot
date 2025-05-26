@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_main_menu_back_button
+from common.keyboards import get_main_menu_back_button, get_universal_back_button
 
 def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
@@ -62,6 +62,5 @@ def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
 def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура возврата в меню аналитики"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Назад к аналитике", callback_data="back_to_analytics")],
         *get_main_menu_back_button()
     ])

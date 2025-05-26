@@ -49,8 +49,16 @@ async def select_student_for_analytics(callback: CallbackQuery, state: FSMContex
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    group_id = callback.data.replace("analytics_group_", "")
-    await state.update_data(selected_group=group_id)
+    # Проверяем, является ли callback.data ID группы или это кнопка "назад"
+    if callback.data.startswith("analytics_group_"):
+        group_id = callback.data.replace("analytics_group_", "")
+        print("group_id: ", group_id)
+        await state.update_data(selected_group=group_id)
+    else:
+        # Если это кнопка "назад" или другой callback, берем ID группы из состояния
+        user_data = await state.get_data()
+        group_id = user_data.get("selected_group")
+        print("Using saved group_id: ", group_id)
     
     await callback.message.edit_text(
         "Выберите ученика для просмотра статистики:",
