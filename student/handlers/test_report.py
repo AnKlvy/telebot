@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from common.tests.states import TestsStates
-from common.tests.menu import show_tests_menu
 from common.tests.handlers import (
     show_course_entry_subjects,
     show_month_entry_subjects,
@@ -13,8 +12,7 @@ from common.tests.handlers import (
     handle_month_control_subject,
     handle_month_control_month,
     handle_test_answer,
-    back_to_tests,
-    handle_back_navigation
+    back_to_tests
 )
 
 # Используем базовые состояния из common.tests
@@ -26,6 +24,7 @@ router = Router()
 @router.callback_query(F.data == "student_tests")
 async def show_student_tests(callback: CallbackQuery, state: FSMContext):
     """Показать меню тестов для студента"""
+    from common.tests.menu import show_tests_menu
     await show_tests_menu(callback, state, "student")
 
 # Входной тест курса
@@ -86,4 +85,5 @@ async def student_back_to_tests(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("back_to_"))
 async def student_handle_back_navigation(callback: CallbackQuery, state: FSMContext):
     """Обработка навигации назад"""
+    from common.tests.handlers import handle_back_navigation
     await handle_back_navigation(callback, state)
