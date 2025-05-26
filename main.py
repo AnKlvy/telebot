@@ -45,7 +45,9 @@ async def main() -> None:
     
     # Регистрируем обработчик команды /curator
     dp.message.register(curator_command, Command("curator"))
-    
+
+    dp.message.register(show_student_main_menu, Command("student"))
+
     # Включаем роутеры для разных ролей
     dp.include_router(common_router)  # Добавляем первым, чтобы команды /start и /curator были обработаныasync def go_back(callback: CallbackQuery, state: FSMContext, **data):
     dp.include_router(student_router)
