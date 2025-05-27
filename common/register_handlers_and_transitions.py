@@ -24,8 +24,10 @@ from teacher.states.states_tests import STATE_TRANSITIONS as TEACHER_TESTS_TRANS
 
 # Импортируем словари переходов и обработчиков для менеджера
 from manager.states.states_analytics import STATE_TRANSITIONS as MANAGER_ANALYTICS_TRANSITIONS, STATE_HANDLERS as MANAGER_ANALYTICS_HANDLERS
+from manager.states.states_homework import STATE_TRANSITIONS as MANAGER_HOMEWORK_TRANSITIONS, STATE_HANDLERS as MANAGER_HOMEWORK_HANDLERS
 
 def register_handlers():
+    """Регистрация всех обработчиков и переходов"""
     # Объединяем словари переходов и обработчиков для куратора
     curator_transitions = {**CURATOR_TRANSITIONS, **ANALYTICS_TRANSITIONS, **GROUPS_TRANSITIONS, **TESTS_TRANSITIONS}
     curator_handlers = {**CURATOR_HANDLERS, **ANALYTICS_HANDLERS, **GROUPS_HANDLERS, **TESTS_HANDLERS}
@@ -39,8 +41,8 @@ def register_handlers():
     teacher_handlers = {**TEACHER_GROUPS_HANDLERS, **TEACHER_ANALYTICS_HANDLERS, **TEACHER_TESTS_HANDLERS}
     
     # Объединяем словари переходов и обработчиков для менеджера
-    manager_transitions = {**MANAGER_ANALYTICS_TRANSITIONS}
-    manager_handlers = {**MANAGER_ANALYTICS_HANDLERS}
+    manager_transitions = {**MANAGER_ANALYTICS_TRANSITIONS, **MANAGER_HOMEWORK_TRANSITIONS}
+    manager_handlers = {**MANAGER_ANALYTICS_HANDLERS, **MANAGER_HOMEWORK_HANDLERS}
 
     navigation_manager.register_role("student", student_transitions, {None: show_student_main_menu, **student_handlers})
     navigation_manager.register_role("curator", curator_transitions, {None: show_curator_main_menu, **curator_handlers})
