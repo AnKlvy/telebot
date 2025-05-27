@@ -9,7 +9,8 @@ from teacher.handlers.tests import (
     teacher_show_month_control_groups,
     teacher_show_month_control_months,
     teacher_show_ent_groups,
-    teacher_show_ent_students, teacher_show_ent_statistics
+    teacher_show_ent_students, teacher_show_ent_statistics, teacher_show_course_entry_statistics,
+    teacher_show_month_control_statistics, teacher_show_month_entry_statistics
 )
 
 # Словарь переходов между состояниями
@@ -42,17 +43,17 @@ STATE_HANDLERS = {
     
     # Обработчики для входного теста курса
     TeacherTestsStatisticsStates.course_entry_select_group: teacher_show_course_entry_groups,
-    TeacherTestsStatisticsStates.course_entry_result: teacher_show_course_entry_groups,
+    TeacherTestsStatisticsStates.course_entry_result: teacher_show_course_entry_statistics,
     
     # Обработчики для входного теста месяца
     TeacherTestsStatisticsStates.month_entry_select_group: teacher_show_month_entry_groups,
     TeacherTestsStatisticsStates.month_entry_select_month: teacher_show_month_entry_months,
-    TeacherTestsStatisticsStates.month_entry_result: teacher_show_month_entry_months,
+    TeacherTestsStatisticsStates.month_entry_result: teacher_show_month_entry_statistics,
     
     # Обработчики для контрольного теста месяца
     TeacherTestsStatisticsStates.month_control_select_group: teacher_show_month_control_groups,
     TeacherTestsStatisticsStates.month_control_select_month: teacher_show_month_control_months,
-    TeacherTestsStatisticsStates.month_control_result: teacher_show_month_control_months,
+    TeacherTestsStatisticsStates.month_control_result: teacher_show_month_control_statistics,
     
     # Обработчики для пробного ЕНТ
     TeacherTestsStatisticsStates.ent_select_group: teacher_show_ent_groups,

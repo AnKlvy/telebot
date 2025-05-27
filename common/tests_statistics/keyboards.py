@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from common.keyboards import get_main_menu_back_button
+from common.keyboards import get_main_menu_back_button, get_universal_back_button
 
 
 def get_tests_statistics_menu_kb() -> InlineKeyboardMarkup:
@@ -89,12 +89,14 @@ def get_students_kb(test_type: str, group_id: str, month_id: str = None) -> Inli
     
     # Добавляем кнопку "Назад"
     back_data = f"back_to_{test_type}_months_{group_id}" if month_id else f"back_to_{test_type}_groups"
-    buttons.append([
+    buttons.extend([
+        [
         InlineKeyboardButton(
             text="◀️ Назад",
             callback_data=back_data
         )
-    ])
+    ],
+    get_universal_back_button("🏠 Главное меню", "back_to_main")])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
