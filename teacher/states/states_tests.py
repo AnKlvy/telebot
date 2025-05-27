@@ -9,7 +9,7 @@ from teacher.handlers.tests import (
     teacher_show_month_control_groups,
     teacher_show_month_control_months,
     teacher_show_ent_groups,
-    teacher_show_ent_students
+    teacher_show_ent_students, teacher_show_ent_statistics
 )
 
 # Словарь переходов между состояниями
@@ -57,5 +57,5 @@ STATE_HANDLERS = {
     # Обработчики для пробного ЕНТ
     TeacherTestsStatisticsStates.ent_select_group: teacher_show_ent_groups,
     TeacherTestsStatisticsStates.ent_select_student: teacher_show_ent_students,
-    TeacherTestsStatisticsStates.ent_result: teacher_show_ent_students
+    TeacherTestsStatisticsStates.ent_result: teacher_show_ent_statistics
 }
