@@ -15,6 +15,8 @@ from student.handlers import router as student_router
 from student.handlers.main import show_student_main_menu
 from curator.handlers import router as curator_router
 from curator.handlers.main import show_curator_main_menu
+from teacher.handlers import router as teacher_router
+from teacher.handlers.main import show_teacher_main_menu
 from middlewares.role_middleware import RoleMiddleware
 
 load_dotenv()
@@ -25,12 +27,18 @@ async def start_command(message: Message, user_role: str):
     """Обработчик команды /start, перенаправляющий на соответствующие функции"""
     if user_role == "curator":
         await show_curator_main_menu(message)
+    elif user_role == "teacher":
+        await show_teacher_main_menu(message)
     else:  # По умолчанию считаем пользователя студентом
         await show_student_main_menu(message)
 
 async def curator_command(message: Message):
     """Обработчик команды /curator, открывающий меню куратора"""
     await show_curator_main_menu(message)
+
+async def teacher_command(message: Message):
+    """Обработчик команды /teacher, открывающий меню преподавателя"""
+    await show_teacher_main_menu(message)
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -46,6 +54,9 @@ async def main() -> None:
     # Регистрируем обработчик команды /curator
     dp.message.register(curator_command, Command("curator"))
     
+    # Регистрируем обработчик команды /teacher
+    dp.message.register(teacher_command, Command("teacher"))
+    
     # Регистрируем обработчик команды /student
     dp.message.register(show_student_main_menu, Command("student"))
 
@@ -54,6 +65,7 @@ async def main() -> None:
     commands = [
         BotCommand(command="start", description="Запустить бота"),
         BotCommand(command="curator", description="Меню куратора"),
+        BotCommand(command="teacher", description="Меню преподавателя"),
         BotCommand(command="student", description="Меню студента")
     ]
     
@@ -67,6 +79,7 @@ async def main() -> None:
     dp.include_router(common_router)
     dp.include_router(student_router)
     dp.include_router(curator_router)
+    dp.include_router(teacher_router)
     register_handlers()
     await dp.start_polling(bot)
 

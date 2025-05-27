@@ -16,16 +16,17 @@ class RoleMiddleware(BaseMiddleware):
         print("My user_id:", user_id)
         # В реальном приложении здесь будет запрос к базе данных для определения роли
         # Для примера используем фиксированные значения
-        curator_ids = [123456789
-            , user_id
-                       ]  # Список ID кураторов
+        curator_ids = [123456789]  # Список ID кураторов
         admin_ids = [987654321]    # Список ID администраторов
+        teacher_ids = [555555555, user_id]  # Список ID преподавателей
         
         # Определяем роль пользователя
         if user_id in admin_ids:
             role = "admin"
         elif user_id in curator_ids:
             role = "curator"
+        elif user_id in teacher_ids:
+            role = "teacher"
         else:
             role = "student"
         
