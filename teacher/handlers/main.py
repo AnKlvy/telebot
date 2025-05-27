@@ -20,7 +20,7 @@ async def teacher_start(message: Message, state: FSMContext, user_role: str = No
 
 async def show_teacher_main_menu(message: Message | CallbackQuery, state: FSMContext = None):
     """Показать главное меню преподавателя"""
-    text = "👨‍🏫 <b>Меню преподавателя</b>\n\nВыберите нужный раздел:"
+    text = "👨‍🏫 Добро пожаловать в панель <b>преподавателя</b>!\n\nВыберите нужный раздел:"
     
     if isinstance(message, Message):
         await message.answer(text, reply_markup=get_teacher_main_menu_kb())
