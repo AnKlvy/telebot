@@ -19,9 +19,34 @@ class NavigationManager:
         current_state = await state.get_state()
         print(f"DEBUG: Обработка 'назад'. Текущее состояние: {current_state}, роль: {user_role}")
         
+        # Определяем роль по состоянию
+        detected_role = None
+        
+        # Проверяем состояние на принадлежность к определенной роли
+        if current_state:
+            if current_state.startswith("StudentMain") or current_state.startswith("HomeworkStates") or \
+               current_state.startswith("ProgressStates") or current_state.startswith("ShopStates") or \
+               current_state.startswith("TrialEntStates") or current_state.startswith("StudentTestStates") or \
+               current_state.startswith("CuratorStates") or current_state.startswith("AccountStates"):
+                detected_role = "student"
+            elif current_state.startswith("TeacherMain") or current_state.startswith("TeacherGroupStates") or \
+                 current_state.startswith("TeacherAnalyticsStates") or current_state.startswith("TeacherTestsStatisticsStates") or \
+                 current_state.startswith("TestsStatisticsStates"):
+                detected_role = "teacher"
+            elif current_state.startswith("CuratorMain") or current_state.startswith("CuratorGroupStates") or \
+                 current_state.startswith("CuratorAnalyticsStates") or current_state.startswith("CuratorHomeworkStates") or \
+                 current_state.startswith("MessageStates"):
+                detected_role = "curator"
+            elif current_state.startswith("ManagerMain") or current_state.startswith("ManagerAnalyticsStates") or \
+                 current_state.startswith("AddHomeworkStates") or current_state.startswith("ManagerGroupStates"):
+                detected_role = "manager"
+        
+        # Используем определенную роль, если она найдена, иначе используем переданную роль
+        role_to_use = detected_role or user_role
+        
         # Получаем переходы и обработчики для роли (или дефолтные)
-        transitions = self.transitions_map.get(user_role, {})
-        handlers = self.handlers_map.get(user_role, {})
+        transitions = self.transitions_map.get(role_to_use, {})
+        handlers = self.handlers_map.get(role_to_use, {})
         
         # Если состояния нет или оно не в словаре переходов
         if not current_state or current_state not in transitions:
@@ -77,8 +102,35 @@ class NavigationManager:
         """Универсальный обработчик кнопки главного меню"""
         print(f"DEBUG: Обработка 'главное меню'. Роль: {user_role}")
         
+        # Получаем текущее состояние
+        current_state = await state.get_state()
+        print(f"DEBUG: Текущее состояние: {current_state}")
+        
+        # Определяем роль по состоянию
+        detected_role = None
+        
+        # Проверяем состояние на принадлежность к определенной роли
+        if current_state:
+            if current_state.startswith("StudentMain") or current_state.startswith("HomeworkStates") or \
+               current_state.startswith("ProgressStates") or current_state.startswith("AccountStates") or \
+               current_state.startswith("TrialEntStates") or current_state.startswith("StudentTestStates"):
+                detected_role = "student"
+            elif current_state.startswith("TeacherMain") or current_state.startswith("TeacherGroupStates") or \
+                 current_state.startswith("TeacherAnalyticsStates") or current_state.startswith("TestsStatisticsStates"):
+                detected_role = "teacher"
+            elif current_state.startswith("CuratorMain") or current_state.startswith("CuratorGroupStates") or \
+                 current_state.startswith("CuratorAnalyticsStates") or current_state.startswith("CuratorHomeworkStates"):
+                detected_role = "curator"
+            elif current_state.startswith("ManagerMain") or current_state.startswith("ManagerAnalyticsStates") or \
+                 current_state.startswith("AddHomeworkStates"):
+                detected_role = "manager"
+        
+        # Используем определенную роль, если она найдена, иначе используем переданную роль
+        role_to_use = detected_role or user_role
+        print(f"DEBUG: Определенная роль: {role_to_use}")
+        
         # Получаем обработчики для роли
-        handlers = self.handlers_map.get(user_role, {})
+        handlers = self.handlers_map.get(role_to_use, {})
         
         # Вызываем обработчик главного меню для соответствующей роли
         main_handler = handlers.get(None)

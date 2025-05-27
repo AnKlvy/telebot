@@ -16,7 +16,6 @@ async def show_groups(callback: CallbackQuery, state: FSMContext, role: str):
         "Выберите группу для просмотра:",
         reply_markup=get_groups_kb(role)
     )
-    await state.set_state(GroupStates.select_group)
 
 async def show_group_students(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -44,7 +43,6 @@ async def show_group_students(callback: CallbackQuery, state: FSMContext, role: 
         "Выберите ученика для просмотра информации:",
         reply_markup=get_students_kb(role, group_id)
     )
-    await state.set_state(GroupStates.select_student)
 
 async def show_student_profile(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -119,4 +117,3 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext, role:
         f"🕓% выполнения ДЗ: {student['completion_percentage']}%",
         reply_markup=get_student_profile_kb(role)
     )
-    await state.set_state(GroupStates.student_profile)

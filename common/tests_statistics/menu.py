@@ -16,4 +16,3 @@ async def show_tests_statistics_menu(callback: CallbackQuery, state: FSMContext,
         "Выберите тип теста для просмотра статистики:",
         reply_markup=get_tests_statistics_menu_kb()
     )
-    await state.set_state(TestsStatisticsStates.main)

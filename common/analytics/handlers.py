@@ -23,7 +23,7 @@ async def show_analytics_menu(callback: CallbackQuery, state: FSMContext, role: 
         "Выберите тип аналитики:",
         reply_markup=get_analytics_menu_kb(role)
     )
-    await state.set_state(AnalyticsStates.main)
+    # Удаляем установку состояния
 
 async def select_group_for_student_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -38,7 +38,7 @@ async def select_group_for_student_analytics(callback: CallbackQuery, state: FSM
         "Выберите группу ученика:",
         reply_markup=get_groups_for_analytics_kb(role)
     )
-    await state.set_state(AnalyticsStates.select_group_for_student)
+    # Удаляем установку состояния
 
 async def select_student_for_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -64,7 +64,7 @@ async def select_student_for_analytics(callback: CallbackQuery, state: FSMContex
         "Выберите ученика для просмотра статистики:",
         reply_markup=get_students_for_analytics_kb(group_id)
     )
-    await state.set_state(AnalyticsStates.select_student)
+    # Удаляем установку состояния
 
 async def show_student_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -87,7 +87,7 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
         result_text,
         reply_markup=get_back_to_analytics_kb()
     )
-    await state.set_state(AnalyticsStates.student_stats)
+    # Удаляем установку состояния
 
 async def select_group_for_group_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -102,7 +102,7 @@ async def select_group_for_group_analytics(callback: CallbackQuery, state: FSMCo
         "Выберите группу для просмотра статистики:",
         reply_markup=get_groups_for_analytics_kb(role)
     )
-    await state.set_state(AnalyticsStates.select_group_for_group)
+    # Удаляем установку состояния
 
 async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -125,4 +125,4 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
         result_text,
         reply_markup=get_back_to_analytics_kb()
     )
-    await state.set_state(AnalyticsStates.group_stats)
+    # Удаляем установку состояния
