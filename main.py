@@ -27,7 +27,9 @@ TOKEN = getenv("BOT_TOKEN")
 
 async def start_command(message: Message, user_role: str):
     """Обработчик команды /start, перенаправляющий на соответствующие функции"""
-    if user_role == "curator":
+    if user_role == "manager":
+        await show_manager_main_menu(message)
+    elif user_role == "curator":
         await show_curator_main_menu(message)
     elif user_role == "teacher":
         await show_teacher_main_menu(message)
