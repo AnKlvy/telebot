@@ -29,8 +29,3 @@ async def show_manager_main_menu(message: Message | CallbackQuery, state: FSMCon
     
     if state:
         await state.set_state(ManagerMainStates.main)
-
-@router.callback_query(F.data == "back_to_manager_main_menu")
-async def back_to_manager_main_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в главное меню менеджера"""
-    await show_manager_main_menu(callback, state)

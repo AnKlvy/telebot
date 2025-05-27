@@ -83,8 +83,9 @@ class NavigationManager:
         # Вызываем обработчик главного меню для соответствующей роли
         main_handler = handlers.get(None)
         if main_handler:
-            await callback.message.delete()
-            await main_handler(callback.message)
+            if callback.message:
+                await callback.message.delete()
+            await main_handler(callback.message if hasattr(callback, 'message') else callback)
             await state.clear()
 
 # Создаем глобальный экземпляр менеджера навигации
