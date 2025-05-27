@@ -12,20 +12,18 @@ from manager.handlers.homework import AddHomeworkStates
 
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
-    AddHomeworkStates.select_course: AddHomeworkStates.select_subject,
-    AddHomeworkStates.select_subject: AddHomeworkStates.select_lesson,
-    AddHomeworkStates.select_lesson: AddHomeworkStates.enter_homework_name,
-    AddHomeworkStates.enter_homework_name: AddHomeworkStates.enter_question_text,
-    AddHomeworkStates.enter_question_text: AddHomeworkStates.add_question_photo,
-    AddHomeworkStates.add_question_photo: AddHomeworkStates.select_topic,
-    AddHomeworkStates.select_topic: AddHomeworkStates.enter_answer_options,
-    AddHomeworkStates.enter_answer_options: AddHomeworkStates.select_correct_answer,
-    AddHomeworkStates.select_correct_answer: AddHomeworkStates.add_question,
-    AddHomeworkStates.add_question: AddHomeworkStates.set_time_limit,
-    AddHomeworkStates.set_time_limit: AddHomeworkStates.confirm_homework,
-    AddHomeworkStates.confirm_homework: None,  # Конечное состояние
-    AddHomeworkStates.delete_homework: AddHomeworkStates.select_homework_to_delete,
-    AddHomeworkStates.select_homework_to_delete: None  # Конечное состояние
+    AddHomeworkStates.select_subject: AddHomeworkStates.select_course,
+    AddHomeworkStates.select_lesson: AddHomeworkStates.select_subject,
+    AddHomeworkStates.enter_homework_name: AddHomeworkStates.select_lesson,
+    AddHomeworkStates.enter_question_text: AddHomeworkStates.enter_homework_name,
+    AddHomeworkStates.add_question_photo: AddHomeworkStates.enter_question_text,
+    AddHomeworkStates.select_topic: AddHomeworkStates.add_question_photo,
+    AddHomeworkStates.enter_answer_options: AddHomeworkStates.select_topic,
+    AddHomeworkStates.select_correct_answer: AddHomeworkStates.enter_answer_options,
+    AddHomeworkStates.add_question: AddHomeworkStates.select_correct_answer,
+    AddHomeworkStates.set_time_limit: AddHomeworkStates.add_question,
+    AddHomeworkStates.confirm_homework: AddHomeworkStates.set_time_limit,
+    AddHomeworkStates.select_homework_to_delete: AddHomeworkStates.delete_homework
 }
 
 # Словарь обработчиков для каждого состояния
