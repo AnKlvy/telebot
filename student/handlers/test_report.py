@@ -13,8 +13,7 @@ from common.tests.handlers import (
     handle_month_control_subject,
     handle_month_control_month,
     handle_test_answer,
-    back_to_tests,
-    handle_back_navigation
+    back_to_tests
 )
 
 # Используем базовые состояния из common.tests
@@ -82,8 +81,3 @@ async def student_handle_test_answer(callback: CallbackQuery, state: FSMContext)
 async def student_back_to_tests(callback: CallbackQuery, state: FSMContext):
     """Возврат в меню тестов"""
     await back_to_tests(callback, state)
-
-@router.callback_query(F.data.startswith("back_to_"))
-async def student_handle_back_navigation(callback: CallbackQuery, state: FSMContext):
-    """Обработка навигации назад"""
-    await handle_back_navigation(callback, state)
