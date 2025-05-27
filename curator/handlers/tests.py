@@ -1,3 +1,8 @@
+import logging
+
+# Настраиваем логгер
+logger = logging.getLogger(__name__)
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -7,7 +12,7 @@ from common.tests_statistics.menu import show_tests_statistics_menu
 from common.tests_statistics.handlers import (
     show_test_students_statistics,
     show_student_test_statistics,
-    show_tests_comparison
+    show_tests_comparison, show_month_entry_statistics, show_month_entry_student_statistics
 )
 from common.tests_statistics.keyboards import (
     get_tests_statistics_menu_kb, 
@@ -26,12 +31,14 @@ router = Router()
 @router.callback_query(F.data == "curator_tests")
 async def show_curator_tests_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать меню статистики тестов куратора"""
+    logger.info(f"Вызвана функция show_curator_tests_statistics для пользователя {callback.from_user.id}")
     await show_tests_statistics_menu(callback, state, "curator")
 
 # Обработчики для входного теста курса
 @router.callback_query(CuratorTestsStatisticsStates.main, F.data == "stats_course_entry_test")
 async def curator_show_course_entry_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для входного теста курса"""
+    logger.info(f"Вызвана функция curator_show_course_entry_groups для пользователя {callback.from_user.id}")
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики входного теста курса:",
         reply_markup=get_groups_kb("course_entry")
@@ -83,22 +90,11 @@ async def curator_back_to_month_entry_groups(callback: CallbackQuery, state: FSM
 
 @router.callback_query(CuratorTestsStatisticsStates.select_month, F.data.startswith("month_entry_month_"))
 async def curator_show_month_entry_statistics(callback: CallbackQuery, state: FSMContext):
-    """Показать статистику входного теста месяца"""
-    # Формат: month_entry_month_GROUP_ID_MONTH_ID
-    parts = callback.data.split("_")
-    group_id = parts[3]
-    month_id = parts[4]
-    await show_test_students_statistics(callback, state, "month_entry", group_id, month_id)
+    await show_month_entry_statistics(callback, state)
 
 @router.callback_query(F.data.startswith("month_entry_student_"))
 async def curator_show_month_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
-    """Показать статистику входного теста месяца для конкретного ученика"""
-    # Формат: month_entry_student_GROUP_ID_MONTH_ID_STUDENT_ID
-    parts = callback.data.split("_")
-    group_id = parts[3]
-    month_id = parts[4]
-    student_id = parts[5]
-    await show_student_test_statistics(callback, state, "month_entry", student_id, group_id, month_id)
+    await show_month_entry_student_statistics(callback, state)
 
 # Обработчики для контрольного теста месяца
 @router.callback_query(CuratorTestsStatisticsStates.main, F.data == "stats_month_control_test")
@@ -197,4 +193,5 @@ async def curator_show_ent_statistics(callback: CallbackQuery, state: FSMContext
 @router.callback_query(F.data == "back_to_tests_statistics")
 async def curator_back_to_tests_statistics(callback: CallbackQuery, state: FSMContext):
     """Вернуться в меню статистики тестов"""
+    logger.info(f"Вызвана функция curator_back_to_tests_statistics для пользователя {callback.from_user.id}")
     await show_tests_statistics_menu(callback, state, "curator")

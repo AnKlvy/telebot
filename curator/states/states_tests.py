@@ -1,5 +1,5 @@
+from common.tests_statistics.states import TestsStatisticsStates
 from curator.handlers.tests import (
-    CuratorTestsStatisticsStates,
     show_curator_tests_statistics,
     curator_show_course_entry_groups,
     curator_show_course_entry_statistics,
@@ -20,18 +20,18 @@ from curator.handlers.tests import (
 
 # Словарь обработчиков для каждого состояния
 STATE_HANDLERS = {
-    CuratorTestsStatisticsStates.main: show_curator_tests_statistics,
-    CuratorTestsStatisticsStates.select_group: None,  # Обрабатывается через роутер
-    CuratorTestsStatisticsStates.select_month: None,  # Обрабатывается через роутер
-    CuratorTestsStatisticsStates.select_student: None,  # Обрабатывается через роутер
-    CuratorTestsStatisticsStates.statistics_result: curator_back_to_tests_statistics
+    TestsStatisticsStates.main: show_curator_tests_statistics,
+    TestsStatisticsStates.select_group: curator_back_to_tests_statistics,  # Обрабатывается через роутер
+    TestsStatisticsStates.select_month: curator_back_to_tests_statistics,  # Обрабатывается через роутер
+    TestsStatisticsStates.select_student: curator_back_to_tests_statistics,  # Обрабатывается через роутер
+    TestsStatisticsStates.statistics_result: curator_back_to_tests_statistics
 }
 
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
-    CuratorTestsStatisticsStates.main: None,  # None означает возврат в главное меню
-    CuratorTestsStatisticsStates.select_group: CuratorTestsStatisticsStates.main,
-    CuratorTestsStatisticsStates.select_month: CuratorTestsStatisticsStates.select_group,
-    CuratorTestsStatisticsStates.select_student: CuratorTestsStatisticsStates.select_group,
-    CuratorTestsStatisticsStates.statistics_result: CuratorTestsStatisticsStates.main
+    TestsStatisticsStates.main: None,  # None означает возврат в главное меню
+    TestsStatisticsStates.select_group: TestsStatisticsStates.main,
+    TestsStatisticsStates.select_month: TestsStatisticsStates.main,
+    TestsStatisticsStates.select_student: TestsStatisticsStates.main,
+    TestsStatisticsStates.statistics_result: TestsStatisticsStates.main
 }

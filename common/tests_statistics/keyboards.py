@@ -1,5 +1,8 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+from common.keyboards import get_main_menu_back_button
+
+
 def get_tests_statistics_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню статистики тестов"""
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -7,8 +10,8 @@ def get_tests_statistics_menu_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📅 Входной тест месяца", callback_data="stats_month_entry_test")],
         [InlineKeyboardButton(text="📅 Контрольный тест месяца", callback_data="stats_month_control_test")],
         [InlineKeyboardButton(text="🧪 Пробный ЕНТ", callback_data="stats_ent_test")],
-        [InlineKeyboardButton(text="◀️ Назад в главное меню", callback_data="back_to_main")]
-    ])
+        *get_main_menu_back_button()
+            ])
 
 def get_groups_kb(test_type: str) -> InlineKeyboardMarkup:
     """Клавиатура с группами для статистики тестов"""
@@ -28,12 +31,7 @@ def get_groups_kb(test_type: str) -> InlineKeyboardMarkup:
         ])
     
     # Добавляем кнопку "Назад"
-    buttons.append([
-        InlineKeyboardButton(
-            text="◀️ Назад",
-            callback_data="back_to_tests_statistics"
-        )
-    ])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -61,12 +59,7 @@ def get_month_kb(test_type: str, group_id: str) -> InlineKeyboardMarkup:
         ])
     
     # Добавляем кнопку "Назад"
-    buttons.append([
-        InlineKeyboardButton(
-            text="◀️ Назад",
-            callback_data=f"back_to_{test_type}_groups"
-        )
-    ])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -108,5 +101,5 @@ def get_students_kb(test_type: str, group_id: str, month_id: str = None) -> Inli
 def get_back_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню статистики тестов"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tests_statistics")]
-    ])
+    *get_main_menu_back_button()
+            ])

@@ -15,6 +15,7 @@ from common.statistics import (
     format_test_result,
     format_test_comparison
 )
+from ..keyboards import get_main_menu_back_button
 
 router = Router()
 
@@ -344,7 +345,7 @@ async def show_test_students_statistics(
             )
         ])
     
-    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_tests_statistics")])
+    buttons.extend(get_main_menu_back_button())
     
     await callback.message.edit_text(
         result_text,
