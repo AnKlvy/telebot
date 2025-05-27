@@ -11,6 +11,8 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 from common.handlers import router as common_router
 from common.register_handlers_and_transitions import register_handlers
+from manager.handlers.main import show_manager_main_menu
+from manager.handlers import router as manager_router
 from student.handlers import router as student_router
 from student.handlers.main import show_student_main_menu
 from curator.handlers import router as curator_router
@@ -60,12 +62,15 @@ async def main() -> None:
     # Регистрируем обработчик команды /student
     dp.message.register(show_student_main_menu, Command("student"))
 
+    dp.message.register(show_manager_main_menu, Command("manager"))
+
     # Устанавливаем команды бота в меню
     from aiogram.types import BotCommand
     commands = [
         BotCommand(command="start", description="Запустить бота"),
         BotCommand(command="curator", description="Меню куратора"),
         BotCommand(command="teacher", description="Меню преподавателя"),
+        BotCommand(command="manager", description="Меню менеджера"),
         BotCommand(command="student", description="Меню студента")
     ]
     
@@ -78,8 +83,9 @@ async def main() -> None:
     # Включаем роутеры для разных ролей
     dp.include_router(common_router)
     dp.include_router(student_router)
-    dp.include_router(curator_router)
     dp.include_router(teacher_router)
+    dp.include_router(curator_router)
+    dp.include_router(manager_router)
     register_handlers()
     await dp.start_polling(bot)
 

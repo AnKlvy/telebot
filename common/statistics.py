@@ -338,3 +338,144 @@ def format_test_comparison(entry_results: Dict, control_results: Dict, subject_n
             result_text += f"• {topic}\n"
     
     return result_text
+
+def get_subject_stats(subject_id: str) -> dict:
+    """
+    Получить статистику по предмету
+
+    Args:
+        subject_id: ID предмета
+
+    Returns:
+        dict: Данные о статистике предмета
+    """
+    # В реальном приложении здесь будет запрос к базе данных
+    # Для примера возвращаем тестовые данные
+    return {
+        "subject_id": subject_id,
+        "name": "Химия",
+        "groups": [
+            {
+                "group_id": "group1",
+                "name": "Интенсив. География",
+                "homework_completion": 75,
+                "topics": {
+                    "Алканы": 82,
+                    "Изомерия": 37,
+                    "Кислоты": 66
+                },
+                "rating": [
+                    {"name": "Аружан", "points": 870},
+                    {"name": "Диана", "points": 800},
+                    {"name": "Мадияр", "points": 780}
+                ]
+            },
+            {
+                "group_id": "group2",
+                "name": "Интенсив. Математика",
+                "homework_completion": 80,
+                "topics": {
+                    "Алканы": 78,
+                    "Изомерия": 42,
+                    "Кислоты": 70
+                },
+                "rating": [
+                    {"name": "Арман", "points": 850},
+                    {"name": "Алия", "points": 820},
+                    {"name": "Диас", "points": 790}
+                ]
+            }
+        ]
+    }
+
+def get_general_stats() -> dict:
+    """
+    Получить общую статистику по всем предметам
+    
+    Returns:
+        dict: Общие данные статистики
+    """
+    # В реальном приложении здесь будет запрос к базе данных
+    # Для примера возвращаем тестовые данные
+    return {
+        "total_students": 450,
+        "active_students": 380,
+        "total_groups": 15,
+        "subjects": [
+            {"name": "Математика", "average_score": 78.5, "completion_rate": 82.3},
+            {"name": "Физика", "average_score": 75.2, "completion_rate": 79.8},
+            {"name": "Химия", "average_score": 81.7, "completion_rate": 85.4},
+            {"name": "Биология", "average_score": 83.1, "completion_rate": 87.2}
+        ],
+        "monthly_progress": {
+            "Январь": 75.2,
+            "Февраль": 78.5,
+            "Март": 80.1,
+            "Апрель": 82.3
+        }
+    }
+
+def format_subject_stats(subject_data: dict) -> str:
+    """
+    Форматировать статистику по предмету в текстовый вид
+    
+    Args:
+        subject_data: Данные о предмете
+        
+    Returns:
+        str: Отформатированный текст со статистикой
+    """
+    result_text = f"📊 Статистика по предмету: {subject_data['name']}\n\n"
+    
+    # Добавляем информацию о группах
+    result_text += "👨‍👩‍👧‍👦 Группы:\n"
+    for group in subject_data["groups"]:
+        result_text += f"• {group['name']} - выполнение ДЗ: {group['homework_completion']}%\n"
+    
+    # Добавляем информацию о средних показателях по темам
+    result_text += "\n📈 Средние показатели по темам:\n"
+    
+    # Собираем все темы из всех групп
+    all_topics = {}
+    for group in subject_data["groups"]:
+        for topic, percentage in group["topics"].items():
+            if topic in all_topics:
+                all_topics[topic].append(percentage)
+            else:
+                all_topics[topic] = [percentage]
+    
+    # Вычисляем средние значения и выводим
+    for topic, percentages in all_topics.items():
+        avg_percentage = sum(percentages) / len(percentages)
+        result_text += f"• {topic} — {avg_percentage:.1f}%\n"
+    
+    return result_text
+
+def format_general_stats(general_data: dict) -> str:
+    """
+    Форматировать общую статистику в текстовый вид
+    
+    Args:
+        general_data: Общие данные статистики
+        
+    Returns:
+        str: Отформатированный текст со статистикой
+    """
+    result_text = "📊 Общая статистика\n\n"
+    
+    # Добавляем общую информацию
+    result_text += f"👥 Всего учеников: {general_data['total_students']}\n"
+    result_text += f"👤 Активных учеников: {general_data['active_students']} ({general_data['active_students']/general_data['total_students']*100:.1f}%)\n"
+    result_text += f"👨‍👩‍👧‍👦 Всего групп: {general_data['total_groups']}\n\n"
+    
+    # Добавляем информацию о предметах
+    result_text += "📚 Статистика по предметам:\n"
+    for subject in general_data["subjects"]:
+        result_text += f"• {subject['name']} — средний балл: {subject['average_score']}, выполнение: {subject['completion_rate']}%\n"
+    
+    # Добавляем информацию о прогрессе по месяцам
+    result_text += "\n📅 Прогресс по месяцам:\n"
+    for month, progress in general_data["monthly_progress"].items():
+        result_text += f"• {month} — {progress}%\n"
+    
+    return result_text

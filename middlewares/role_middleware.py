@@ -18,7 +18,8 @@ class RoleMiddleware(BaseMiddleware):
         # Для примера используем фиксированные значения
         curator_ids = [123456789]  # Список ID кураторов
         admin_ids = [987654321]    # Список ID администраторов
-        teacher_ids = [555555555, user_id]  # Список ID преподавателей
+        teacher_ids = [555555555]  # Список ID преподавателей
+        manager_ids = [777777777, user_id]  # Список ID менеджеров
         
         # Определяем роль пользователя
         if user_id in admin_ids:
@@ -27,6 +28,8 @@ class RoleMiddleware(BaseMiddleware):
             role = "curator"
         elif user_id in teacher_ids:
             role = "teacher"
+        elif user_id in manager_ids:
+            role = "manager"
         else:
             role = "student"
         

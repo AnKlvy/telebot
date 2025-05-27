@@ -1,6 +1,7 @@
 from student.handlers.main import show_student_main_menu
 from curator.handlers.main import show_curator_main_menu
 from teacher.handlers.main import show_teacher_main_menu
+from manager.handlers.main import show_manager_main_menu
 from common.navigation import navigation_manager
 
 # Импортируем словари переходов и обработчиков
@@ -21,6 +22,9 @@ from teacher.states.states_groups import STATE_TRANSITIONS as TEACHER_GROUPS_TRA
 from teacher.states.states_analytics import STATE_TRANSITIONS as TEACHER_ANALYTICS_TRANSITIONS, STATE_HANDLERS as TEACHER_ANALYTICS_HANDLERS
 from teacher.states.states_tests import STATE_TRANSITIONS as TEACHER_TESTS_TRANSITIONS, STATE_HANDLERS as TEACHER_TESTS_HANDLERS
 
+# Импортируем словари переходов и обработчиков для менеджера
+from manager.states.states_analytics import STATE_TRANSITIONS as MANAGER_ANALYTICS_TRANSITIONS, STATE_HANDLERS as MANAGER_ANALYTICS_HANDLERS
+
 def register_handlers():
     # Объединяем словари переходов и обработчиков для куратора
     curator_transitions = {**CURATOR_TRANSITIONS, **ANALYTICS_TRANSITIONS, **GROUPS_TRANSITIONS, **TESTS_TRANSITIONS}
@@ -33,7 +37,12 @@ def register_handlers():
     # Объединяем словари переходов и обработчиков для преподавателя
     teacher_transitions = {**TEACHER_GROUPS_TRANSITIONS, **TEACHER_ANALYTICS_TRANSITIONS, **TEACHER_TESTS_TRANSITIONS}
     teacher_handlers = {**TEACHER_GROUPS_HANDLERS, **TEACHER_ANALYTICS_HANDLERS, **TEACHER_TESTS_HANDLERS}
+    
+    # Объединяем словари переходов и обработчиков для менеджера
+    manager_transitions = {**MANAGER_ANALYTICS_TRANSITIONS}
+    manager_handlers = {**MANAGER_ANALYTICS_HANDLERS}
 
     navigation_manager.register_role("student", student_transitions, {None: show_student_main_menu, **student_handlers})
     navigation_manager.register_role("curator", curator_transitions, {None: show_curator_main_menu, **curator_handlers})
     navigation_manager.register_role("teacher", teacher_transitions, {None: show_teacher_main_menu, **teacher_handlers})
+    navigation_manager.register_role("manager", manager_transitions, {None: show_manager_main_menu, **manager_handlers})
