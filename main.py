@@ -81,12 +81,12 @@ async def main() -> None:
         logging.error(f"Ошибка при установке команд бота: {e}")
 
     # Включаем роутеры для разных ролей
-    dp.include_router(common_router)
     dp.include_router(student_router)
     dp.include_router(teacher_router)
     dp.include_router(curator_router)
     dp.include_router(manager_router)
     register_handlers()
+    dp.include_router(common_router)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
