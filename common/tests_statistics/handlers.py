@@ -227,6 +227,8 @@ async def show_student_test_statistics(
         group_id: ID группы (опционально)
         month_id: ID месяца (опционально)
     """
+    print(f"DEBUG: show_student_test_statistics вызвана с параметрами: test_type={test_type}, student_id={student_id}, group_id={group_id}, month_id={month_id}")
+    
     # Определяем ID теста и предмет в зависимости от типа теста
     if test_type == "course_entry":
         test_id = "course_entry_chem"
@@ -244,10 +246,16 @@ async def show_student_test_statistics(
         test_id = ""
         subject_name = "Неизвестный предмет"
     
+    print(f"DEBUG: Сформирован test_id: {test_id}")
+    
     # Получаем результаты теста из общего компонента
+    from common.statistics import get_test_results
     test_results = get_test_results(test_id, student_id)
     
+    print(f"DEBUG: Получены результаты теста: {test_results}")
+    
     # Форматируем результаты теста
+    from common.statistics import format_test_result
     result_text = format_test_result(
         test_results, 
         subject_name=subject_name, 
@@ -255,6 +263,13 @@ async def show_student_test_statistics(
         month=month_id
     )
     
+    print(f"DEBUG: Сформирован текст результата: {result_text}")
+    
+    # Добавляем информацию о группе
+    group_name = group_id.replace("_", " ").title() if group_id else "Неизвестная группа"
+    result_text = result_text.replace("курса пройден", f"{group_name} курса пройден")
+    
+    from common.tests_statistics.keyboards import get_back_kb
     await callback.message.edit_text(
         result_text,
         reply_markup=get_back_kb()
@@ -333,15 +348,6 @@ async def show_test_students_statistics(
             InlineKeyboardButton(
                 text=f"📊 {student}",
                 callback_data=callback_data
-            )
-        ])
-    
-    # Добавляем кнопку для сравнения с входным тестом (только для контрольного теста)
-    if test_type == "month_control" and month_id:
-        buttons.append([
-            InlineKeyboardButton(
-                text="📈 Сравнить с входным тестом",
-                callback_data=f"compare_tests_{group_id}_{month_id}"
             )
         ])
     
