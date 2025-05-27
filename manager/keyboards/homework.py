@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_main_menu_back_button
+from common.keyboards import get_main_menu_back_button, get_universal_back_button
+
 
 def get_homework_management_kb() -> InlineKeyboardMarkup:
     """Клавиатура управления домашними заданиями"""
@@ -251,12 +252,14 @@ def get_photo_skip_kb() -> InlineKeyboardMarkup:
                 callback_data="skip_photo"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="⬅️ Назад", 
-                callback_data="back_to_question_text"
-            )
-        ]
+        get_universal_back_button( "⬅️ Назад к вопросу", "back_to_question_text"),
+        get_universal_back_button("🏠 Главное меню", "back_to_main")
     ]
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_home_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для возврата в главное меню"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *get_main_menu_back_button()
+    ])
