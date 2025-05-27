@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
+import logging
 from .states import TestsStatisticsStates
 from .keyboards import (
     get_tests_statistics_menu_kb,
@@ -16,6 +17,9 @@ from common.statistics import (
     format_test_comparison
 )
 from ..keyboards import get_main_menu_back_button
+
+# Настройка логгера
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -69,9 +73,7 @@ async def show_month_entry_groups(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("month_entry_group_"))
 async def show_month_entry_months(callback: CallbackQuery, state: FSMContext):
     """Показать месяцы для входного теста месяца"""
-    group_id = callback.data.replace("month_entry_group_", "")
-    
-    await state.update_data(selected_group=group_id)
+    group_id = await get_group_id_from_callback_or_state(callback, state, "month_entry_group_")
     
     await callback.message.edit_text(
         "Выберите месяц для просмотра статистики входного теста:",
@@ -116,9 +118,7 @@ async def show_month_control_groups(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("month_control_group_"))
 async def show_month_control_months(callback: CallbackQuery, state: FSMContext):
     """Показать месяцы для контрольного теста месяца"""
-    group_id = callback.data.replace("month_control_group_", "")
-    
-    await state.update_data(selected_group=group_id)
+    group_id = await get_group_id_from_callback_or_state(callback, state, "month_control_group_")
     
     await callback.message.edit_text(
         "Выберите месяц для просмотра статистики контрольного теста:",
@@ -184,9 +184,7 @@ async def show_ent_groups(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("ent_group_"))
 async def show_ent_students(callback: CallbackQuery, state: FSMContext):
     """Показать студентов для пробного ЕНТ"""
-    group_id = callback.data.replace("ent_group_", "")
-    
-    await state.update_data(selected_group=group_id)
+    group_id = await get_group_id_from_callback_or_state(callback, state, "ent_group_")
     
     await callback.message.edit_text(
         "Выберите ученика для просмотра статистики пробного ЕНТ:",
@@ -227,7 +225,8 @@ async def show_student_test_statistics(
         group_id: ID группы (опционально)
         month_id: ID месяца (опционально)
     """
-    print(f"DEBUG: show_student_test_statistics вызвана с параметрами: test_type={test_type}, student_id={student_id}, group_id={group_id}, month_id={month_id}")
+    logger.info("show_student_test_statistics вызвана с параметрами: test_type=%s, student_id=%s, group_id=%s, month_id=%s", 
+                test_type, student_id, group_id, month_id)
     
     # Определяем ID теста и предмет в зависимости от типа теста
     if test_type == "course_entry":
@@ -246,13 +245,13 @@ async def show_student_test_statistics(
         test_id = ""
         subject_name = "Неизвестный предмет"
     
-    print(f"DEBUG: Сформирован test_id: {test_id}")
+    logger.info("Сформирован test_id: %s", test_id)
     
     # Получаем результаты теста из общего компонента
     from common.statistics import get_test_results
     test_results = get_test_results(test_id, student_id)
     
-    print(f"DEBUG: Получены результаты теста: {test_results}")
+    logger.info("Получены результаты теста: %s", test_results)
     
     # Форматируем результаты теста
     from common.statistics import format_test_result
@@ -263,7 +262,7 @@ async def show_student_test_statistics(
         month=month_id
     )
     
-    print(f"DEBUG: Сформирован текст результата: {result_text}")
+    logger.info("Сформирован текст результата: %s", result_text)
     
     # Добавляем информацию о группе
     group_name = group_id.replace("_", " ").title() if group_id else "Неизвестная группа"
@@ -358,3 +357,27 @@ async def show_test_students_statistics(
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
     )
     await state.set_state(TestsStatisticsStates.statistics_result)
+
+async def get_group_id_from_callback_or_state(callback: CallbackQuery, state: FSMContext, prefix: str) -> str:
+    """
+    Получает ID группы из callback_data или из состояния, если callback_data не содержит ID
+
+    Args:
+        callback: Объект CallbackQuery
+        state: Контекст состояния FSM
+        prefix: Префикс, который нужно удалить из callback_data для получения ID группы
+
+    Returns:
+        str: ID группы
+    """
+    if callback.data.replace(prefix, ""):
+        group_id = callback.data.replace(prefix, "")
+        logger.info("group_id: %s", group_id)
+        await state.update_data(selected_group=group_id)
+    else:
+        # Если это кнопка "назад" или другой callback, берем ID группы из состояния
+        user_data = await state.get_data()
+        group_id = user_data.get("selected_group")
+        logger.info("Using saved group_id: %s", group_id)
+
+    return group_id

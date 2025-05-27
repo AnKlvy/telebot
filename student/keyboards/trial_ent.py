@@ -104,6 +104,5 @@ def get_analytics_subjects_kb(subjects: list) -> InlineKeyboardMarkup:
 def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата к выбору предмета для аналитики"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        get_universal_back_button("⬅️ Назад к выбору предмета", "back_to_analytics_subjects"),
-        get_universal_back_button("🏠 Главное меню", "back_to_main")
+        *get_main_menu_back_button()
     ])

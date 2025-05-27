@@ -436,6 +436,7 @@ async def show_subject_analytics(callback: CallbackQuery, state: FSMContext):
                   if percentage is not None and percentage <= 40]
     
     # Формируем текст с аналитикой
+    #TODO использовать как общий элемент
     analytics_text = f"Твоя аналитика по предмету {subject_name} по пробному ЕНТ:\n"
     analytics_text += f"🧾 Верных баллов по {subject_name}: {subject_correct}/{max_points}\n"
     

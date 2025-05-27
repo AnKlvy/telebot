@@ -1,3 +1,4 @@
+from common.tests_statistics import show_tests_statistics_menu
 from common.tests_statistics.states import TestsStatisticsStates
 from curator.handlers.tests import (
     show_curator_tests_statistics,
@@ -15,16 +16,15 @@ from curator.handlers.tests import (
     curator_show_ent_groups,
     curator_show_ent_students,
     curator_show_ent_statistics,
-    curator_back_to_tests_statistics
 )
 
 # Словарь обработчиков для каждого состояния
 STATE_HANDLERS = {
     TestsStatisticsStates.main: show_curator_tests_statistics,
-    TestsStatisticsStates.select_group: curator_back_to_tests_statistics,  # Обрабатывается через роутер
-    TestsStatisticsStates.select_month: curator_back_to_tests_statistics,  # Обрабатывается через роутер
-    TestsStatisticsStates.select_student: curator_back_to_tests_statistics,  # Обрабатывается через роутер
-    TestsStatisticsStates.statistics_result: curator_back_to_tests_statistics
+    TestsStatisticsStates.select_group: show_tests_statistics_menu,  # Обрабатывается через роутер
+    TestsStatisticsStates.select_month: show_tests_statistics_menu,  # Обрабатывается через роутер
+    TestsStatisticsStates.select_student: show_tests_statistics_menu,  # Обрабатывается через роутер
+    TestsStatisticsStates.statistics_result: show_tests_statistics_menu
 }
 
 # Словарь переходов между состояниями
