@@ -1,6 +1,9 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List
 
+from common.keyboards import get_main_menu_back_button
+
+
 def get_test_subjects_kb(test_type: str) -> InlineKeyboardMarkup:
     """
     Клавиатура с предметами для тестов
@@ -29,12 +32,7 @@ def get_test_subjects_kb(test_type: str) -> InlineKeyboardMarkup:
         ])
     
     # Добавляем кнопку "Назад"
-    buttons.append([
-        InlineKeyboardButton(
-            text="◀️ Назад",
-            callback_data="back_to_tests"
-        )
-    ])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -84,14 +82,16 @@ def get_test_answers_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="A", callback_data="answer_A")],
         [InlineKeyboardButton(text="B", callback_data="answer_B")],
         [InlineKeyboardButton(text="C", callback_data="answer_C")],
-        [InlineKeyboardButton(text="D", callback_data="answer_D")]
+        [InlineKeyboardButton(text="D", callback_data="answer_D")],
+        *get_main_menu_back_button()
     ])
 
 def get_back_to_test_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню тестов"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="◀️ Назад к тестам", callback_data="back_to_tests")]
-    ])
+        *get_main_menu_back_button()
+    ]
+    )
 
 def get_tests_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура главного меню тестов"""
@@ -99,5 +99,5 @@ def get_tests_menu_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📝 Входной тест курса", callback_data="course_entry_test")],
         [InlineKeyboardButton(text="📊 Входной тест месяца", callback_data="month_entry_test")],
         [InlineKeyboardButton(text="📈 Контрольный тест месяца", callback_data="month_control_test")],
-        [InlineKeyboardButton(text="◀️ Назад в главное меню", callback_data="back_to_main")]
+        *get_main_menu_back_button()
     ])

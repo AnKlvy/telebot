@@ -1,3 +1,8 @@
+import logging
+
+# Настройка логгера
+logger = logging.getLogger(__name__)
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -20,15 +25,18 @@ router = Router()
 @router.callback_query(F.data == "course_entry_test")
 async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста курса"""
+    logger.info(f"ВЫЗОВ: show_course_entry_subjects, user_id={callback.from_user.id}")
     await callback.message.edit_text(
         "Выберите предмет для входного теста курса:",
         reply_markup=get_test_subjects_kb("course_entry")
     )
     await state.set_state(TestsStates.select_group_entry)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_group_entry")
 
 @router.callback_query(TestsStates.select_group_entry, F.data.startswith("course_entry_sub_"))
 async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста курса"""
+    logger.info(f"ВЫЗОВ: handle_course_entry_subject, user_id={callback.from_user.id}, data={callback.data}")
     subject_id = callback.data.replace("course_entry_sub_", "")
     await handle_entry_test(callback, state, "course_entry", subject_id)
 
@@ -36,25 +44,30 @@ async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext
 @router.callback_query(F.data == "month_entry_test")
 async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста месяца"""
+    logger.info(f"ВЫЗОВ: show_month_entry_subjects, user_id={callback.from_user.id}")
     await callback.message.edit_text(
         "Выберите предмет для входного теста месяца:",
         reply_markup=get_test_subjects_kb("month_entry")
     )
     await state.set_state(TestsStates.select_group_entry)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_group_entry")
 
 @router.callback_query(TestsStates.select_group_entry, F.data.startswith("month_entry_sub_"))
 async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста месяца"""
+    logger.info(f"ВЫЗОВ: handle_month_entry_subject, user_id={callback.from_user.id}, data={callback.data}")
     subject_id = callback.data.replace("month_entry_sub_", "")
     await callback.message.edit_text(
         "Выберите месяц для входного теста:",
         reply_markup=get_month_test_kb("month_entry", subject_id)
     )
     await state.set_state(TestsStates.select_month_entry)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_month_entry")
 
 @router.callback_query(TestsStates.select_month_entry, F.data.startswith("month_entry_"))
 async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для входного теста"""
+    logger.info(f"ВЫЗОВ: handle_month_entry_month, user_id={callback.from_user.id}, data={callback.data}")
     # Извлекаем ID предмета и месяц из callback_data
     # Формат: month_entry_SUBJECT_month_NUMBER
     parts = callback.data.split("_")
@@ -67,25 +80,30 @@ async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "month_control_test")
 async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для контрольного теста месяца"""
+    logger.info(f"ВЫЗОВ: show_month_control_subjects, user_id={callback.from_user.id}")
     await callback.message.edit_text(
         "Выберите предмет для контрольного теста месяца:",
         reply_markup=get_test_subjects_kb("month_control")
     )
     await state.set_state(TestsStates.select_group_control)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_group_control")
 
 @router.callback_query(TestsStates.select_group_control, F.data.startswith("month_control_sub_"))
 async def handle_month_control_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для контрольного теста месяца"""
+    logger.info(f"ВЫЗОВ: handle_month_control_subject, user_id={callback.from_user.id}, data={callback.data}")
     subject_id = callback.data.replace("month_control_sub_", "")
     await callback.message.edit_text(
         "Выберите месяц для контрольного теста:",
         reply_markup=get_month_test_kb("month_control", subject_id)
     )
     await state.set_state(TestsStates.select_month_control)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_month_control")
 
 @router.callback_query(TestsStates.select_month_control, F.data.startswith("month_control_"))
 async def handle_month_control_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для контрольного теста"""
+    logger.info(f"ВЫЗОВ: handle_month_control_month, user_id={callback.from_user.id}, data={callback.data}")
     # Извлекаем ID предмета и месяц из callback_data
     # Формат: month_control_SUBJECT_month_NUMBER
     parts = callback.data.split("_")
@@ -98,38 +116,27 @@ async def handle_month_control_month(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(TestsStates.test_in_progress, F.data.startswith("answer_"))
 async def handle_test_answer(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа на вопрос теста"""
+    logger.info(f"ВЫЗОВ: handle_test_answer, user_id={callback.from_user.id}, data={callback.data}")
     await process_test_answer(callback, state)
 
 # Обработчики для возврата в меню тестов
 @router.callback_query(F.data == "back_to_tests")
 async def back_to_tests(callback: CallbackQuery, state: FSMContext):
     """Возврат в меню тестов"""
+    logger.info(f"ВЫЗОВ: back_to_tests, user_id={callback.from_user.id}")
     from .menu import show_tests_menu
     await show_tests_menu(callback, state)
-
-# Обработчики для навигации между разделами тестов
-@router.callback_query(F.data.startswith("back_to_"))
-async def handle_back_navigation(callback: CallbackQuery, state: FSMContext):
-    """Обработка навигации назад"""
-    action = callback.data.replace("back_to_", "")
-    
-    if action == "course_entry_subjects":
-        await show_course_entry_subjects(callback, state)
-    elif action == "month_entry_subjects":
-        await show_month_entry_subjects(callback, state)
-    elif action == "month_control_subjects":
-        await show_month_control_subjects(callback, state)
-    else:
-        # Если неизвестное действие, возвращаемся в меню тестов
-        await back_to_tests(callback, state)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.main")
 
 async def show_test_question(callback: CallbackQuery, state: FSMContext, question_number: int):
     """Показать вопрос теста"""
+    logger.info(f"ВЫЗОВ: show_test_question, user_id={callback.from_user.id}, question={question_number}")
     user_data = await state.get_data()
     test_questions = user_data.get("test_questions", [])
     
     if question_number > len(test_questions):
         # Если вопросы закончились, завершаем тест
+        logger.info(f"ЗАВЕРШЕНИЕ ТЕСТА: вопросы закончились")
         await finish_test(callback, state)
         return
     
@@ -142,19 +149,24 @@ async def show_test_question(callback: CallbackQuery, state: FSMContext, questio
         f"{options_text}",
         reply_markup=get_test_answers_kb()
     )
+    logger.info(f"ПОКАЗАН ВОПРОС: {question_number}/{len(test_questions)}")
 
 async def process_test_answer(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа на вопрос теста"""
+    logger.info(f"ВЫЗОВ: process_test_answer, user_id={callback.from_user.id}")
     selected_answer = callback.data.replace("answer_", "")
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
     test_questions = user_data.get("test_questions", [])
+    
+    logger.info(f"ОТВЕТ: {selected_answer} на вопрос {current_question}")
     
     if current_question <= len(test_questions):
         question = test_questions[current_question - 1]
         
         # Проверяем правильность ответа
         is_correct = selected_answer == question["correct"]
+        logger.info(f"ПРАВИЛЬНОСТЬ: {'верно' if is_correct else 'неверно'}")
         
         # Обновляем статистику по темам
         topics_progress = user_data.get("topics_progress", {})
@@ -188,19 +200,24 @@ async def process_test_answer(callback: CallbackQuery, state: FSMContext):
             user_answers=user_answers,
             topics_progress=topics_progress
         )
+        logger.info(f"ОБНОВЛЕНО СОСТОЯНИЕ: следующий вопрос {next_question}, правильных ответов {correct_answers}")
         
         # Если есть следующий вопрос, показываем его
         if next_question <= len(test_questions):
+            logger.info(f"ПЕРЕХОД: к следующему вопросу {next_question}")
             await show_test_question(callback, state, next_question)
         else:
             # Иначе завершаем тест
+            logger.info(f"ЗАВЕРШЕНИЕ ТЕСТА: все вопросы отвечены")
             await finish_test(callback, state)
     else:
         # Если все вопросы пройдены, завершаем тест
+        logger.info(f"ЗАВЕРШЕНИЕ ТЕСТА: все вопросы уже отвечены")
         await finish_test(callback, state)
 
 async def finish_test(callback: CallbackQuery, state: FSMContext):
     """Завершение теста и показ результатов"""
+    logger.info(f"ВЫЗОВ: finish_test, user_id={callback.from_user.id}")
     user_data = await state.get_data()
     test_type = user_data.get("test_type", "")
     selected_subject = user_data.get("selected_subject", "")
@@ -208,6 +225,8 @@ async def finish_test(callback: CallbackQuery, state: FSMContext):
     total_questions = user_data.get("total_questions", 0)
     correct_answers = user_data.get("correct_answers", 0)
     topics_progress = user_data.get("topics_progress", {})
+    
+    logger.info(f"РЕЗУЛЬТАТЫ: тип={test_type}, предмет={selected_subject}, месяц={selected_month}, верных={correct_answers}/{total_questions}")
     
     # Определяем название предмета
     subject_names = {
@@ -228,6 +247,7 @@ async def finish_test(callback: CallbackQuery, state: FSMContext):
         if data["total"] > 0:
             percentage = int((data["correct"] / data["total"]) * 100)
             topics_percentages[topic] = percentage
+            logger.info(f"ТЕМА: {topic}, процент={percentage}%")
     
     # Формируем текст с результатами в зависимости от типа теста
     if test_type == "course_entry":
@@ -276,12 +296,14 @@ async def finish_test(callback: CallbackQuery, state: FSMContext):
         test_completed=True,
         test_results=test_results
     )
+    logger.info(f"СОХРАНЕНЫ РЕЗУЛЬТАТЫ: {test_results}")
     
     await callback.message.edit_text(
         result_text,
         reply_markup=get_back_to_test_kb()
     )
     await state.set_state(TestsStates.test_result)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.test_result")
 
 def generate_random_questions(count: int):
     """Генерация случайных вопросов для теста"""
@@ -311,6 +333,7 @@ def generate_random_questions(count: int):
 # Базовые обработчики для разных типов тестов
 async def handle_entry_test(callback: CallbackQuery, state: FSMContext, test_type: str, subject_id: str, month: str = None):
     """Обработчик для входных тестов (курса или месяца)"""
+    logger.info(f"ВЫЗОВ: handle_entry_test, user_id={callback.from_user.id}, тип={test_type}, предмет={subject_id}, месяц={month}")
     # Формируем ID теста в зависимости от типа
     if test_type == "course_entry":
         test_id = f"course_entry_{subject_id}"
@@ -319,6 +342,7 @@ async def handle_entry_test(callback: CallbackQuery, state: FSMContext, test_typ
     
     # Получаем результаты теста, если они есть
     test_results = get_test_results(test_id, "student1")  # В реальном приложении здесь будет ID студента
+    logger.info(f"ПОЛУЧЕНЫ РЕЗУЛЬТАТЫ: {test_results}")
     
     # Определяем название предмета
     subject_names = {
@@ -335,6 +359,7 @@ async def handle_entry_test(callback: CallbackQuery, state: FSMContext, test_typ
     
     if test_results and test_results.get("total_questions", 0) > 0:
         # Если тест уже пройден, показываем результаты
+        logger.info(f"ТЕСТ УЖЕ ПРОЙДЕН: показываем результаты")
         result_text = format_test_result(test_results, subject_name, test_type, month)
         
         await callback.message.edit_text(
