@@ -41,7 +41,7 @@ async def show_manager_analytics_menu(callback: CallbackQuery, state: FSMContext
     await state.set_state(ManagerAnalyticsStates.main)
 
 # Обработчики для статистики по ученику
-@router.callback_query(ManagerAnalyticsStates.main, F.data == "student_analytics")
+@router.callback_query(ManagerAnalyticsStates.main, F.data == "manager_student_analytics")
 async def manager_select_curator_for_student(callback: CallbackQuery, state: FSMContext):
     """Выбор куратора для статистики по ученику"""
     logger.info("Вызван обработчик manager_select_curator_for_student")
@@ -74,7 +74,7 @@ async def manager_show_student_analytics(callback: CallbackQuery, state: FSMCont
     await show_student_analytics(callback, state, "manager")
 
 # Обработчики для статистики по группе
-@router.callback_query(ManagerAnalyticsStates.main, F.data == "group_analytics")
+@router.callback_query(ManagerAnalyticsStates.main, F.data == "manager_group_analytics")
 async def manager_select_curator_for_group(callback: CallbackQuery, state: FSMContext):
     """Выбор куратора для статистики по группе"""
     logger.info("Вызван обработчик manager_select_curator_for_group")
@@ -101,7 +101,7 @@ async def manager_show_group_analytics(callback: CallbackQuery, state: FSMContex
     await show_group_analytics(callback, state, "manager")
 
 # Обработчики для статистики по предмету
-@router.callback_query(ManagerAnalyticsStates.main, F.data == "subject_analytics")
+@router.callback_query(ManagerAnalyticsStates.main, F.data == "manager_subject_analytics")
 async def manager_select_subject(callback: CallbackQuery, state: FSMContext):
     """Выбор предмета для статистики"""
     logger.info("Вызван обработчик manager_select_subject")

@@ -4,9 +4,9 @@ from common.keyboards import get_main_menu_back_button
 def get_manager_analytics_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики менеджера"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📊 Статистика по ученику", callback_data="student_analytics")],
-        [InlineKeyboardButton(text="📈 Статистика по группе", callback_data="group_analytics")],
-        [InlineKeyboardButton(text="📚 Статистика по предмету", callback_data="subject_analytics")],
+        [InlineKeyboardButton(text="📊 Статистика по ученику", callback_data="manager_student_analytics")],
+        [InlineKeyboardButton(text="📈 Статистика по группе", callback_data="manager_group_analytics")],
+        [InlineKeyboardButton(text="📚 Статистика по предмету", callback_data="manager_subject_analytics")],
         [InlineKeyboardButton(text="📋 Общая статистика", callback_data="general_analytics")],
         *get_main_menu_back_button()
     ])
