@@ -45,14 +45,29 @@ async def main() -> None:
     
     # Регистрируем обработчик команды /curator
     dp.message.register(curator_command, Command("curator"))
-
+    
+    # Регистрируем обработчик команды /student
     dp.message.register(show_student_main_menu, Command("student"))
 
+    # Устанавливаем команды бота в меню
+    from aiogram.types import BotCommand
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="curator", description="Меню куратора"),
+        BotCommand(command="student", description="Меню студента")
+    ]
+    
+    try:
+        await bot.set_my_commands(commands)
+        logging.info("Команды бота успешно установлены")
+    except Exception as e:
+        logging.error(f"Ошибка при установке команд бота: {e}")
+
     # Включаем роутеры для разных ролей
-    dp.include_router(common_router)  # Добавляем первым, чтобы команды /start и /curator были обработаныasync def go_back(callback: CallbackQuery, state: FSMContext, **data):
+    dp.include_router(common_router)
     dp.include_router(student_router)
     dp.include_router(curator_router)
-    register_handlers()  # ← перенос сюда
+    register_handlers()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
