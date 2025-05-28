@@ -1,8 +1,10 @@
 from common.analytics.handlers import (
-    show_analytics_menu, select_group_for_student_analytics, select_student_for_analytics, show_student_analytics,
-    select_group_for_group_analytics, show_group_analytics
+    show_analytics_menu, select_group_for_student_analytics, select_student_for_analytics,
+    select_group_for_group_analytics
 
 )
+from common.statistics import show_student_analytics, show_group_analytics
+
 
 def get_transitions_handlers(states_group, role):
     """

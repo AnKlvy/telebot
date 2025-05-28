@@ -4,9 +4,9 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from common.analytics.handlers import (
     show_analytics_menu, select_group_for_student_analytics,
-    select_student_for_analytics, show_student_analytics,
-    select_group_for_group_analytics, show_group_analytics
+    select_student_for_analytics, select_group_for_group_analytics
 )
+from common.statistics import show_student_analytics, show_group_analytics
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)

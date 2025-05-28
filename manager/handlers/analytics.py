@@ -5,15 +5,15 @@ from aiogram.fsm.state import State, StatesGroup
 from common.analytics.states import AnalyticsStates
 from common.analytics.handlers import (
     select_group_for_student_analytics,
-    select_student_for_analytics, show_student_analytics,
-    select_group_for_group_analytics, show_group_analytics
+    select_student_for_analytics, select_group_for_group_analytics
 )
 from ..keyboards.analytics import (
     get_manager_analytics_menu_kb, get_curators_kb, get_subjects_kb
 )
 from common.analytics.keyboards import get_back_to_analytics_kb
 from common.statistics import (
-    get_subject_stats, format_subject_stats, get_general_stats, format_general_stats
+    get_subject_stats, format_subject_stats, get_general_stats, format_general_stats, show_student_analytics,
+    show_group_analytics
 )
 import logging
 
