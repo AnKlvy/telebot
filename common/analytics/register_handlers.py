@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from common.analytics.handlers import (
     show_analytics_menu, select_group_for_student_analytics,
     select_student_for_analytics, show_student_analytics,
-    select_group_for_group_analytics
+    select_group_for_group_analytics, show_group_analytics
 )
 
 # Настройка логирования
@@ -29,7 +29,7 @@ def register_analytics_handlers(router, states_group, role):
     @router.callback_query(states_group.select_group_for_group, F.data.startswith("analytics_group_"))
     async def role_select_student_for_group(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_select_student_for_group_state | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
-        await select_student_for_analytics(callback, state, role)
+        await show_group_analytics(callback, state, role)
         await state.set_state(states_group.select_student)
 
     @router.callback_query(states_group.select_student, F.data.startswith("analytics_student_"))
