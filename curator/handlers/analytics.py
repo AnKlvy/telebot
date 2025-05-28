@@ -54,10 +54,3 @@ async def curator_show_group_analytics(callback: CallbackQuery, state: FSMContex
     """Показать статистику по группе"""
     await show_group_analytics(callback, state, "curator")
     await state.set_state(CuratorAnalyticsStates.group_stats)
-
-# Обработчик возврата к меню аналитики
-@router.callback_query(F.data == "back_to_analytics")
-async def back_to_analytics_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в меню аналитики"""
-    await show_curator_analytics_menu(callback, state)
-    await state.set_state(CuratorAnalyticsStates.main)

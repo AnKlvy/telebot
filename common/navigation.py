@@ -104,23 +104,24 @@ async def get_role_to_use(state: FSMContext, user_role: str) -> str:
     detected_role = None
 
     # Проверяем состояние на принадлежность к определенной роли
+    role_prefixes = {
+        "student": ["StudentMain", "HomeworkStates", "ProgressStates", "ShopStates",
+                    "TrialEntStates", "StudentTestStates", "CuratorStates", "AccountStates"],
+        "curator": ["CuratorMain", "CuratorGroupStates", "CuratorAnalyticsStates",
+                    "CuratorHomeworkStates", "MessageStates", "CuratorTestsStatisticsStates"],
+        "teacher": ["TeacherMain", "TeacherGroupStates", "TeacherAnalyticsStates",
+                    "TeacherTestsStatisticsStates"],
+        "manager": ["ManagerMain", "ManagerAnalyticsStates", "AddHomeworkStates",
+                    "ManagerGroupStates"]
+    }
     if current_state:
-        if current_state.startswith("StudentMain") or current_state.startswith("HomeworkStates") or \
-           current_state.startswith("ProgressStates") or current_state.startswith("ShopStates") or \
-           current_state.startswith("TrialEntStates") or current_state.startswith("StudentTestStates") or \
-           current_state.startswith("CuratorStates") or current_state.startswith("AccountStates"):
-            detected_role = "student"
-        elif current_state.startswith("TeacherMain") or current_state.startswith("TeacherGroupStates") or \
-             current_state.startswith("TeacherAnalyticsStates") or current_state.startswith("TeacherTestsStatisticsStates") or \
-             current_state.startswith("TeacherTestsStatisticsStates"):
-            detected_role = "teacher"
-        elif current_state.startswith("CuratorMain") or current_state.startswith("CuratorGroupStates") or \
-             current_state.startswith("CuratorAnalyticsStates") or current_state.startswith("CuratorHomeworkStates") or \
-             current_state.startswith("MessageStates"):
-            detected_role = "curator"
-        elif current_state.startswith("ManagerMain") or current_state.startswith("ManagerAnalyticsStates") or \
-             current_state.startswith("AddHomeworkStates") or current_state.startswith("ManagerGroupStates"):
-            detected_role = "manager"
+        # Словарь с ролями и списками их префиксов
+
+        # Проверяем принадлежность состояния к роли
+        for role, prefixes in role_prefixes.items():
+            if any(current_state.startswith(prefix) for prefix in prefixes):
+                detected_role = role
+                break
 
     # Используем определенную роль, если она найдена, иначе используем переданную роль
     role_to_use = detected_role or user_role

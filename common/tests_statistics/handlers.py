@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 import logging
-from .states import TestsStatisticsStates
 from .keyboards import (
     get_tests_statistics_menu_kb,
     get_groups_kb,
@@ -27,38 +26,42 @@ router = Router()
 @router.callback_query(F.data == "tests_statistics")
 async def show_tests_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать меню статистики тестов"""
-    logger.info("Вызван обработчик show_tests_statistics")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_tests_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await show_tests_statistics_menu(callback, state)
 
 # Обработчики для возврата в меню
 @router.callback_query(F.data == "back_to_tests_statistics")
 async def back_to_tests_statistics(callback: CallbackQuery, state: FSMContext):
     """Вернуться в меню статистики тестов"""
-    logger.info("Вызван обработчик back_to_tests_statistics")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: back_to_tests_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await show_tests_statistics_menu(callback, state)
 
 # Обработчики для входного теста курса
 @router.callback_query(F.data == "stats_course_entry_test")
 async def show_course_entry_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для входного теста курса"""
-    logger.info("Вызван обработчик show_course_entry_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_course_entry_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики входного теста курса:",
         reply_markup=get_groups_kb("course_entry")
     )
-    await state.set_state(TestsStatisticsStates.select_group)
 
-@router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("course_entry_group_"))
+@router.callback_query(F.data.startswith("course_entry_group_"))
 async def show_course_entry_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста курса для группы"""
-    logger.info("Вызван обработчик show_course_entry_statistics с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_course_entry_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     group_id = callback.data.replace("course_entry_group_", "")
     await show_test_students_statistics(callback, state, "course_entry", group_id)
 
 @router.callback_query(F.data.startswith("course_entry_student_"))
 async def show_course_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста курса для конкретного ученика"""
-    logger.info("Вызван обработчик show_course_entry_student_statistics с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_course_entry_student_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     # Формат: course_entry_student_GROUP_ID_STUDENT_ID
     parts = callback.data.split("_")
     group_id = parts[3]
@@ -69,35 +72,37 @@ async def show_course_entry_student_statistics(callback: CallbackQuery, state: F
 @router.callback_query(F.data == "stats_month_entry_test")
 async def show_month_entry_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для входного теста месяца"""
-    logger.info("Вызван обработчик show_month_entry_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики входного теста месяца:",
         reply_markup=get_groups_kb("month_entry")
     )
-    await state.set_state(TestsStatisticsStates.select_group)
 
-@router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("month_entry_group_"))
+@router.callback_query(F.data.startswith("month_entry_group_"))
 async def show_month_entry_months(callback: CallbackQuery, state: FSMContext):
     """Показать месяцы для входного теста месяца"""
-    logger.info("Вызван обработчик show_month_entry_months с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_months, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     group_id = await get_group_id_from_callback_or_state(callback, state, "month_entry_group_")
     
     await callback.message.edit_text(
         "Выберите месяц для просмотра статистики входного теста:",
         reply_markup=get_month_kb("month_entry", group_id)
     )
-    await state.set_state(TestsStatisticsStates.select_month)
 
 @router.callback_query(F.data.startswith("back_to_month_entry_groups"))
 async def back_to_month_entry_groups(callback: CallbackQuery, state: FSMContext):
     """Вернуться к выбору группы для входного теста месяца"""
-    logger.info("Вызван обработчик back_to_month_entry_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: back_to_month_entry_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await show_month_entry_groups(callback, state)
 
-@router.callback_query(TestsStatisticsStates.select_month, F.data.startswith("month_entry_month_"))
+@router.callback_query(F.data.startswith("month_entry_month_"))
 async def show_month_entry_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста месяца"""
-    logger.info("Вызван обработчик show_month_entry_statistics с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     # Формат: month_entry_month_GROUP_ID_MONTH_ID
     parts = callback.data.split("_")
     group_id = parts[3]
@@ -107,7 +112,8 @@ async def show_month_entry_statistics(callback: CallbackQuery, state: FSMContext
 @router.callback_query(F.data.startswith("month_entry_student_"))
 async def show_month_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста месяца для конкретного ученика"""
-    logger.info("Вызван обработчик show_month_entry_student_statistics с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_student_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     # Формат: month_entry_student_GROUP_ID_MONTH_ID_STUDENT_ID
     parts = callback.data.split("_")
     group_id = parts[3]
@@ -119,35 +125,37 @@ async def show_month_entry_student_statistics(callback: CallbackQuery, state: FS
 @router.callback_query(F.data == "stats_month_control_test")
 async def show_month_control_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для контрольного теста месяца"""
-    logger.info("Вызван обработчик show_month_control_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_control_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики контрольного теста месяца:",
         reply_markup=get_groups_kb("month_control")
     )
-    await state.set_state(TestsStatisticsStates.select_group)
 
-@router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("month_control_group_"))
+@router.callback_query(F.data.startswith("month_control_group_"))
 async def show_month_control_months(callback: CallbackQuery, state: FSMContext):
     """Показать месяцы для контрольного теста месяца"""
-    logger.info("Вызван обработчик show_month_control_months с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_control_months, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     group_id = await get_group_id_from_callback_or_state(callback, state, "month_control_group_")
     
     await callback.message.edit_text(
         "Выберите месяц для просмотра статистики контрольного теста:",
         reply_markup=get_month_kb("month_control", group_id)
     )
-    await state.set_state(TestsStatisticsStates.select_month)
 
 @router.callback_query(F.data.startswith("back_to_month_control_groups"))
 async def back_to_month_control_groups(callback: CallbackQuery, state: FSMContext):
     """Вернуться к выбору группы для контрольного теста месяца"""
-    logger.info("Вызван обработчик back_to_month_control_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: back_to_month_control_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await show_month_control_groups(callback, state)
 
-@router.callback_query(TestsStatisticsStates.select_month, F.data.startswith("month_control_month_"))
+@router.callback_query(F.data.startswith("month_control_month_"))
 async def show_month_control_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику контрольного теста месяца"""
-    logger.info("Вызван обработчик show_month_control_statistics с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_control_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     # Формат: month_control_month_GROUP_ID_MONTH_ID
     parts = callback.data.split("_")
     group_id = parts[3]
@@ -157,7 +165,8 @@ async def show_month_control_statistics(callback: CallbackQuery, state: FSMConte
 @router.callback_query(F.data.startswith("compare_tests_"))
 async def show_tests_comparison(callback: CallbackQuery, state: FSMContext):
     """Показать сравнение входного и контрольного тестов"""
-    logger.info("Вызван обработчик show_tests_comparison с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_tests_comparison, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     # Формат: compare_tests_GROUP_ID_MONTH_ID
     parts = callback.data.split("_")
     group_id = parts[2]
@@ -184,41 +193,42 @@ async def show_tests_comparison(callback: CallbackQuery, state: FSMContext):
         result_text,
         reply_markup=get_back_kb()
     )
-    await state.set_state(TestsStatisticsStates.statistics_result)
 
 # Обработчики для пробного ЕНТ
 @router.callback_query(F.data == "stats_ent_test")
 async def show_ent_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для пробного ЕНТ"""
-    logger.info("Вызван обработчик show_ent_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_ent_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики пробного ЕНТ:",
         reply_markup=get_groups_kb("ent")
     )
-    await state.set_state(TestsStatisticsStates.select_group)
 
-@router.callback_query(TestsStatisticsStates.select_group, F.data.startswith("ent_group_"))
+@router.callback_query(F.data.startswith("ent_group_"))
 async def show_ent_students(callback: CallbackQuery, state: FSMContext):
     """Показать студентов для пробного ЕНТ"""
-    logger.info("Вызван обработчик show_ent_students с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_ent_students, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     group_id = await get_group_id_from_callback_or_state(callback, state, "ent_group_")
     
     await callback.message.edit_text(
         "Выберите ученика для просмотра статистики пробного ЕНТ:",
         reply_markup=get_students_kb("ent", group_id)
     )
-    await state.set_state(TestsStatisticsStates.select_student)
 
 @router.callback_query(F.data.startswith("back_to_ent_groups"))
 async def back_to_ent_groups(callback: CallbackQuery, state: FSMContext):
     """Вернуться к выбору группы для пробного ЕНТ"""
-    logger.info("Вызван обработчик back_to_ent_groups")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: back_to_ent_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     await show_ent_groups(callback, state)
 
-@router.callback_query(TestsStatisticsStates.select_student, F.data.startswith("ent_student_"))
+@router.callback_query(F.data.startswith("ent_student_"))
 async def show_ent_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику пробного ЕНТ для студента"""
-    logger.info("Вызван обработчик show_ent_statistics с данными: %s", callback.data)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_ent_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
     # Формат: ent_student_GROUP_ID_STUDENT_ID
     parts = callback.data.split("_")
     group_id = parts[2]
@@ -244,8 +254,8 @@ async def show_student_test_statistics(
         group_id: ID группы (опционально)
         month_id: ID месяца (опционально)
     """
-    logger.info("show_student_test_statistics вызвана с параметрами: test_type=%s, student_id=%s, group_id=%s, month_id=%s", 
-                test_type, student_id, group_id, month_id)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_student_test_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, test_type={test_type}, student_id={student_id}, group_id={group_id}, month_id={month_id}")
     
     # Определяем ID теста и предмет в зависимости от типа теста
     if test_type == "course_entry":
@@ -263,15 +273,11 @@ async def show_student_test_statistics(
     else:
         test_id = ""
         subject_name = "Неизвестный предмет"
-    
-    logger.info("Сформирован test_id: %s", test_id)
-    
+
     # Получаем результаты теста из общего компонента
     from common.statistics import get_test_results
     test_results = get_test_results(test_id, student_id)
-    
-    logger.info("Получены результаты теста: %s", test_results)
-    
+
     # Форматируем результаты теста
     from common.statistics import format_test_result
     result_text = format_test_result(
@@ -280,9 +286,7 @@ async def show_student_test_statistics(
         test_type=test_type,
         month=month_id
     )
-    
-    logger.info("Сформирован текст результата: %s", result_text)
-    
+
     # Добавляем информацию о группе
     group_name = group_id.replace("_", " ").title() if group_id else "Неизвестная группа"
     result_text = result_text.replace("курса пройден", f"{group_name} курса пройден")
@@ -292,7 +296,6 @@ async def show_student_test_statistics(
         result_text,
         reply_markup=get_back_kb()
     )
-    await state.set_state(TestsStatisticsStates.statistics_result)
 
 async def show_test_students_statistics(
     callback: CallbackQuery, 
@@ -313,8 +316,8 @@ async def show_test_students_statistics(
         month_id: ID месяца (опционально)
         title: Заголовок сообщения (опционально)
     """
-    logger.info("show_test_students_statistics вызвана с параметрами: test_type=%s, group_id=%s, month_id=%s, title=%s", 
-                test_type, group_id, month_id, title)
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_test_students_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, test_type={test_type}, group_id={group_id}, month_id={month_id}, title={title}")
     
     # В реальном приложении здесь будет запрос к базе данных
     # для получения статистики по группе и месяцу
@@ -332,10 +335,7 @@ async def show_test_students_statistics(
     else:
         completed_students = []
         not_completed_students = []
-    
-    logger.info("Определены списки студентов: completed=%s, not_completed=%s", 
-                completed_students, not_completed_students)
-    
+
     # Формируем заголовок сообщения
     if not title:
         if test_type == "course_entry":
@@ -347,8 +347,7 @@ async def show_test_students_statistics(
         else:
             title = "📊 Статистика теста"
     
-    logger.info("Сформирован заголовок: %s", title)
-    
+
     # Формируем текст сообщения
     result_text = f"{title}\n\n"
     result_text += f"Группа: {group_id.replace('_', ' ').title()}\n\n"
@@ -377,15 +376,13 @@ async def show_test_students_statistics(
             )
         ])
     
-    logger.info("Сформированы кнопки для студентов: %s", buttons)
-    
+
     buttons.extend(get_main_menu_back_button())
     
     await callback.message.edit_text(
         result_text,
         reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
     )
-    await state.set_state(TestsStatisticsStates.statistics_result)
 
 async def get_group_id_from_callback_or_state(callback: CallbackQuery, state: FSMContext, prefix: str) -> str:
     """

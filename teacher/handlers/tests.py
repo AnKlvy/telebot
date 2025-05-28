@@ -61,7 +61,7 @@ async def teacher_show_course_entry_statistics(callback: CallbackQuery, state: F
     await show_course_entry_statistics(callback, state)
     await state.set_state(TeacherTestsStatisticsStates.course_entry_result)
 
-@router.callback_query(F.data.startswith("course_entry_student_"))
+@router.callback_query(TeacherTestsStatisticsStates.course_entry_select_group, F.data.startswith("course_entry_student_"))
 async def teacher_show_course_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста курса для конкретного ученика"""
     logger.info(f"Вызвана функция teacher_show_course_entry_student_statistics для пользователя {callback.from_user.id}")
@@ -90,7 +90,7 @@ async def teacher_show_month_entry_statistics(callback: CallbackQuery, state: FS
     await show_month_entry_statistics(callback, state)
     await state.set_state(TeacherTestsStatisticsStates.month_entry_result)
 
-@router.callback_query(F.data.startswith("month_entry_student_"))
+@router.callback_query(TeacherTestsStatisticsStates.month_control_select_group, F.data.startswith("month_entry_student_"))
 async def teacher_show_month_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста месяца для конкретного ученика"""
     logger.info(f"Вызвана функция teacher_show_month_entry_student_statistics для пользователя {callback.from_user.id}")
@@ -119,7 +119,7 @@ async def teacher_show_month_control_statistics(callback: CallbackQuery, state: 
     await show_month_control_statistics(callback, state)
     await state.set_state(TeacherTestsStatisticsStates.month_control_result)
 
-@router.callback_query(F.data.startswith("month_control_student_"))
+@router.callback_query(TeacherTestsStatisticsStates.month_control_select_group, F.data.startswith("month_control_student_"))
 async def teacher_show_month_control_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику контрольного теста месяца для конкретного ученика"""
     logger.info(f"Вызвана функция teacher_show_month_control_student_statistics для пользователя {callback.from_user.id}")

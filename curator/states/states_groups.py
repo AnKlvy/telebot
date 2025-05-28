@@ -1,4 +1,4 @@
-from curator.handlers.groups import CuratorGroupStates, show_curator_groups, show_group_students, show_student_profile
+from curator.handlers.groups import CuratorGroupStates, show_curator_groups, show_curator_group_students, show_curator_student_profile
 
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
@@ -10,6 +10,6 @@ STATE_TRANSITIONS = {
 # Словарь обработчиков для каждого состояния
 STATE_HANDLERS = {
     CuratorGroupStates.select_group: show_curator_groups,
-    CuratorGroupStates.select_student: show_group_students,
-    CuratorGroupStates.student_profile: show_student_profile
+    CuratorGroupStates.select_student: show_curator_group_students,
+    CuratorGroupStates.student_profile: show_curator_student_profile
 }

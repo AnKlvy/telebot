@@ -25,7 +25,8 @@ router = Router()
 @router.callback_query(F.data == "course_entry_test")
 async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста курса"""
-    logger.info(f"ВЫЗОВ: show_course_entry_subjects, user_id={callback.from_user.id}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_course_entry_subjects, user_id={callback.from_user.id}, текущее состояние={current_state}")
     await callback.message.edit_text(
         "Выберите предмет для входного теста курса:",
         reply_markup=get_test_subjects_kb("course_entry")
@@ -36,7 +37,8 @@ async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(TestsStates.select_group_entry, F.data.startswith("course_entry_sub_"))
 async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста курса"""
-    logger.info(f"ВЫЗОВ: handle_course_entry_subject, user_id={callback.from_user.id}, data={callback.data}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: handle_course_entry_subject, user_id={callback.from_user.id}, data={callback.data}, текущее состояние={current_state}")
     subject_id = callback.data.replace("course_entry_sub_", "")
     await handle_entry_test(callback, state, "course_entry", subject_id)
 
@@ -44,7 +46,8 @@ async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext
 @router.callback_query(F.data == "month_entry_test")
 async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста месяца"""
-    logger.info(f"ВЫЗОВ: show_month_entry_subjects, user_id={callback.from_user.id}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_subjects, user_id={callback.from_user.id}, текущее состояние={current_state}")
     await callback.message.edit_text(
         "Выберите предмет для входного теста месяца:",
         reply_markup=get_test_subjects_kb("month_entry")
@@ -55,7 +58,8 @@ async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TestsStates.select_group_entry, F.data.startswith("month_entry_sub_"))
 async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста месяца"""
-    logger.info(f"ВЫЗОВ: handle_month_entry_subject, user_id={callback.from_user.id}, data={callback.data}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: handle_month_entry_subject, user_id={callback.from_user.id}, data={callback.data}, текущее состояние={current_state}")
     subject_id = callback.data.replace("month_entry_sub_", "")
     await callback.message.edit_text(
         "Выберите месяц для входного теста:",
@@ -67,7 +71,8 @@ async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(TestsStates.select_month_entry, F.data.startswith("month_entry_"))
 async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для входного теста"""
-    logger.info(f"ВЫЗОВ: handle_month_entry_month, user_id={callback.from_user.id}, data={callback.data}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: handle_month_entry_month, user_id={callback.from_user.id}, data={callback.data}, текущее состояние={current_state}")
     # Извлекаем ID предмета и месяц из callback_data
     # Формат: month_entry_SUBJECT_month_NUMBER
     parts = callback.data.split("_")
@@ -80,7 +85,8 @@ async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "month_control_test")
 async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для контрольного теста месяца"""
-    logger.info(f"ВЫЗОВ: show_month_control_subjects, user_id={callback.from_user.id}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_control_subjects, user_id={callback.from_user.id}, текущее состояние={current_state}")
     await callback.message.edit_text(
         "Выберите предмет для контрольного теста месяца:",
         reply_markup=get_test_subjects_kb("month_control")
@@ -91,7 +97,8 @@ async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext
 @router.callback_query(TestsStates.select_group_control, F.data.startswith("month_control_sub_"))
 async def handle_month_control_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для контрольного теста месяца"""
-    logger.info(f"ВЫЗОВ: handle_month_control_subject, user_id={callback.from_user.id}, data={callback.data}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: handle_month_control_subject, user_id={callback.from_user.id}, data={callback.data}, текущее состояние={current_state}")
     subject_id = callback.data.replace("month_control_sub_", "")
     await callback.message.edit_text(
         "Выберите месяц для контрольного теста:",
@@ -103,7 +110,8 @@ async def handle_month_control_subject(callback: CallbackQuery, state: FSMContex
 @router.callback_query(TestsStates.select_month_control, F.data.startswith("month_control_"))
 async def handle_month_control_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для контрольного теста"""
-    logger.info(f"ВЫЗОВ: handle_month_control_month, user_id={callback.from_user.id}, data={callback.data}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: handle_month_control_month, user_id={callback.from_user.id}, data={callback.data}, текущее состояние={current_state}")
     # Извлекаем ID предмета и месяц из callback_data
     # Формат: month_control_SUBJECT_month_NUMBER
     parts = callback.data.split("_")
@@ -116,21 +124,24 @@ async def handle_month_control_month(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(TestsStates.test_in_progress, F.data.startswith("answer_"))
 async def handle_test_answer(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа на вопрос теста"""
-    logger.info(f"ВЫЗОВ: handle_test_answer, user_id={callback.from_user.id}, data={callback.data}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: handle_test_answer, user_id={callback.from_user.id}, data={callback.data}, текущее состояние={current_state}")
     await process_test_answer(callback, state)
 
 # Обработчики для возврата в меню тестов
 @router.callback_query(F.data == "back_to_tests")
 async def back_to_tests(callback: CallbackQuery, state: FSMContext):
     """Возврат в меню тестов"""
-    logger.info(f"ВЫЗОВ: back_to_tests, user_id={callback.from_user.id}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: back_to_tests, user_id={callback.from_user.id}, текущее состояние={current_state}")
     from .menu import show_tests_menu
     await show_tests_menu(callback, state)
     logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.main")
 
 async def show_test_question(callback: CallbackQuery, state: FSMContext, question_number: int):
     """Показать вопрос теста"""
-    logger.info(f"ВЫЗОВ: show_test_question, user_id={callback.from_user.id}, question={question_number}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_test_question, user_id={callback.from_user.id}, question={question_number}, текущее состояние={current_state}")
     user_data = await state.get_data()
     test_questions = user_data.get("test_questions", [])
     
@@ -153,7 +164,8 @@ async def show_test_question(callback: CallbackQuery, state: FSMContext, questio
 
 async def process_test_answer(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа на вопрос теста"""
-    logger.info(f"ВЫЗОВ: process_test_answer, user_id={callback.from_user.id}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: process_test_answer, user_id={callback.from_user.id}, текущее состояние={current_state}")
     selected_answer = callback.data.replace("answer_", "")
     user_data = await state.get_data()
     current_question = user_data.get("current_question", 1)
@@ -217,7 +229,8 @@ async def process_test_answer(callback: CallbackQuery, state: FSMContext):
 
 async def finish_test(callback: CallbackQuery, state: FSMContext):
     """Завершение теста и показ результатов"""
-    logger.info(f"ВЫЗОВ: finish_test, user_id={callback.from_user.id}")
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: finish_test, user_id={callback.from_user.id}, текущее состояние={current_state}")
     user_data = await state.get_data()
     test_type = user_data.get("test_type", "")
     selected_subject = user_data.get("selected_subject", "")
