@@ -1,62 +1,28 @@
-from common.tests_statistics import show_tests_statistics_menu
-from common.tests_statistics.states import TestsStatisticsStates
-from teacher.handlers.tests import (
-    TeacherTestsStatisticsStates,
-    show_teacher_tests_statistics,
-    teacher_show_course_entry_groups,
-    teacher_show_month_entry_groups,
-    teacher_show_month_entry_months,
-    teacher_show_month_control_groups,
-    teacher_show_month_control_months,
-    teacher_show_ent_groups,
-    teacher_show_ent_students, teacher_show_ent_statistics, teacher_show_course_entry_statistics,
-    teacher_show_month_control_statistics, teacher_show_month_entry_statistics
-)
+from aiogram.fsm.state import StatesGroup, State
+from common.tests_statistics.register_handlers import get_transitions_handlers
 
-# Словарь переходов между состояниями
-STATE_TRANSITIONS = {
-    TeacherTestsStatisticsStates.main: None,  # None означает возврат в главное меню
+# Используем конкретные состояния для учителя
+class TeacherTestsStatisticsStates(StatesGroup):
+    main = State()
     
-    # Переходы для входного теста курса
-    TeacherTestsStatisticsStates.course_entry_select_group: TeacherTestsStatisticsStates.main,
-    TeacherTestsStatisticsStates.course_entry_result: TeacherTestsStatisticsStates.course_entry_select_group,
+    # Состояния для входного теста курса
+    course_entry_select_group = State()
+    course_entry_result = State()
     
-    # Переходы для входного теста месяца
-    TeacherTestsStatisticsStates.month_entry_select_group: TeacherTestsStatisticsStates.main,
-    TeacherTestsStatisticsStates.month_entry_select_month: TeacherTestsStatisticsStates.month_entry_select_group,
-    TeacherTestsStatisticsStates.month_entry_result: TeacherTestsStatisticsStates.month_entry_select_month,
+    # Состояния для входного теста месяца
+    month_entry_select_group = State()
+    month_entry_select_month = State()
+    month_entry_result = State()
     
-    # Переходы для контрольного теста месяца
-    TeacherTestsStatisticsStates.month_control_select_group: TeacherTestsStatisticsStates.main,
-    TeacherTestsStatisticsStates.month_control_select_month: TeacherTestsStatisticsStates.month_control_select_group,
-    TeacherTestsStatisticsStates.month_control_result: TeacherTestsStatisticsStates.month_control_select_month,
+    # Состояния для контрольного теста месяца
+    month_control_select_group = State()
+    month_control_select_month = State()
+    month_control_result = State()
     
-    # Переходы для пробного ЕНТ
-    TeacherTestsStatisticsStates.ent_select_group: TeacherTestsStatisticsStates.main,
-    TeacherTestsStatisticsStates.ent_select_student: TeacherTestsStatisticsStates.ent_select_group,
-    TeacherTestsStatisticsStates.ent_result: TeacherTestsStatisticsStates.ent_select_student
-}
+    # Состояния для пробного ЕНТ
+    ent_select_group = State()
+    ent_select_student = State()
+    ent_result = State()
 
-# Словарь обработчиков для каждого состояния
-STATE_HANDLERS = {
-    TeacherTestsStatisticsStates.main: show_teacher_tests_statistics,
-    
-    # Обработчики для входного теста курса
-    TeacherTestsStatisticsStates.course_entry_select_group: teacher_show_course_entry_groups,
-    TeacherTestsStatisticsStates.course_entry_result: teacher_show_course_entry_statistics,
-    
-    # Обработчики для входного теста месяца
-    TeacherTestsStatisticsStates.month_entry_select_group: teacher_show_month_entry_groups,
-    TeacherTestsStatisticsStates.month_entry_select_month: teacher_show_month_entry_months,
-    TeacherTestsStatisticsStates.month_entry_result: teacher_show_month_entry_statistics,
-    
-    # Обработчики для контрольного теста месяца
-    TeacherTestsStatisticsStates.month_control_select_group: teacher_show_month_control_groups,
-    TeacherTestsStatisticsStates.month_control_select_month: teacher_show_month_control_months,
-    TeacherTestsStatisticsStates.month_control_result: teacher_show_month_control_statistics,
-    
-    # Обработчики для пробного ЕНТ
-    TeacherTestsStatisticsStates.ent_select_group: teacher_show_ent_groups,
-    TeacherTestsStatisticsStates.ent_select_student: teacher_show_ent_students,
-    TeacherTestsStatisticsStates.ent_result: teacher_show_ent_statistics
-}
+# Создаем словари переходов и обработчиков для учителя
+STATE_TRANSITIONS, STATE_HANDLERS = get_transitions_handlers(TeacherTestsStatisticsStates, "teacher")
