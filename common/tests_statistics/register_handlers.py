@@ -1,5 +1,5 @@
 import logging
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from common.tests_statistics.menu import show_tests_statistics_menu
@@ -8,7 +8,6 @@ from common.tests_statistics.handlers import (
     show_course_entry_statistics, show_month_entry_statistics,
     show_month_control_groups, show_month_control_months, show_month_control_statistics,
     show_ent_groups, show_ent_students, show_ent_statistics,
-    show_course_entry_student_statistics, show_month_entry_student_statistics,
 show_tests_comparison,
 )
 

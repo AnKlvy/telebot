@@ -62,7 +62,7 @@ def get_universal_back_button(text: str = "⬅️ Назад", callback_data: st
     """
     return [InlineKeyboardButton(text=text, callback_data=callback_data)]
 
-def get_main_menu_back_button() -> [List[InlineKeyboardButton], List[InlineKeyboardButton]]:
+def get_main_menu_back_button() -> list[list[InlineKeyboardButton]]:
     """Кнопка возврата в главное меню"""
     return [get_universal_back_button(), get_universal_back_button("🏠 Главное меню", "back_to_main")]
 

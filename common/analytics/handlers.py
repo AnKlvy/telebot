@@ -49,16 +49,8 @@ async def select_student_for_analytics(callback: CallbackQuery, state: FSMContex
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    # Проверяем, является ли callback.data ID группы или это кнопка "назад"
-    if callback.data.startswith("analytics_group_"):
-        group_id = callback.data.replace("analytics_group_", "")
-        print("group_id: ", group_id)
-        await state.update_data(selected_group=group_id)
-    else:
-        # Если это кнопка "назад" или другой callback, берем ID группы из состояния
-        user_data = await state.get_data()
-        group_id = user_data.get("selected_group")
-        print("Using saved group_id: ", group_id)
+    group_id = await check_if_id_in_callback_data("analytics_group_", callback, state, "group")
+
     
     await callback.message.edit_text(
         "Выберите ученика для просмотра статистики:",
@@ -75,7 +67,8 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    student_id = callback.data.replace("analytics_student_", "")
+    student_id = await check_if_id_in_callback_data("analytics_student_",callback, state, "student")
+
     
     # Получаем данные о студенте из общего компонента
     student_data = get_student_topics_stats(student_id)
@@ -113,7 +106,7 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    group_id = callback.data.replace("analytics_group_", "")
+    group_id = await check_if_id_in_callback_data("analytics_group_",callback, state, "group")
     
     # Получаем данные о группе из общего компонента
     group_data = get_group_stats(group_id)
@@ -125,4 +118,17 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
         result_text,
         reply_markup=get_back_to_analytics_kb()
     )
-    # Удаляем установку состояния
+
+
+async def check_if_id_in_callback_data(callback_starts_with: str, callback: CallbackQuery, state: FSMContext, id_type)-> str:
+    # Проверяем, является ли callback.data ID группы или это кнопка "назад"
+    if callback.data.startswith(callback_starts_with):
+        id = callback.data.replace(callback_starts_with, "")
+        print(f"{id_type}_id: ", id)
+        await state.update_data(**{id_type:id})
+    else:
+        # Если это кнопка "назад" или другой callback, берем ID из состояния
+        user_data = await state.get_data()
+        id = user_data.get(id_type)
+        print(f"Using saved {id_type}_id: ", id)
+    return id
