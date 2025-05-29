@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from common.analytics.states import AnalyticsStates
 from common.analytics.handlers import (
     select_group_for_student_analytics,
     select_student_for_analytics, select_group_for_group_analytics
@@ -12,7 +11,7 @@ from ..keyboards.analytics import (
 )
 from common.analytics.keyboards import get_back_to_analytics_kb
 from common.statistics import (
-    get_subject_stats, format_subject_stats, get_general_stats, format_general_stats, show_student_analytics,
+    check_if_id_in_callback_data, get_subject_stats, format_subject_stats, get_general_stats, format_general_stats, show_student_analytics,
     show_group_analytics
 )
 import logging
@@ -21,11 +20,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Расширяем базовые состояния для менеджера
-class ManagerAnalyticsStates(AnalyticsStates):
+class ManagerAnalyticsStates(StatesGroup):
+    main = State()
+    select_group_for_student = State()
+    select_student = State()
+    select_group_for_group = State()
     select_curator_for_student = State()
     select_curator_for_group = State()
     select_subject = State()
     subject_stats = State()
+    student_stats = State()
+    group_stats = State()
     general_stats = State()
 
 router = Router()
@@ -55,17 +60,18 @@ async def manager_select_curator_for_student(callback: CallbackQuery, state: FSM
 async def manager_select_group_for_student(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для статистики по ученику"""
     logger.info("Вызван обработчик manager_select_group_for_student")
-    curator_id = callback.data.replace("manager_curator_", "")
+    curator_id = await check_if_id_in_callback_data("manager_curator_", callback, state, "curator")
     logger.debug(f"Выбран куратор с ID: {curator_id}")
     await state.update_data(selected_curator=curator_id)
-    
     await select_group_for_student_analytics(callback, state, "manager")
+    await state.set_state(ManagerAnalyticsStates.select_group_for_student)
 
 @router.callback_query(ManagerAnalyticsStates.select_group_for_student, F.data.startswith("analytics_group_"))
 async def manager_select_student_for_analytics(callback: CallbackQuery, state: FSMContext):
     """Выбор ученика для статистики"""
     logger.info("Вызван обработчик manager_select_student_for_analytics")
     await select_student_for_analytics(callback, state, "manager")
+    await state.set_state(ManagerAnalyticsStates.select_student)
 
 @router.callback_query(ManagerAnalyticsStates.select_student, F.data.startswith("analytics_student_"))
 async def manager_show_student_analytics(callback: CallbackQuery, state: FSMContext):
@@ -93,6 +99,7 @@ async def manager_select_group_for_group(callback: CallbackQuery, state: FSMCont
     await state.update_data(selected_curator=curator_id)
     
     await select_group_for_group_analytics(callback, state, "manager")
+    await state.set_state(ManagerAnalyticsStates.select_group_for_group)
 
 @router.callback_query(ManagerAnalyticsStates.select_group_for_group, F.data.startswith("analytics_group_"))
 async def manager_show_group_analytics(callback: CallbackQuery, state: FSMContext):
@@ -146,10 +153,3 @@ async def manager_show_general_analytics(callback: CallbackQuery, state: FSMCont
         reply_markup=get_back_to_analytics_kb()
     )
     await state.set_state(ManagerAnalyticsStates.general_stats)
-
-# Обработчик возврата к меню аналитики
-@router.callback_query(F.data == "back_to_analytics")
-async def back_to_analytics_menu(callback: CallbackQuery, state: FSMContext):
-    """Вернуться в меню аналитики"""
-    logger.info("Вызван обработчик back_to_analytics_menu")
-    await show_manager_analytics_menu(callback, state)
