@@ -276,16 +276,7 @@ def format_test_result(test_results: Dict, subject_name: str, test_type: str, mo
     weak_topics = [topic for topic, percentage in test_results["topics_progress"].items() 
                   if percentage is not None and percentage <= 40]
     
-    # Добавляем информацию о сильных и слабых темах
-    if strong_topics:
-        result_text += "\n🟢 Сильные темы (≥80%):\n"
-        for topic in strong_topics:
-            result_text += f"• {topic}\n"
-    
-    if weak_topics:
-        result_text += "\n🔴 Слабые темы (≤40%):\n"
-        for topic in weak_topics:
-            result_text += f"• {topic}\n"
+    result_text = add_strong_and_weak_topics(result_text, test_results["topics_progress"])
     
     return result_text
 
@@ -326,10 +317,15 @@ def format_test_comparison(entry_results: Dict, control_results: Dict, subject_n
     
     result_text += f"\n📈 Общий прирост: +{growth}%\n"
     
+    result_text = add_strong_and_weak_topics(result_text, control_topics)
+    
+    return result_text
+
+def add_strong_and_weak_topics(result_text: str, topics:list) -> str:
     # Определяем сильные и слабые темы по результатам контрольного теста
-    strong_topics = [topic for topic, percentage in control_topics.items() 
+    strong_topics = [topic for topic, percentage in topics.items() 
                     if percentage is not None and percentage >= 80]
-    weak_topics = [topic for topic, percentage in control_topics.items() 
+    weak_topics = [topic for topic, percentage in topics.items() 
                   if percentage is not None and percentage <= 40]
     
     # Добавляем информацию о сильных и слабых темах
@@ -344,6 +340,7 @@ def format_test_comparison(entry_results: Dict, control_results: Dict, subject_n
             result_text += f"• {topic}\n"
     
     return result_text
+    
 
 def get_subject_stats(subject_id: str) -> dict:
     """
