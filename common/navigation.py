@@ -42,7 +42,7 @@ class NavigationManager:
         
         if previous_state is None:
             # Возвращаемся в главное меню соответствующей роли
-            print(f"DEBUG: Возвращаемся в главное меню для роли: {user_role}")
+            print(f"DEBUG: Возвращаемся в главное меню для роли: {role_to_use}")
             handler = handlers.get(None)
             if handler:
                 await callback.message.delete()
@@ -106,7 +106,7 @@ async def get_role_to_use(state: FSMContext, user_role: str) -> str:
     # Проверяем состояние на принадлежность к определенной роли
     role_prefixes = {
         "student": ["StudentMain", "HomeworkStates", "ProgressStates", "ShopStates",
-                    "TrialEntStates", "StudentTestStates", "CuratorStates", "AccountStates"],
+                    "TrialEntStates", "StudentTestsStates", "CuratorStates", "AccountStates"],
         "curator": ["CuratorMain", "CuratorGroupStates", "CuratorAnalyticsStates",
                     "CuratorHomeworkStates", "MessageStates", "CuratorTestsStatisticsStates"],
         "teacher": ["TeacherMain", "TeacherGroupStates", "TeacherAnalyticsStates",

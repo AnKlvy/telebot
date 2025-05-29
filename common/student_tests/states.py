@@ -1,6 +1,6 @@
 from aiogram.fsm.state import State, StatesGroup
 
-class TestsStates(StatesGroup):
+class StudentTestsStates(StatesGroup):
     """Состояния для работы с тестами"""
     # Общие состояния
     main = State()

@@ -1,5 +1,5 @@
 from student.handlers.test_report import StudentTestStates, show_student_tests
-from common.tests.handlers import (
+from common.student_tests.handlers import (
     show_course_entry_subjects,
     show_month_entry_subjects,
     show_month_control_subjects

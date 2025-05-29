@@ -1,7 +1,7 @@
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from .keyboards import get_tests_menu_kb
-from .states import TestsStates
+from .states import StudentTestsStates
 
 async def show_tests_menu(callback: CallbackQuery, state: FSMContext, user_role: str = None):
     """
@@ -16,4 +16,4 @@ async def show_tests_menu(callback: CallbackQuery, state: FSMContext, user_role:
         "Выберите тип теста:",
         reply_markup=get_tests_menu_kb()
     )
-    await state.set_state(TestsStates.main)
+    await state.set_state(StudentTestsStates.main)

@@ -1,9 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from common.tests.states import TestsStates
-from common.tests.menu import show_tests_menu
-from common.tests.handlers import (
+from common.student_tests.states import StudentTestsStates
+from common.student_tests.menu import show_tests_menu
+from common.student_tests.handlers import (
     show_course_entry_subjects,
     show_month_entry_subjects,
     show_month_control_subjects,
@@ -17,7 +17,7 @@ from common.tests.handlers import (
 )
 
 # Используем базовые состояния из common.tests
-class StudentTestStates(TestsStates):
+class StudentTestStates(StudentTestsStates):
     pass
 
 router = Router()

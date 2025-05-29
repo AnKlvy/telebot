@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from .states import TestsStates
+from .states import StudentTestsStates
 from .keyboards import (
     get_test_subjects_kb, 
     get_month_test_kb,
@@ -31,10 +31,10 @@ async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext)
         "Выберите предмет для входного теста курса:",
         reply_markup=get_test_subjects_kb("course_entry")
     )
-    await state.set_state(TestsStates.select_group_entry)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_group_entry")
+    await state.set_state(StudentTestsStates.select_group_entry)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_group_entry")
 
-@router.callback_query(TestsStates.select_group_entry, F.data.startswith("course_entry_sub_"))
+@router.callback_query(StudentTestsStates.select_group_entry, F.data.startswith("course_entry_sub_"))
 async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста курса"""
     current_state = await state.get_state()
@@ -52,10 +52,10 @@ async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
         "Выберите предмет для входного теста месяца:",
         reply_markup=get_test_subjects_kb("month_entry")
     )
-    await state.set_state(TestsStates.select_group_entry)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_group_entry")
+    await state.set_state(StudentTestsStates.select_group_entry)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_group_entry")
 
-@router.callback_query(TestsStates.select_group_entry, F.data.startswith("month_entry_sub_"))
+@router.callback_query(StudentTestsStates.select_group_entry, F.data.startswith("month_entry_sub_"))
 async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста месяца"""
     current_state = await state.get_state()
@@ -65,10 +65,10 @@ async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext)
         "Выберите месяц для входного теста:",
         reply_markup=get_month_test_kb("month_entry", subject_id)
     )
-    await state.set_state(TestsStates.select_month_entry)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_month_entry")
+    await state.set_state(StudentTestsStates.select_month_entry)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_month_entry")
 
-@router.callback_query(TestsStates.select_month_entry, F.data.startswith("month_entry_"))
+@router.callback_query(StudentTestsStates.select_month_entry, F.data.startswith("month_entry_"))
 async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для входного теста"""
     current_state = await state.get_state()
@@ -91,10 +91,10 @@ async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext
         "Выберите предмет для контрольного теста месяца:",
         reply_markup=get_test_subjects_kb("month_control")
     )
-    await state.set_state(TestsStates.select_group_control)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_group_control")
+    await state.set_state(StudentTestsStates.select_group_control)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_group_control")
 
-@router.callback_query(TestsStates.select_group_control, F.data.startswith("month_control_sub_"))
+@router.callback_query(StudentTestsStates.select_group_control, F.data.startswith("month_control_sub_"))
 async def handle_month_control_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для контрольного теста месяца"""
     current_state = await state.get_state()
@@ -104,10 +104,10 @@ async def handle_month_control_subject(callback: CallbackQuery, state: FSMContex
         "Выберите месяц для контрольного теста:",
         reply_markup=get_month_test_kb("month_control", subject_id)
     )
-    await state.set_state(TestsStates.select_month_control)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.select_month_control")
+    await state.set_state(StudentTestsStates.select_month_control)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_month_control")
 
-@router.callback_query(TestsStates.select_month_control, F.data.startswith("month_control_"))
+@router.callback_query(StudentTestsStates.select_month_control, F.data.startswith("month_control_"))
 async def handle_month_control_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для контрольного теста"""
     current_state = await state.get_state()
@@ -121,7 +121,7 @@ async def handle_month_control_month(callback: CallbackQuery, state: FSMContext)
     await handle_control_test(callback, state, subject_id, month)
 
 # Обработчики для прохождения теста
-@router.callback_query(TestsStates.test_in_progress, F.data.startswith("answer_"))
+@router.callback_query(StudentTestsStates.test_in_progress, F.data.startswith("answer_"))
 async def handle_test_answer(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа на вопрос теста"""
     current_state = await state.get_state()
@@ -136,7 +136,7 @@ async def back_to_tests(callback: CallbackQuery, state: FSMContext):
     logger.info(f"ВЫЗОВ: back_to_tests, user_id={callback.from_user.id}, текущее состояние={current_state}")
     from .menu import show_tests_menu
     await show_tests_menu(callback, state)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.main")
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.main")
 
 async def show_test_question(callback: CallbackQuery, state: FSMContext, question_number: int):
     """Показать вопрос теста"""
@@ -315,8 +315,8 @@ async def finish_test(callback: CallbackQuery, state: FSMContext):
         result_text,
         reply_markup=get_back_to_test_kb()
     )
-    await state.set_state(TestsStates.test_result)
-    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: TestsStates.test_result")
+    await state.set_state(StudentTestsStates.test_result)
+    logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.test_result")
 
 def generate_random_questions(count: int):
     """Генерация случайных вопросов для теста"""
@@ -379,7 +379,7 @@ async def handle_entry_test(callback: CallbackQuery, state: FSMContext, test_typ
             result_text,
             reply_markup=get_back_to_test_kb()
         )
-        await state.set_state(TestsStates.test_result)
+        await state.set_state(StudentTestsStates.test_result)
     else:
         # Если тест еще не пройден, начинаем его
         # Сохраняем информацию о выбранном предмете и месяце
@@ -402,7 +402,7 @@ async def handle_entry_test(callback: CallbackQuery, state: FSMContext, test_typ
         
         # Показываем первый вопрос
         await show_test_question(callback, state, 1)
-        await state.set_state(TestsStates.test_in_progress)
+        await state.set_state(StudentTestsStates.test_in_progress)
 
 async def handle_control_test(callback: CallbackQuery, state: FSMContext, subject_id: str, month: str):
     """Обработчик для контрольных тестов месяца"""
@@ -435,7 +435,7 @@ async def handle_control_test(callback: CallbackQuery, state: FSMContext, subjec
             result_text,
             reply_markup=get_back_to_test_kb()
         )
-        await state.set_state(TestsStates.test_result)
+        await state.set_state(StudentTestsStates.test_result)
     else:
         # Если контрольный тест еще не пройден, начинаем его
         # Сохраняем информацию о выбранном предмете и месяце
@@ -458,4 +458,4 @@ async def handle_control_test(callback: CallbackQuery, state: FSMContext, subjec
         
         # Показываем первый вопрос
         await show_test_question(callback, state, 1)
-        await state.set_state(TestsStates.test_in_progress)
+        await state.set_state(StudentTestsStates.test_in_progress)
