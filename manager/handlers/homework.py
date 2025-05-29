@@ -34,15 +34,15 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-# @router.callback_query(F.data == "manager_add_homework")
-# async def show_homework_management(callback: CallbackQuery, state: FSMContext):
-#     """Показ меню управления домашними заданиями"""
-#     logger.info("Вызван обработчик show_homework_management")
-#
-#     await callback.message.edit_text(
-#         "Управление домашними заданиями",
-#         reply_markup=get_homework_management_kb()
-#     )
+@router.callback_query(F.data == "manager_homework")
+async def show_homework_management(callback: CallbackQuery, state: FSMContext):
+    """Показ меню управления домашними заданиями"""
+    logger.info("Вызван обработчик show_homework_management")
+
+    await callback.message.edit_text(
+        "Управление домашними заданиями",
+        reply_markup=get_homework_management_kb()
+    )
 
 @router.callback_query(F.data == "manager_add_homework")
 async def start_add_homework(callback: CallbackQuery, state: FSMContext):
