@@ -4,6 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile
 import logging
 import os
+
+from common.keyboards import get_main_menu_back_button, get_home_and_back_button
 from ..keyboards.homework import (
     get_courses_kb, get_subjects_kb, get_lessons_kb, get_topics_kb,
     get_time_limit_kb, get_correct_answer_kb, get_add_question_kb,
@@ -14,6 +16,7 @@ from .main import show_manager_main_menu
 from aiogram.fsm.state import State, StatesGroup
 
 class AddHomeworkStates(StatesGroup):
+    main = State()
     select_course = State()
     select_subject = State()
     select_lesson = State()
@@ -28,6 +31,10 @@ class AddHomeworkStates(StatesGroup):
     confirm_homework = State()
     delete_homework = State()
     select_homework_to_delete = State()
+    request_topic = State()
+    process_topic = State()
+    process_photo = State()
+    skip_photo = State()
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -43,8 +50,9 @@ async def show_homework_management(callback: CallbackQuery, state: FSMContext):
         "Управление домашними заданиями",
         reply_markup=get_homework_management_kb()
     )
-
-@router.callback_query(F.data == "manager_add_homework")
+    await state.set_state(AddHomeworkStates.main)
+    
+@router.callback_query(AddHomeworkStates.main, F.data == "manager_add_homework")
 async def start_add_homework(callback: CallbackQuery, state: FSMContext):
     """Начало добавления домашнего задания"""
     logger.info("Вызван обработчик start_add_homework")
@@ -139,7 +147,8 @@ async def enter_homework_name(callback: CallbackQuery, state: FSMContext):
         f"Курс: {course_name}\n"
         f"Предмет: {subject_name}\n"
         f"Урок: {lesson_name}\n\n"
-        "Введите название домашнего задания (например, 'Базовое', 'Углубленное', 'Повторение'):"
+        "Введите название домашнего задания (например, 'Базовое', 'Углубленное', 'Повторение'):",
+        reply_markup=get_home_and_back_button()
     )
     await state.set_state(AddHomeworkStates.enter_homework_name)
 
@@ -191,6 +200,13 @@ async def add_question_photo(message: Message, state: FSMContext):
     )
     await state.set_state(AddHomeworkStates.add_question_photo)
 
+@router.callback_query(AddHomeworkStates.add_question_photo, F.data == "skip_photo")
+async def skip_photo(callback: CallbackQuery, state: FSMContext):
+    """Пропуск добавления фото"""
+    logger.info("Вызван обработчик skip_photo")
+    await state.set_state(AddHomeworkStates.skip_photo)
+    await request_topic(callback.message, state)
+
 @router.message(AddHomeworkStates.add_question_photo, F.photo)
 async def process_question_photo(message: Message, state: FSMContext):
     """Обработка фото для вопроса"""
@@ -203,26 +219,53 @@ async def process_question_photo(message: Message, state: FSMContext):
     current_question["photo_id"] = file_id
     
     await state.update_data(current_question=current_question)
-    
-    await select_topic(message, state)
+    await state.set_state(AddHomeworkStates.process_photo)
+    await request_topic(message, state)
 
-@router.callback_query(AddHomeworkStates.add_question_photo, F.data == "skip_photo")
-async def skip_photo(callback: CallbackQuery, state: FSMContext):
-    """Пропуск добавления фото"""
-    logger.info("Вызван обработчик skip_photo")
-    await select_topic(callback.message, state)
-
-async def select_topic(message: Message, state: FSMContext):
-    """Выбор микротемы для вопроса"""
-    logger.info("Вызвана функция select_topic")
-    user_data = await state.get_data()
-    lesson_id = user_data.get("lesson_id", "")
-    
+async def request_topic(message: Message, state: FSMContext):
+    """Запрос номера микротемы"""
     await message.answer(
-        "Выберите микротему, к которой относится этот вопрос:",
-        reply_markup=get_topics_kb(lesson_id)
+        "Введите номер микротемы:"
     )
-    await state.set_state(AddHomeworkStates.select_topic)
+    await state.set_state(AddHomeworkStates.request_topic)
+
+@router.message(AddHomeworkStates.request_topic)
+async def process_topic_selection(message: Message, state: FSMContext):
+    """Обработка выбора микротемы"""
+    try:
+        topic_number = int(message.text.strip())
+        topic_id = f"topic_{topic_number}"
+        
+        # Словарь с названиями микротем
+        topic_names = {
+            "topic_1": "Строение алканов",
+            "topic_2": "Номенклатура алканов",
+            "topic_3": "Физические свойства алканов",
+            "topic_4": "Химические свойства алканов"
+        }
+        
+        topic_name = topic_names.get(topic_id, f"Микротема {topic_number}")
+        
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        current_question["topic_id"] = topic_id
+        current_question["topic_name"] = topic_name
+        
+        await state.update_data(current_question=current_question)
+        await state.set_state(AddHomeworkStates.process_topic)
+        
+        await message.answer(
+            "Введите 5 вариантов ответа, каждый с новой строки в формате:\n"
+            "A. Первый вариант\n"
+            "B. Второй вариант\n"
+            "C. Третий вариант\n"
+            "D. Четвертый вариант\n"
+            "E. Пятый вариант"
+        )
+        await state.set_state(AddHomeworkStates.enter_answer_options)
+        
+    except ValueError:
+        await message.answer("Пожалуйста, введите корректное число для номера микротемы.")
 
 @router.callback_query(AddHomeworkStates.select_topic, F.data.startswith("topic_"))
 async def enter_answer_options(callback: CallbackQuery, state: FSMContext):
@@ -429,7 +472,7 @@ async def cancel_homework(callback: CallbackQuery, state: FSMContext):
     await show_manager_main_menu(callback, state)
 
 # Обработчики для удаления ДЗ
-@router.callback_query(F.data == "manager_delete_homework")
+@router.callback_query(AddHomeworkStates.main, F.data == "manager_delete_homework")
 async def select_homework_to_delete(callback: CallbackQuery, state: FSMContext):
     """Выбор ДЗ для удаления"""
     logger.info("Вызван обработчик select_homework_to_delete")
@@ -517,8 +560,7 @@ async def delete_homework(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "✅ Домашнее задание успешно удалено!",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад к списку ДЗ", callback_data="back_to_homeworks")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+           *get_main_menu_back_button()
         ])
     )
 
@@ -535,67 +577,5 @@ async def cancel_delete_homework(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(AddHomeworkStates.select_homework_to_delete)
 
-@router.callback_query(F.data == "back_to_homeworks")
-async def back_to_homeworks(callback: CallbackQuery, state: FSMContext):
-    """Возврат к списку ДЗ"""
-    logger.info("Вызван обработчик back_to_homeworks")
-    user_data = await state.get_data()
-    lesson_id = user_data.get("lesson_id", "")
 
-    await callback.message.edit_text(
-        "Выберите домашнее задание для удаления:",
-        reply_markup=get_homeworks_list_kb(lesson_id)
-    )
-    await state.set_state(AddHomeworkStates.select_homework_to_delete)
 
-# Обработчики для навигации назад
-@router.callback_query(F.data == "back_to_question_text")
-async def back_to_question_text(callback: CallbackQuery, state: FSMContext):
-    """Возврат к вводу текста вопроса"""
-    logger.info("Вызван обработчик back_to_question_text")
-    await callback.message.edit_text("Введите текст вопроса:")
-    await state.set_state(AddHomeworkStates.enter_question_text)
-
-@router.callback_query(F.data == "back_to_answer_options")
-async def back_to_answer_options(callback: CallbackQuery, state: FSMContext):
-    """Возврат к вводу вариантов ответа"""
-    logger.info("Вызван обработчик back_to_answer_options")
-    await callback.message.edit_text(
-        "Введите 5 вариантов ответа, каждый с новой строки в формате:\n"
-        "A. Первый вариант\n"
-        "B. Второй вариант\n"
-        "C. Третий вариант\n"
-        "D. Четвертый вариант\n"
-        "E. Пятый вариант"
-    )
-    await state.set_state(AddHomeworkStates.enter_answer_options)
-
-@router.callback_query(F.data == "back_to_questions")
-async def back_to_questions(callback: CallbackQuery, state: FSMContext):
-    """Возврат к добавлению вопросов"""
-    logger.info("Вызван обработчик back_to_questions")
-    user_data = await state.get_data()
-    questions = user_data.get("questions", [])
-
-    await callback.message.edit_text(
-        f"Всего вопросов: {len(questions)}",
-        reply_markup=get_add_question_kb(len(questions))
-    )
-    await state.set_state(AddHomeworkStates.add_question)
-
-@router.callback_query(F.data == "back_to_homework_name")
-async def back_to_homework_name(callback: CallbackQuery, state: FSMContext):
-    """Возврат к вводу названия ДЗ"""
-    logger.info("Вызван обработчик back_to_homework_name")
-    user_data = await state.get_data()
-    course_name = user_data.get("course_name", "")
-    subject_name = user_data.get("subject_name", "")
-    lesson_name = user_data.get("lesson_name", "")
-
-    await callback.message.edit_text(
-        f"Курс: {course_name}\n"
-        f"Предмет: {subject_name}\n"
-        f"Урок: {lesson_name}\n\n"
-        "Введите название домашнего задания (например, 'Базовое', 'Углубленное', 'Повторение'):"
-    )
-    await state.set_state(AddHomeworkStates.enter_homework_name)

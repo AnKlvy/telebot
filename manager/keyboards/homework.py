@@ -112,12 +112,7 @@ def get_topics_kb(lesson_id: str = None) -> InlineKeyboardMarkup:
         )
     ])
     
-    buttons.append([
-        InlineKeyboardButton(
-            text="⬅️ Назад", 
-            callback_data="back_to_question_text"
-        )
-    ])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -142,12 +137,7 @@ def get_time_limit_kb() -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append([
-        InlineKeyboardButton(
-            text="⬅️ Назад", 
-            callback_data="back_to_questions"
-        )
-    ])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -162,12 +152,7 @@ def get_correct_answer_kb() -> InlineKeyboardMarkup:
             )
         ])
     
-    buttons.append([
-        InlineKeyboardButton(
-            text="⬅️ Назад", 
-            callback_data="back_to_answer_options"
-        )
-    ])
+    buttons.extend(get_main_menu_back_button())
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -186,12 +171,7 @@ def get_add_question_kb(question_count: int) -> InlineKeyboardMarkup:
                 callback_data="finish_adding_questions"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="⬅️ Назад", 
-                callback_data="back_to_homework_name"
-            )
-        ]
+        *get_main_menu_back_button()
     ]
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -216,7 +196,8 @@ def get_confirm_homework_kb() -> InlineKeyboardMarkup:
                 text="❌ Отменить", 
                 callback_data="cancel_homework"
             )
-        ]
+        ],
+        *get_main_menu_back_button()
     ]
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -252,14 +233,7 @@ def get_photo_skip_kb() -> InlineKeyboardMarkup:
                 callback_data="skip_photo"
             )
         ],
-        get_universal_back_button( "⬅️ Назад к вопросу", "back_to_question_text"),
-        get_universal_back_button("🏠 Главное меню", "back_to_main")
+        *get_main_menu_back_button()
     ]
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-def get_home_kb() -> InlineKeyboardMarkup:
-    """Клавиатура для возврата в главное меню"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        *get_main_menu_back_button()
-    ])
