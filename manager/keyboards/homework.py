@@ -86,35 +86,6 @@ def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_topics_kb(lesson_id: str = None) -> InlineKeyboardMarkup:
-    """Клавиатура выбора микротемы"""
-    # В реальном приложении здесь будет запрос к базе данных
-    topics = [
-        {"id": "topic_1", "name": "Строение алканов"},
-        {"id": "topic_2", "name": "Номенклатура алканов"},
-        {"id": "topic_3", "name": "Физические свойства алканов"},
-        {"id": "topic_4", "name": "Химические свойства алканов"}
-    ]
-    
-    buttons = []
-    for topic in topics:
-        buttons.append([
-            InlineKeyboardButton(
-                text=topic["name"], 
-                callback_data=f"topic_{topic['id']}"
-            )
-        ])
-    
-    buttons.append([
-        InlineKeyboardButton(
-            text="➕ Добавить новую микротему", 
-            callback_data="add_new_topic"
-        )
-    ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_time_limit_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора времени на ответ"""

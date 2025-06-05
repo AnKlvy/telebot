@@ -7,7 +7,7 @@ import os
 
 from common.keyboards import get_main_menu_back_button, get_home_and_back_button
 from ..keyboards.homework import (
-    get_courses_kb, get_subjects_kb, get_lessons_kb, get_topics_kb,
+    get_courses_kb, get_subjects_kb, get_lessons_kb,
     get_time_limit_kb, get_correct_answer_kb, get_add_question_kb,
     get_confirm_homework_kb, get_homeworks_list_kb, get_photo_skip_kb, get_homework_management_kb
 )
