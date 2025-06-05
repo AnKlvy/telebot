@@ -178,7 +178,8 @@ async def start_adding_questions(message: Message, state: FSMContext):
         f"Предмет: {subject_name}\n"
         f"Урок: {lesson_name}\n"
         f"Название ДЗ: {homework_name}\n\n"
-        "Теперь добавим вопросы. Введите текст первого вопроса:"
+        "Теперь добавим вопросы. Введите текст первого вопроса:",
+        reply_markup=get_home_and_back_button()
     )
     await state.set_state(AddHomeworkStates.enter_question_text)
 
