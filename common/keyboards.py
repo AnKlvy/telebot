@@ -49,11 +49,15 @@ def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_home_and_back_button() -> InlineKeyboardMarkup:
+def get_home_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[back_to_main_button()])
+
+def get_home_and_back_kb() -> InlineKeyboardMarkup:
     """Кнопка возврата в главное меню и назад"""
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button()
     ])
+
 
 def get_universal_back_button(text: str = "⬅️ Назад", callback_data: str = "back") -> List[InlineKeyboardButton]:
     """
@@ -67,6 +71,8 @@ def get_universal_back_button(text: str = "⬅️ Назад", callback_data: st
         List[InlineKeyboardButton]: Список с одной кнопкой назад
     """
     return [InlineKeyboardButton(text=text, callback_data=callback_data)]
+def back_to_main_button() -> List[InlineKeyboardButton]:
+    return get_universal_back_button("🏠 Главное меню", "back_to_main")
 
 def get_main_menu_back_button() -> list[list[InlineKeyboardButton]]:
     """Кнопка возврата в главное меню"""

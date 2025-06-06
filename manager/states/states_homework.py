@@ -1,32 +1,17 @@
+from common.manager_tests.get_transitions_handlers import get_transitions_handlers
 from manager.handlers.homework import (
-    start_add_homework, select_subject, select_lesson, enter_homework_name,
-    start_adding_questions, add_question_photo, process_question_photo, skip_photo,
-    process_topic_selection, enter_answer_options, select_correct_answer, save_question,
-    add_more_question, set_time_limit, confirm_homework, save_homework,
-    edit_homework, cancel_homework, select_homework_to_delete, select_subject_for_delete,
-    select_lesson_for_delete, show_homeworks_to_delete, confirm_delete_homework,
-    delete_homework, cancel_delete_homework, request_topic
+    start_add_homework, select_subject, select_lesson, save_homework,
+    select_homework_to_delete, show_homeworks_to_delete
 )
 from manager.handlers.homework import AddHomeworkStates
-
+transitions, handlers = get_transitions_handlers(AddHomeworkStates, "manager")
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
     AddHomeworkStates.main: AddHomeworkStates.select_course,
     AddHomeworkStates.select_subject: AddHomeworkStates.select_course,
     AddHomeworkStates.select_lesson: AddHomeworkStates.select_subject,
-    AddHomeworkStates.enter_homework_name: AddHomeworkStates.select_lesson,
-    AddHomeworkStates.enter_question_text: AddHomeworkStates.enter_homework_name,
-    AddHomeworkStates.add_question_photo: AddHomeworkStates.enter_question_text,
-    AddHomeworkStates.process_photo: AddHomeworkStates.add_question_photo,
-    AddHomeworkStates.skip_photo: AddHomeworkStates.add_question_photo,
-    AddHomeworkStates.request_topic: AddHomeworkStates.process_photo,
-    AddHomeworkStates.process_topic: AddHomeworkStates.request_topic,
-    AddHomeworkStates.enter_answer_options: AddHomeworkStates.process_topic,
-    AddHomeworkStates.select_correct_answer: AddHomeworkStates.enter_answer_options,
-    AddHomeworkStates.add_question: AddHomeworkStates.select_correct_answer,
-    AddHomeworkStates.set_time_limit: AddHomeworkStates.add_question,
-    AddHomeworkStates.confirm_homework: AddHomeworkStates.set_time_limit,
-    AddHomeworkStates.select_homework_to_delete: AddHomeworkStates.delete_homework
+    **transitions,
+    AddHomeworkStates.select_test_to_delete: AddHomeworkStates.delete_test
 }
 
 # Словарь обработчиков для каждого состояния
@@ -34,18 +19,7 @@ STATE_HANDLERS = {
     AddHomeworkStates.select_course: start_add_homework,
     AddHomeworkStates.select_subject: select_subject,
     AddHomeworkStates.select_lesson: select_lesson,
-    AddHomeworkStates.enter_homework_name: enter_homework_name,
-    AddHomeworkStates.enter_question_text: start_adding_questions,
-    AddHomeworkStates.add_question_photo: add_question_photo,
-    AddHomeworkStates.process_photo: process_question_photo,
-    AddHomeworkStates.skip_photo: skip_photo,
-    AddHomeworkStates.request_topic: request_topic,
-    AddHomeworkStates.process_topic: process_topic_selection,
-    AddHomeworkStates.enter_answer_options: enter_answer_options,
-    AddHomeworkStates.select_correct_answer: select_correct_answer,
-    AddHomeworkStates.add_question: save_question,
-    AddHomeworkStates.set_time_limit: set_time_limit,
-    AddHomeworkStates.confirm_homework: confirm_homework,
-    AddHomeworkStates.delete_homework: select_homework_to_delete,
-    AddHomeworkStates.select_homework_to_delete: show_homeworks_to_delete
+    **handlers,
+    AddHomeworkStates.delete_test: select_homework_to_delete,
+    AddHomeworkStates.select_test_to_delete: show_homeworks_to_delete
 }
