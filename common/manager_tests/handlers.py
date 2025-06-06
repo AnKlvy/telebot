@@ -195,6 +195,7 @@ async def select_correct_answer(message: Message, state: FSMContext):
         await message.answer(
             "Необходимо ввести 5 вариантов ответа, каждый с новой строки. Пожалуйста, попробуйте снова:"
         )
+        # Остаемся в том же состоянии для повторного ввода
         return
 
     # Проверяем формат вариантов и заменяем кириллические буквы на латинские
@@ -226,6 +227,7 @@ async def select_correct_answer(message: Message, state: FSMContext):
         await message.answer(
             "Необходимо ввести все 5 вариантов ответа (A, B, C, D, E). Пожалуйста, попробуйте снова:"
         )
+        # Остаемся в том же состоянии для повторного ввода
         return
 
     user_data = await state.get_data()
