@@ -184,7 +184,7 @@ async def enter_answer_options(message: Message, state: FSMContext):
     )
 
 
-async def select_correct_answer(message: Message, state: FSMContext):
+async def select_correct_answer(message: Message, state: FSMContext, states_group):
     """Выбор правильного ответа"""
     logger.info("Вызван обработчик select_correct_answer")
     answer_text = message.text.strip()
@@ -240,6 +240,7 @@ async def select_correct_answer(message: Message, state: FSMContext):
         "Выберите правильный вариант ответа:",
         reply_markup=get_correct_answer_kb()
     )
+    await state.set_state(states_group.select_correct_answer)
 
 
 async def save_question(callback: CallbackQuery, state: FSMContext):

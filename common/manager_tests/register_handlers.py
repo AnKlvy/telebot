@@ -63,13 +63,13 @@ def register_test_handlers(router: Router, states_group, role: str):
     @router.message(states_group.enter_answer_options)
     async def role_select_correct_answer(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
-        await select_correct_answer(message, state)
+        await select_correct_answer(message, state, states_group)
         # Состояние изменится только если валидация прошла успешно
         
-    @router.message(states_group.select_correct_answer)
+    @router.message(states_group.enter_answer_options)
     async def role_select_correct_answer_retry(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
-        await select_correct_answer(message, state)
+        await select_correct_answer(message, state, states_group)
         # Состояние изменится только если валидация прошла успешно
 
     @router.callback_query(states_group.select_correct_answer, F.data.startswith("correct_"))
