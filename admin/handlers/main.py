@@ -92,15 +92,6 @@ async def admin_managers_menu(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_admin_entity_menu_kb("менеджер", "менеджера", "manager")
     )
 
-# Заглушки для кнопок, которые еще не реализованы
-@router.callback_query(F.data == "add_student")
-async def add_student_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления ученика"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_student")
-async def remove_student_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления ученика"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
+# Все функции админ-панели реализованы!
 
 # Кураторы и преподаватели теперь реализованы в staff.py
