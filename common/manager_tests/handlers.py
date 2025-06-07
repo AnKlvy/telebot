@@ -61,14 +61,6 @@ async def start_adding_questions(message: Message, state: FSMContext):
         current_question={}
     )
 
-<<<<<<< HEAD
-    await message.answer(
-        f"Курс: {course_name}\n"
-        f"Предмет: {subject_name}\n"
-        f"Урок: {lesson_name}\n"
-        f"Название ДЗ: {test_name}\n\n"
-        "Теперь добавим вопросы. Введите текст первого вопроса:",
-=======
     # Проверяем, это бонусный тест или обычное ДЗ
     current_state = await state.get_state()
     if "BonusTest" in current_state:
@@ -83,7 +75,6 @@ async def start_adding_questions(message: Message, state: FSMContext):
 
     await message.answer(
         info_text + "Теперь добавим вопросы. Введите текст первого вопроса:",
->>>>>>> 4356b0a (Restored to '797d170c9fe103f17e52754f2b4ba16b0897992e')
         reply_markup=get_home_and_back_kb()
     )
 
