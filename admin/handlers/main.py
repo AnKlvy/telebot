@@ -103,22 +103,4 @@ async def remove_student_placeholder(callback: CallbackQuery, state: FSMContext)
     """Заглушка для удаления ученика"""
     await callback.answer("🚧 Функция в разработке", show_alert=True)
 
-@router.callback_query(F.data == "add_curator")
-async def add_curator_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления куратора"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_curator")
-async def remove_curator_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления куратора"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "add_teacher")
-async def add_teacher_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления преподавателя"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_teacher")
-async def remove_teacher_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления преподавателя"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
+# Кураторы и преподаватели теперь реализованы в staff.py
