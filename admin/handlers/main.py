@@ -5,13 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from admin.keyboards.main import (
     get_admin_main_menu_kb,
-    get_admin_courses_menu_kb,
-    get_admin_subjects_menu_kb,
-    get_admin_groups_menu_kb,
-    get_admin_students_menu_kb,
-    get_admin_curators_menu_kb,
-    get_admin_teachers_menu_kb,
-    get_admin_managers_menu_kb
+    get_admin_entity_menu_kb
 )
 
 router = Router()
@@ -41,7 +35,7 @@ async def admin_courses_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления курсами"""
     await callback.message.edit_text(
         text="📚 Управление курсами\n\nВыберите действие:",
-        reply_markup=get_admin_courses_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("курс", "курс", "course")
     )
 
 # Обработчики меню управления предметами
@@ -50,7 +44,7 @@ async def admin_subjects_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления предметами"""
     await callback.message.edit_text(
         text="📖 Управление предметами\n\nВыберите действие:",
-        reply_markup=get_admin_subjects_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("предмет", "предмет", "subject")
     )
 
 # Обработчики меню управления группами
@@ -59,7 +53,7 @@ async def admin_groups_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления группами"""
     await callback.message.edit_text(
         text="👥 Управление группами\n\nВыберите действие:",
-        reply_markup=get_admin_groups_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("группа", "группу", "group")
     )
 
 # Обработчики меню управления учениками
@@ -68,7 +62,7 @@ async def admin_students_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления учениками"""
     await callback.message.edit_text(
         text="🎓 Управление учениками\n\nВыберите действие:",
-        reply_markup=get_admin_students_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("ученик", "ученика", "student")
     )
 
 # Обработчики меню управления кураторами
@@ -77,7 +71,7 @@ async def admin_curators_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления кураторами"""
     await callback.message.edit_text(
         text="👨‍🏫 Управление кураторами\n\nВыберите действие:",
-        reply_markup=get_admin_curators_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("куратор", "куратора", "curator")
     )
 
 # Обработчики меню управления преподавателями
@@ -86,7 +80,7 @@ async def admin_teachers_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления преподавателями"""
     await callback.message.edit_text(
         text="👩‍🏫 Управление преподавателями\n\nВыберите действие:",
-        reply_markup=get_admin_teachers_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("преподаватель", "преподавателя", "teacher")
     )
 
 # Обработчики меню управления менеджерами
@@ -95,7 +89,7 @@ async def admin_managers_menu(callback: CallbackQuery, state: FSMContext):
     """Меню управления менеджерами"""
     await callback.message.edit_text(
         text="👨‍💼 Управление менеджерами\n\nВыберите действие:",
-        reply_markup=get_admin_managers_menu_kb()
+        reply_markup=get_admin_entity_menu_kb("менеджер", "менеджера", "manager")
     )
 
 # Заглушки для кнопок добавления (логика будет добавлена позже)
