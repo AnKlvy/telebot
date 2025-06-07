@@ -19,6 +19,8 @@ from curator.handlers import router as curator_router
 from curator.handlers.main import show_curator_main_menu
 from teacher.handlers import router as teacher_router
 from teacher.handlers.main import show_teacher_main_menu
+from admin.handlers import router as admin_router
+from admin.handlers.main import show_admin_main_menu
 from middlewares.role_middleware import RoleMiddleware
 
 load_dotenv()
@@ -27,7 +29,9 @@ TOKEN = getenv("BOT_TOKEN")
 
 async def start_command(message: Message, user_role: str):
     """Обработчик команды /start, перенаправляющий на соответствующие функции"""
-    if user_role == "manager":
+    if user_role == "admin":
+        await show_admin_main_menu(message)
+    elif user_role == "manager":
         await show_manager_main_menu(message)
     elif user_role == "curator":
         await show_curator_main_menu(message)
@@ -66,10 +70,14 @@ async def main() -> None:
 
     dp.message.register(show_manager_main_menu, Command("manager"))
 
+    # Регистрируем обработчик команды /admin
+    dp.message.register(show_admin_main_menu, Command("admin"))
+
     # Устанавливаем команды бота в меню
     from aiogram.types import BotCommand
     commands = [
         BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="admin", description="Панель администратора"),
         BotCommand(command="curator", description="Меню куратора"),
         BotCommand(command="teacher", description="Меню преподавателя"),
         BotCommand(command="manager", description="Меню менеджера"),
@@ -84,6 +92,7 @@ async def main() -> None:
 
     # Включаем роутеры для разных ролей
     dp.include_router(common_router)
+    dp.include_router(admin_router)
     dp.include_router(student_router)
     dp.include_router(teacher_router)
     dp.include_router(curator_router)
