@@ -53,7 +53,7 @@ def register_test_handlers(router: Router, states_group, role: str):
         await process_topic(message, state, states_group)
 
 
-    @router.callback_query(states_group.select_topic)
+    @router.message(states_group.select_topic)
     async def role_enter_answer_options(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
         await enter_answer_options(message, state)
@@ -64,13 +64,6 @@ def register_test_handlers(router: Router, states_group, role: str):
     async def role_select_correct_answer(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
         await select_correct_answer(message, state, states_group)
-        # Состояние изменится только если валидация прошла успешно
-        
-    @router.message(states_group.enter_answer_options)
-    async def role_select_correct_answer_retry(message: Message, state: FSMContext):
-        await log(inspect.currentframe().f_code.co_name, role, state)
-        await select_correct_answer(message, state, states_group)
-        # Состояние изменится только если валидация прошла успешно
 
     @router.callback_query(states_group.select_correct_answer, F.data.startswith("correct_"))
     async def role_save_question(callback: CallbackQuery, state: FSMContext):

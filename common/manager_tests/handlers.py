@@ -47,7 +47,7 @@ async def start_adding_questions(message: Message, state: FSMContext):
     test_name = message.text.strip()
 
     if not test_name:
-        await message.answer("Название не может быть пустым. Пожалуйста, введите название домашнего задания:")
+        await message.answer("Название не может быть пустым. Пожалуйста, введите название теста:")
         return
 
     user_data = await state.get_data()
@@ -61,12 +61,29 @@ async def start_adding_questions(message: Message, state: FSMContext):
         current_question={}
     )
 
+<<<<<<< HEAD
     await message.answer(
         f"Курс: {course_name}\n"
         f"Предмет: {subject_name}\n"
         f"Урок: {lesson_name}\n"
         f"Название ДЗ: {test_name}\n\n"
         "Теперь добавим вопросы. Введите текст первого вопроса:",
+=======
+    # Проверяем, это бонусный тест или обычное ДЗ
+    current_state = await state.get_state()
+    if "BonusTest" in current_state:
+        info_text = f"🧪 Бонусный тест: {test_name}\n\n"
+    else:
+        info_text = (
+            f"Курс: {course_name}\n"
+            f"Предмет: {subject_name}\n"
+            f"Урок: {lesson_name}\n"
+            f"Название ДЗ: {test_name}\n\n"
+        )
+
+    await message.answer(
+        info_text + "Теперь добавим вопросы. Введите текст первого вопроса:",
+>>>>>>> 4356b0a (Restored to '797d170c9fe103f17e52754f2b4ba16b0897992e')
         reply_markup=get_home_and_back_kb()
     )
 
