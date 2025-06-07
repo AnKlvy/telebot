@@ -252,7 +252,7 @@ async def select_correct_answer(message: Message, state: FSMContext, states_grou
 
 
 async def save_question(callback: CallbackQuery, state: FSMContext):
-    """Сохранение вопроса и переход к следующему"""
+    """Выбор правильного ответа и переход к выбору времени"""
     logger.info("Вызван обработчик save_question")
     correct_answer = callback.data.replace("correct_", "")
 
@@ -260,13 +260,40 @@ async def save_question(callback: CallbackQuery, state: FSMContext):
     current_question = user_data.get("current_question", {})
     current_question["correct_answer"] = correct_answer
 
+    await state.update_data(current_question=current_question)
+
+    await callback.message.edit_text(
+        "Выберите время на ответ для этого вопроса:",
+        reply_markup=get_time_limit_kb()
+    )
+
+
+async def save_question_with_time(callback: CallbackQuery, state: FSMContext):
+    """Сохранение вопроса с временем и переход к следующему"""
+    logger.info("Вызван обработчик save_question_with_time")
+    time_limit = int(callback.data.replace("time_", ""))
+
+    user_data = await state.get_data()
+    current_question = user_data.get("current_question", {})
+    current_question["time_limit"] = time_limit
+
     questions = user_data.get("questions", [])
     questions.append(current_question)
 
     await state.update_data(questions=questions, current_question={})
 
+    # Форматируем время для отображения
+    time_text = f"{time_limit} сек."
+    if time_limit >= 60:
+        minutes = time_limit // 60
+        seconds = time_limit % 60
+        time_text = f"{minutes} мин."
+        if seconds > 0:
+            time_text += f" {seconds} сек."
+
     await callback.message.edit_text(
-        f"Вопрос добавлен! Всего вопросов: {len(questions)}",
+        f"Вопрос добавлен! Всего вопросов: {len(questions)}\n"
+        f"Время на ответ: {time_text}",
         reply_markup=get_add_question_kb(len(questions))
     )
 
@@ -277,19 +304,15 @@ async def add_more_question(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Введите текст следующего вопроса:")
 
 
-async def set_time_limit(callback: CallbackQuery, state: FSMContext):
-    """Установка времени на ответ"""
-    logger.info("Вызван обработчик set_time_limit")
-    await callback.message.edit_text(
-        "Выберите время на ответ для одного вопроса:",
-        reply_markup=get_time_limit_kb()
-    )
+async def finish_adding_questions(callback: CallbackQuery, state: FSMContext):
+    """Завершение добавления вопросов и переход к подтверждению"""
+    logger.info("Вызван обработчик finish_adding_questions")
+    await confirm_test(callback, state)
 
 
 async def confirm_test(callback: CallbackQuery, state: FSMContext):
     """Подтверждение создания ДЗ"""
     logger.info("Вызван обработчик confirm_test")
-    time_limit = int(callback.data.replace("time_", ""))
 
     user_data = await state.get_data()
     course_name = user_data.get("course_name", "")
@@ -298,16 +321,19 @@ async def confirm_test(callback: CallbackQuery, state: FSMContext):
     test_name = user_data.get("test_name", "")
     questions = user_data.get("questions", [])
 
-    # Форматируем время
-    time_text = f"{time_limit} сек."
-    if time_limit >= 60:
-        minutes = time_limit // 60
-        seconds = time_limit % 60
-        time_text = f"{minutes} мин."
-        if seconds > 0:
-            time_text += f" {seconds} сек."
+    # Формируем информацию о времени для каждого вопроса
+    questions_info = ""
+    for i, question in enumerate(questions, 1):
+        time_limit = question.get("time_limit", 30)  # По умолчанию 30 сек
+        time_text = f"{time_limit} сек."
+        if time_limit >= 60:
+            minutes = time_limit // 60
+            seconds = time_limit % 60
+            time_text = f"{minutes} мин."
+            if seconds > 0:
+                time_text += f" {seconds} сек."
 
-    await state.update_data(time_limit=time_limit)
+        questions_info += f"Вопрос {i}: {time_text}\n"
 
     # Формируем текст для подтверждения
     confirmation_text = (
@@ -315,8 +341,8 @@ async def confirm_test(callback: CallbackQuery, state: FSMContext):
         f"Предмет: {subject_name}\n"
         f"Урок: {lesson_name}\n"
         f"Название ДЗ: {test_name}\n"
-        f"Количество вопросов: {len(questions)}\n"
-        f"Время на ответ: {time_text}\n\n"
+        f"Количество вопросов: {len(questions)}\n\n"
+        f"Время на ответ:\n{questions_info}\n"
         "Подтвердите создание домашнего задания:"
     )
 

@@ -5,7 +5,8 @@ from aiogram.fsm.context import FSMContext
 
 from .handlers import (
     enter_test_name, start_adding_questions, add_question_photo, process_question_photo, request_topic,
-    enter_answer_options, select_correct_answer, save_question, add_more_question, set_time_limit, process_topic, confirm_test
+    enter_answer_options, select_correct_answer, save_question, save_question_with_time, add_more_question,
+    finish_adding_questions, process_topic, confirm_test
 )
 import inspect
 
@@ -69,6 +70,12 @@ def register_test_handlers(router: Router, states_group, role: str):
     async def role_save_question(callback: CallbackQuery, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
         await save_question(callback, state)
+        await state.set_state(states_group.set_time_limit)
+
+    @router.callback_query(states_group.set_time_limit, F.data.startswith("time_"))
+    async def role_save_question_with_time(callback: CallbackQuery, state: FSMContext):
+        await log(inspect.currentframe().f_code.co_name, role, state)
+        await save_question_with_time(callback, state)
         await state.set_state(states_group.add_question)
 
     @router.callback_query(states_group.add_question, F.data == "add_more_question")
@@ -78,15 +85,9 @@ def register_test_handlers(router: Router, states_group, role: str):
         await state.set_state(states_group.enter_question_text)
 
     @router.callback_query(states_group.add_question, F.data == "finish_adding_questions")
-    async def role_set_time_limit(callback: CallbackQuery, state: FSMContext):
+    async def role_finish_adding_questions(callback: CallbackQuery, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
-        await set_time_limit(callback, state)
-        await state.set_state(states_group.set_time_limit)
-
-    @router.callback_query(states_group.set_time_limit, F.data.startswith("time_"))
-    async def role_confirm_test(callback: CallbackQuery, state: FSMContext):
-        await log(inspect.currentframe().f_code.co_name, role, state)
-        await confirm_test(callback, state)
+        await finish_adding_questions(callback, state)
         await state.set_state(states_group.confirm_test)
 
 async def log(name, role, state):

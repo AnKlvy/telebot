@@ -113,7 +113,6 @@ async def set_bonus_test_price(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"🧪 Название теста: {test_name}\n"
         f"📋 Количество вопросов: {len(questions)}\n"
-        f"⏱ Время на ответ: {time_text}\n\n"
         "Выберите цену в монетах для этого бонусного теста:",
         reply_markup=get_price_kb()
     )
@@ -174,7 +173,6 @@ async def show_bonus_test_confirmation(message_or_callback, state: FSMContext):
         f"🧪 Бонусный тест готов к созданию:\n\n"
         f"📝 Название: {test_name}\n"
         f"📋 Количество вопросов: {len(questions)}\n"
-        f"⏱ Время на ответ: {time_text}\n"
         f"💰 Цена: {price} монет\n\n"
         "Подтвердите создание бонусного теста:"
     )

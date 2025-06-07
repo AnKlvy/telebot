@@ -1,8 +1,8 @@
 from .handlers import (
     enter_test_name, process_question_photo,
-    set_time_limit,
+    finish_adding_questions, add_more_question,
     start_adding_questions, add_question_photo, skip_photo, enter_answer_options, select_correct_answer,
-    save_question, confirm_test
+    save_question, save_question_with_time, confirm_test
 )
 
 def get_transitions_handlers(states_group, role):
@@ -24,9 +24,9 @@ def get_transitions_handlers(states_group, role):
         states_group.skip_photo: states_group.add_question_photo,
         states_group.enter_answer_options: states_group.process_topic,
         states_group.select_correct_answer: states_group.enter_answer_options,
-        states_group.add_question: states_group.select_correct_answer,
-        states_group.set_time_limit: states_group.add_question,
-        states_group.confirm_test: states_group.set_time_limit,
+        states_group.set_time_limit: states_group.select_correct_answer,
+        states_group.add_question: states_group.set_time_limit,
+        states_group.confirm_test: states_group.add_question,
         states_group.main: None
     }
 
@@ -39,9 +39,9 @@ def get_transitions_handlers(states_group, role):
         states_group.skip_photo: skip_photo,
         states_group.enter_answer_options: enter_answer_options,
         states_group.select_correct_answer: select_correct_answer,
-        states_group.add_question: save_question,
-        states_group.set_time_limit: set_time_limit,
-        states_group.confirm_test: confirm_test,
+        states_group.set_time_limit: save_question,
+        states_group.add_question: save_question_with_time,
+        states_group.confirm_test: finish_adding_questions,
     }
 
     return STATE_TRANSITIONS, STATE_HANDLERS 
