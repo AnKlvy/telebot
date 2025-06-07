@@ -112,7 +112,7 @@ async def get_role_to_use(state: FSMContext, user_role: str) -> str:
         "teacher": ["TeacherMain", "TeacherGroupStates", "TeacherAnalyticsStates",
                     "TeacherTestsStatisticsStates"],
         "manager": ["ManagerMain", "ManagerAnalyticsStates", "AddHomeworkStates",
-                    "ManagerGroupStates", "ManagerTopicStates"]
+                    "ManagerGroupStates", "ManagerTopicStates", "ManagerMonthTestsStates"]
     }
     if current_state:
         # Словарь с ролями и списками их префиксов
