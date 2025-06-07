@@ -18,14 +18,15 @@ async def manager_start(message: Message, state: FSMContext, user_role: str = No
         await show_manager_main_menu(message)
         await state.set_state(ManagerMainStates.main)
 
+
 async def show_manager_main_menu(message: Message | CallbackQuery, state: FSMContext = None):
     """Показать главное меню менеджера"""
     text = "👨‍💼 <b>Меню менеджера</b>\n\nВыберите нужный раздел:"
-    
+
     if isinstance(message, Message):
         await message.answer(text, reply_markup=get_manager_main_menu_kb())
     else:  # CallbackQuery
         await message.message.edit_text(text, reply_markup=get_manager_main_menu_kb())
-    
+
     if state:
         await state.set_state(ManagerMainStates.main)

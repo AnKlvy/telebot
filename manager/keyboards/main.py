@@ -8,6 +8,6 @@ def get_manager_main_menu_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📝 Микротемы", callback_data="manager_topics")],
         [InlineKeyboardButton(text="📖 Уроки", callback_data="manager_lessons")],
         [InlineKeyboardButton(text="🧪 Бонусный тест", callback_data="manager_bonus_test")],
-        [InlineKeyboardButton(text="🎯 Бонусное задание", callback_data="manager_bonus_task")],
+        [InlineKeyboardButton(text="🎯 Бонусное задание", callback_data="manager_bonus_tasks")],
         [InlineKeyboardButton(text="🧠 Входной и контрольный месяца", callback_data="manager_tests")]
     ])
