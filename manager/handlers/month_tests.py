@@ -88,7 +88,7 @@ async def select_subject(callback: CallbackQuery, state: FSMContext):
         text=f"Курс: {course_name}\n"
              f"Предмет: {subject_name}\n\n"
              f"Введите название контрольного месяца:",
-        reply_markup=None
+        reply_markup=get_home_kb()
     )
 
 @router.message(StateFilter(ManagerMonthTestsStates.enter_month_name))

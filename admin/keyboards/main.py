@@ -1,4 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from admin.utils.common import get_confirmation_kb, get_tariff_selection_kb
+from common.keyboards import back_to_main_button
+
 
 def get_admin_main_menu_kb() -> InlineKeyboardMarkup:
     """Клавиатура главного меню админа"""
@@ -23,23 +26,9 @@ def get_admin_entity_menu_kb(entity_name: str, entity_name_accusative: str, call
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"➕ Добавить {entity_name_accusative}", callback_data=f"add_{callback_prefix}")],
         [InlineKeyboardButton(text=f"🗑 Убрать {entity_name_accusative}", callback_data=f"remove_{callback_prefix}")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
-    ])
+        back_to_main_button()
+        ])
 
 
 
-def get_tariff_selection_kb() -> InlineKeyboardMarkup:
-    """Клавиатура выбора тарифа для ученика"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📦 Стандарт", callback_data="tariff_standard")],
-        [InlineKeyboardButton(text="⭐ Премиум", callback_data="tariff_premium")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
-    ])
-
-def get_confirmation_kb(action: str, item_id: str = "") -> InlineKeyboardMarkup:
-    """Клавиатура подтверждения действия"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"confirm_{action}_{item_id}")],
-        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"cancel_{action}")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
-    ])
+# Функции get_tariff_selection_kb и get_confirmation_kb теперь импортируются из admin.utils.common

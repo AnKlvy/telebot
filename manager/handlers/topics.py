@@ -63,7 +63,7 @@ async def start_add_topic(callback: CallbackQuery, callback_data: TopicCallback,
     
     await callback.message.edit_text(
         text="Введите название новой микротемы:",
-        reply_markup=None
+        reply_markup=get_home_kb()
     )
 
 @router.message(StateFilter(ManagerTopicStates.adding_topic))

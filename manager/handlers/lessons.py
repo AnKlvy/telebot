@@ -92,7 +92,7 @@ async def start_add_lesson(callback: CallbackQuery, callback_data: LessonCallbac
     await state.set_state(ManagerLessonStates.adding_lesson)
     await callback.message.edit_text(
         text=f"Введите название нового урока для предмета {subject_name}:",
-        reply_markup=None
+        reply_markup=get_home_kb()
     )
 
 @router.message(StateFilter(ManagerLessonStates.adding_lesson))

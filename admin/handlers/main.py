@@ -92,37 +92,7 @@ async def admin_managers_menu(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_admin_entity_menu_kb("менеджер", "менеджера", "manager")
     )
 
-# Заглушки для кнопок добавления (логика будет добавлена позже)
-@router.callback_query(F.data == "add_course")
-async def add_course_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления курса"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_course")
-async def remove_course_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления курса"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "add_subject")
-async def add_subject_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления предмета"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_subject")
-async def remove_subject_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления предмета"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "add_group")
-async def add_group_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления группы"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_group")
-async def remove_group_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления группы"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
+# Заглушки для кнопок, которые еще не реализованы
 @router.callback_query(F.data == "add_student")
 async def add_student_placeholder(callback: CallbackQuery, state: FSMContext):
     """Заглушка для добавления ученика"""
@@ -151,14 +121,4 @@ async def add_teacher_placeholder(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "remove_teacher")
 async def remove_teacher_placeholder(callback: CallbackQuery, state: FSMContext):
     """Заглушка для удаления преподавателя"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "add_manager")
-async def add_manager_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для добавления менеджера"""
-    await callback.answer("🚧 Функция в разработке", show_alert=True)
-
-@router.callback_query(F.data == "remove_manager")
-async def remove_manager_placeholder(callback: CallbackQuery, state: FSMContext):
-    """Заглушка для удаления менеджера"""
     await callback.answer("🚧 Функция в разработке", show_alert=True)

@@ -5,8 +5,13 @@ from manager.handlers.month_tests import (
     select_subject,
     process_month_name,
     process_microtopics,
+    confirm_create_test,
+    cancel_create_test,
     list_month_tests,
     start_delete_test,
+    confirm_delete_test,
+    delete_test,
+    cancel_delete,
     ManagerMonthTestsStates
 )
 
