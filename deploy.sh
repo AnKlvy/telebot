@@ -251,31 +251,77 @@ install_git() {
 install_certbot() {
     echo "📦 Устанавливаем Certbot..."
 
-    # Исправляем проблемы с пакетами
-    sudo apt update --fix-missing || true
-    sudo apt install -f -y || true
+    # Определяем дистрибутив
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$NAME
+    fi
 
-    # Пробуем установить certbot разными способами
-    if sudo apt install -y certbot; then
-        echo "✅ Certbot установлен через apt"
-    elif sudo apt install -y certbot --fix-missing; then
-        echo "✅ Certbot установлен через apt с исправлением"
-    else
-        echo "⚠️ Установка через apt не удалась, пробуем snap..."
+    # Для Kali Linux используем специальную установку
+    if [[ "$OS" == *"Kali"* ]]; then
+        echo "🐉 Kali Linux обнаружен, используем альтернативные методы..."
+
+        # Метод 1: Пробуем установить через snap
         if command -v snap &> /dev/null; then
-            sudo snap install --classic certbot
+            echo "📦 Устанавливаем через snap..."
+            if sudo snap install --classic certbot; then
+                sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+                echo "✅ Certbot установлен через snap"
+                return 0
+            fi
+        fi
+
+        # Метод 2: Устанавливаем snap если его нет
+        echo "📦 Устанавливаем snapd..."
+        sudo apt update
+        sudo apt install -y snapd
+        sudo systemctl enable --now snapd
+        sudo systemctl start snapd
+
+        # Ждем запуска snapd
+        sleep 5
+
+        # Пробуем установить certbot через snap
+        if sudo snap install --classic certbot; then
             sudo ln -sf /snap/bin/certbot /usr/bin/certbot
             echo "✅ Certbot установлен через snap"
+            return 0
+        fi
+
+        # Метод 3: Устанавливаем через pip
+        echo "📦 Пробуем установить через pip..."
+        if command -v pip3 &> /dev/null; then
+            sudo pip3 install certbot certbot-nginx
+            echo "✅ Certbot установлен через pip"
+            return 0
+        fi
+
+        # Метод 4: Скачиваем certbot-auto (устаревший, но работает)
+        echo "📦 Скачиваем certbot-auto..."
+        sudo wget -O /usr/local/bin/certbot-auto https://dl.eff.org/certbot-auto
+        sudo chmod a+x /usr/local/bin/certbot-auto
+        sudo ln -sf /usr/local/bin/certbot-auto /usr/bin/certbot
+        echo "✅ Certbot-auto установлен"
+        return 0
+
+    else
+        # Для других дистрибутивов стандартная установка
+        echo "🐧 Стандартная установка для $OS..."
+
+        # Исправляем проблемы с пакетами
+        sudo apt update --fix-missing || true
+        sudo apt install -f -y || true
+
+        # Пробуем установить certbot
+        if sudo apt install -y certbot; then
+            echo "✅ Certbot установлен через apt"
+            return 0
+        elif sudo apt install -y certbot --fix-missing; then
+            echo "✅ Certbot установлен через apt с исправлением"
+            return 0
         else
-            echo "⚠️ Snap недоступен, пробуем pip..."
-            if command -v pip3 &> /dev/null; then
-                sudo pip3 install certbot
-                echo "✅ Certbot установлен через pip"
-            else
-                echo "❌ Не удалось установить Certbot"
-                echo "💡 Установите вручную: sudo apt install certbot"
-                return 1
-            fi
+            echo "❌ Не удалось установить Certbot через apt"
+            return 1
         fi
     fi
 }

@@ -28,9 +28,44 @@ echo ""
 
 # Проверяем наличие certbot
 if ! command -v certbot &> /dev/null; then
-    echo "📦 Устанавливаем certbot..."
-    sudo apt update
-    sudo apt install -y certbot
+    echo "📦 Certbot не найден, устанавливаем..."
+
+    # Определяем дистрибутив
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$NAME
+    fi
+
+    # Для Kali Linux используем snap
+    if [[ "$OS" == *"Kali"* ]]; then
+        echo "🐉 Kali Linux обнаружен, устанавливаем через snap..."
+
+        # Устанавливаем snapd если нет
+        if ! command -v snap &> /dev/null; then
+            sudo apt update
+            sudo apt install -y snapd
+            sudo systemctl enable --now snapd
+            sudo systemctl start snapd
+            sleep 5
+        fi
+
+        # Устанавливаем certbot через snap
+        sudo snap install --classic certbot
+        sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+    else
+        # Для других дистрибутивов
+        sudo apt update
+        sudo apt install -y certbot
+    fi
+
+    # Проверяем установку
+    if ! command -v certbot &> /dev/null; then
+        echo "❌ Не удалось установить certbot"
+        echo "💡 Установите вручную и запустите скрипт снова"
+        exit 1
+    fi
+
+    echo "✅ Certbot установлен"
 fi
 
 # Создаем директорию для SSL
