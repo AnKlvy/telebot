@@ -250,9 +250,34 @@ install_git() {
 # Функция установки Certbot
 install_certbot() {
     echo "📦 Устанавливаем Certbot..."
-    sudo apt update
-    sudo apt install -y certbot
-    echo "✅ Certbot установлен"
+
+    # Исправляем проблемы с пакетами
+    sudo apt update --fix-missing || true
+    sudo apt install -f -y || true
+
+    # Пробуем установить certbot разными способами
+    if sudo apt install -y certbot; then
+        echo "✅ Certbot установлен через apt"
+    elif sudo apt install -y certbot --fix-missing; then
+        echo "✅ Certbot установлен через apt с исправлением"
+    else
+        echo "⚠️ Установка через apt не удалась, пробуем snap..."
+        if command -v snap &> /dev/null; then
+            sudo snap install --classic certbot
+            sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+            echo "✅ Certbot установлен через snap"
+        else
+            echo "⚠️ Snap недоступен, пробуем pip..."
+            if command -v pip3 &> /dev/null; then
+                sudo pip3 install certbot
+                echo "✅ Certbot установлен через pip"
+            else
+                echo "❌ Не удалось установить Certbot"
+                echo "💡 Установите вручную: sudo apt install certbot"
+                return 1
+            fi
+        fi
+    fi
 }
 
 # Проверяем и устанавливаем зависимости
@@ -353,13 +378,20 @@ if ! command -v git &> /dev/null; then
     fi
 fi
 
-# Проверяем Certbot
+# Проверяем Certbot (необязательно)
 if ! command -v certbot &> /dev/null; then
-    echo "⚠️ Certbot не установлен (нужен для SSL)"
+    echo "⚠️ Certbot не установлен (нужен только для автоматических SSL сертификатов)"
     read -p "Установить Certbot автоматически? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        install_certbot
+        if install_certbot; then
+            echo "✅ Certbot установлен успешно"
+        else
+            echo "⚠️ Certbot не установлен, но это не критично"
+            echo "💡 SSL сертификаты можно настроить вручную позже"
+        fi
+    else
+        echo "⚠️ Certbot пропущен. SSL сертификаты нужно будет настроить вручную"
     fi
 fi
 
