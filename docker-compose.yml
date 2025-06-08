@@ -4,6 +4,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: telebot_postgres
+    env_file:
+      - /etc/telebot/env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-telebot}
       POSTGRES_USER: ${POSTGRES_USER:-telebot_user}
