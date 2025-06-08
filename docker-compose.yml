@@ -6,10 +6,6 @@ services:
     container_name: telebot_postgres
     env_file:
       - /etc/telebot/env
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-telebot}
-      POSTGRES_USER: ${POSTGRES_USER:-telebot_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # ports:
@@ -18,7 +14,7 @@ services:
     networks:
       - telebot_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-telebot_user} -d ${POSTGRES_DB:-telebot}"]
+      test: ["CMD-SHELL", "pg_isready -U telebot_user -d telebot"]
       interval: 10s
       timeout: 5s
       retries: 5
