@@ -4,22 +4,111 @@
 
 echo "🚀 Начинаем деплой телеграм бота..."
 
+# Проверяем права root для установки зависимостей
+if [ "$EUID" -ne 0 ] && ! command -v docker &> /dev/null; then
+    echo "⚠️ Для установки Docker требуются права root"
+    echo "Запустите скрипт с sudo: sudo ./deploy.sh"
+    echo "Или установите Docker вручную и запустите скрипт снова"
+    exit 1
+fi
+
 # Функция установки Docker
 install_docker() {
     echo "📦 Устанавливаем Docker..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    sudo usermod -aG docker $USER
-    rm get-docker.sh
+
+    # Определяем дистрибутив
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$NAME
+        VER=$VERSION_ID
+    fi
+
+    # Для Kali Linux используем специальную установку
+    if [[ "$OS" == *"Kali"* ]]; then
+        echo "🐉 Обнаружен Kali Linux, используем специальную установку..."
+
+        # Обновляем пакеты
+        sudo apt update
+
+        # Устанавливаем зависимости
+        sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
+
+        # Добавляем ключ Docker
+        curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+        # Добавляем репозиторий Docker (используем Debian bullseye для совместимости)
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+        # Обновляем список пакетов
+        sudo apt update
+
+        # Устанавливаем Docker
+        sudo apt install -y docker-ce docker-ce-cli containerd.io
+
+        # Создаем группу docker если не существует
+        sudo groupadd docker 2>/dev/null || true
+
+        # Добавляем пользователя в группу docker
+        sudo usermod -aG docker $USER
+
+        # Запускаем и включаем Docker
+        sudo systemctl start docker
+        sudo systemctl enable docker
+
+    else
+        # Для других дистрибутивов используем стандартную установку
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker $USER
+        rm get-docker.sh
+    fi
+
     echo "✅ Docker установлен"
 }
 
 # Функция установки Docker Compose
 install_docker_compose() {
     echo "📦 Устанавливаем Docker Compose..."
-    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-    echo "✅ Docker Compose установлен"
+
+    # Проверяем архитектуру
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then
+        ARCH="x86_64"
+    elif [ "$ARCH" = "aarch64" ]; then
+        ARCH="aarch64"
+    else
+        echo "⚠️ Неподдерживаемая архитектура: $ARCH"
+        echo "Попробуем установить через apt..."
+        sudo apt update
+        sudo apt install -y docker-compose
+        return
+    fi
+
+    # Получаем последнюю версию
+    COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+
+    if [ -z "$COMPOSE_VERSION" ]; then
+        echo "⚠️ Не удалось получить версию Docker Compose, используем v2.20.2"
+        COMPOSE_VERSION="v2.20.2"
+    fi
+
+    echo "📥 Скачиваем Docker Compose $COMPOSE_VERSION..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-${ARCH}" -o /usr/local/bin/docker-compose
+
+    # Проверяем успешность скачивания
+    if [ $? -eq 0 ]; then
+        sudo chmod +x /usr/local/bin/docker-compose
+
+        # Создаем символическую ссылку для совместимости
+        sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose 2>/dev/null || true
+
+        echo "✅ Docker Compose установлен"
+    else
+        echo "❌ Ошибка скачивания Docker Compose"
+        echo "Попробуем установить через apt..."
+        sudo apt update
+        sudo apt install -y docker-compose
+    fi
 }
 
 # Функция установки Git
