@@ -560,8 +560,19 @@ if grep -q "WEBHOOK_MODE=true" /etc/telebot/env; then
         read -p "Настроить SSL сертификаты сейчас? (y/n): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            chmod +x scripts/setup_ssl.sh
-            sudo ./scripts/setup_ssl.sh
+            echo "Выберите способ получения SSL:"
+            echo "1) acme.sh (рекомендуется, проще)"
+            echo "2) certbot (может не работать в Kali)"
+            read -p "Ваш выбор (1/2): " -n 1 -r
+            echo
+
+            if [[ $REPLY == "1" ]]; then
+                chmod +x scripts/setup_ssl_acme.sh
+                ./scripts/setup_ssl_acme.sh
+            else
+                chmod +x scripts/setup_ssl.sh
+                sudo ./scripts/setup_ssl.sh
+            fi
         else
             echo "⚠️ Без SSL сертификатов webhook работать не будет"
             echo "📝 Запустите позже: chmod +x scripts/setup_ssl.sh && sudo ./scripts/setup_ssl.sh"
