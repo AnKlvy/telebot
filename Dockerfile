@@ -10,9 +10,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Создаем пользователя для запуска приложения с фиксированным UID
-RUN useradd --uid 1001 --create-home --shell /bin/bash telebot
-
 # Копируем файл зависимостей
 COPY requirements.txt .
 
@@ -22,8 +19,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем код приложения
 COPY . .
 
-# Создаем директорию для логов и устанавливаем права доступа
-RUN mkdir -p /app/logs && chown -R telebot:telebot /app
+# Создаем директорию для логов с правами для всех
+RUN mkdir -p /app/logs && chmod 777 /app/logs
+
+# Создаем пользователя для запуска приложения с фиксированным UID
+RUN useradd --uid 1001 --create-home --shell /bin/bash telebot && \
+    chown -R telebot:telebot /app && \
+    chmod 777 /app/logs
 
 USER telebot
 
