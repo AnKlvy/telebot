@@ -2,14 +2,9 @@ from typing import Dict, List, Any
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from common.keyboards import back_to_main_button
+from database import CourseRepository, SubjectRepository
 
-# Временные хранилища данных (потом заменить на БД)
-courses_db = {
-    1: {"name": "ЕНТ", "subjects": ["Математика", "Физика", "История Казахстана"]},
-    2: {"name": "IT", "subjects": ["Python", "JavaScript", "Java"]}
-}
 
-subjects_db = ["Математика", "Физика", "История Казахстана", "Химия", "Биология", "Python", "JavaScript", "Java"]
 
 groups_db = {
     "Математика": ["МАТ-1", "МАТ-2", "МАТ-3"],
@@ -59,18 +54,22 @@ def get_entity_list_kb(items: List[Any], callback_prefix: str, id_field: str = "
     buttons.append(back_to_main_button())
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_courses_list_kb(callback_prefix: str = "select_course") -> InlineKeyboardMarkup:
+async def get_courses_list_kb(callback_prefix: str = "select_course") -> InlineKeyboardMarkup:
     """Клавиатура со списком курсов"""
-    courses_list = [{"id": k, "name": v["name"]} for k, v in courses_db.items()]
+    courses = await get_courses_list()
+    courses_list = [{"id": course.id, "name": course.name} for course in courses]
     return get_entity_list_kb(courses_list, callback_prefix)
 
-def get_subjects_list_kb(callback_prefix: str = "select_subject", course_id: int = None) -> InlineKeyboardMarkup:
+async def get_subjects_list_kb(callback_prefix: str = "select_subject", course_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура со списком предметов (опционально отфильтрованных по курсу)"""
-    if course_id and course_id in courses_db:
-        subjects_list = courses_db[course_id]["subjects"]
+    if course_id:
+        # Получаем предметы конкретного курса
+        subjects = await SubjectRepository.get_by_course(course_id)
     else:
-        subjects_list = subjects_db
-    
+        # Получаем все предметы
+        subjects = await SubjectRepository.get_all()
+
+    subjects_list = [{"id": subject.id, "name": subject.name} for subject in subjects]
     return get_entity_list_kb(subjects_list, callback_prefix)
 
 def get_groups_list_kb(callback_prefix: str = "select_group", subject: str = None) -> InlineKeyboardMarkup:
@@ -129,37 +128,48 @@ def get_tariff_selection_kb() -> InlineKeyboardMarkup:
         back_to_main_button()
     ])
 
-# Функции для работы с данными
-def add_course(name: str, subjects: List[str]) -> int:
-    """Добавить новый курс"""
-    new_id = max(courses_db.keys()) + 1 if courses_db else 1
-    courses_db[new_id] = {"name": name, "subjects": subjects}
-    return new_id
 
-def remove_course(course_id: int) -> bool:
-    """Удалить курс"""
-    if course_id in courses_db:
-        del courses_db[course_id]
-        return True
-    return False
 
-def add_subject(name: str) -> bool:
+# Функции для работы с данными через SQLAlchemy
+async def add_course(name: str, subject_ids: List[int]) -> int:
+    """Добавить новый курс с привязкой к существующим предметам по ID"""
+    course = await CourseRepository.create(name)
+
+    # Привязываем существующие предметы к курсу по ID
+    for subject_id in subject_ids:
+        await SubjectRepository.add_to_course(subject_id, course.id)
+
+    return course.id
+
+async def remove_course(course_id: int) -> bool:
+    """Удалить курс (связи с предметами удалятся автоматически)"""
+    try:
+        # При Many-to-Many связи удаление курса автоматически удалит связи
+        return await CourseRepository.delete(course_id)
+    except Exception as e:
+        print(f"Ошибка при удалении курса: {e}")
+        return False
+
+async def add_subject(name: str) -> bool:
     """Добавить новый предмет"""
-    if name not in subjects_db:
-        subjects_db.append(name)
+    try:
+        await SubjectRepository.create(name)
         return True
-    return False
+    except Exception:
+        return False
 
-def remove_subject(name: str) -> bool:
+async def remove_subject(subject_id: int) -> bool:
     """Удалить предмет"""
-    if name in subjects_db:
-        subjects_db.remove(name)
-        # Также удаляем из курсов
-        for course in courses_db.values():
-            if name in course["subjects"]:
-                course["subjects"].remove(name)
-        return True
-    return False
+    return await SubjectRepository.delete(subject_id)
+
+# Функции для получения данных
+async def get_courses_list():
+    """Получить список курсов"""
+    return await CourseRepository.get_all()
+
+async def get_subjects_list():
+    """Получить список предметов"""
+    return await SubjectRepository.get_all()
 
 def add_group(name: str, subject: str) -> bool:
     """Добавить новую группу"""

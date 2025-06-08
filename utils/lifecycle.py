@@ -12,11 +12,12 @@ async def on_startup(bot: Bot) -> None:
     """Действия при запуске бота"""
     try:
         # Инициализируем подключение к базе данных
-        # await init_database()
+        await init_database()
         logging.info("✅ База данных инициализирована")
     except Exception as e:
         logging.error(f"❌ Ошибка инициализации базы данных: {e}")
-        raise
+        logging.warning("⚠️ Продолжаем работу без базы данных")
+        # Не прерываем запуск бота
     
     # Устанавливаем команды бота
     commands = [

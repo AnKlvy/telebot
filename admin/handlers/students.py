@@ -56,12 +56,27 @@ async def process_student_telegram_id(message: Message, state: FSMContext):
     """Обработать ввод Telegram ID ученика"""
     try:
         telegram_id = int(message.text.strip())
+
+        # Проверяем, существует ли уже пользователь с таким Telegram ID
+        from database import UserRepository
+        existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+
+        if existing_user:
+            await message.answer(
+                text=f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
+                     f"Имя: {existing_user.name}\n"
+                     f"Роль: {existing_user.role}\n\n"
+                     f"Введите другой Telegram ID:",
+                reply_markup=get_home_kb()
+            )
+            return
+
         await state.update_data(student_telegram_id=telegram_id)
         await state.set_state(AdminStudentsStates.select_student_course)
-        
+
         await message.answer(
             text="Выберите курс для ученика:",
-            reply_markup=get_courses_list_kb("student_course")
+            reply_markup=await get_courses_list_kb("student_course")
         )
     except ValueError:
         await message.answer(

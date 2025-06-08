@@ -47,8 +47,14 @@ async def main() -> None:
     dp = Dispatcher()
 
     # Регистрируем startup и shutdown хуки
-    dp.startup.register(lambda: on_startup(bot))
-    dp.shutdown.register(lambda: on_shutdown(bot))
+    async def startup_wrapper():
+        await on_startup(bot)
+
+    async def shutdown_wrapper():
+        await on_shutdown(bot)
+
+    dp.startup.register(startup_wrapper)
+    dp.shutdown.register(shutdown_wrapper)
 
     # Регистрируем middleware для определения роли пользователя
     dp.message.middleware(RoleMiddleware())

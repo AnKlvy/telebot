@@ -5,7 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import StateFilter
 
 from admin.utils.common import (
-    groups_db, subjects_db, add_group, remove_group,
+    groups_db, add_group, remove_group,
     get_subjects_list_kb, get_groups_list_kb, get_confirmation_kb
 )
 from common.keyboards import get_home_kb
@@ -44,7 +44,7 @@ async def process_group_name(message: Message, state: FSMContext):
     
     await message.answer(
         text=f"Группа: {group_name}\n\nВыберите предмет, к которому относится группа:",
-        reply_markup=get_subjects_list_kb("group_subject")
+        reply_markup=await get_subjects_list_kb("group_subject")
     )
 
 @router.callback_query(AdminGroupsStates.select_group_subject, F.data.startswith("group_subject_"))
@@ -93,7 +93,7 @@ async def start_remove_group(callback: CallbackQuery, state: FSMContext):
     """Начать удаление группы"""
     await callback.message.edit_text(
         text="Выберите предмет:",
-        reply_markup=get_subjects_list_kb("group_delete_subject")
+        reply_markup=await get_subjects_list_kb("group_delete_subject")
     )
     await state.set_state(AdminGroupsStates.select_subject_for_group_deletion)
 

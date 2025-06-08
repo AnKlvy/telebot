@@ -5,8 +5,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import StateFilter
 
 from admin.utils.common import (
-    curators_db, teachers_db, courses_db, subjects_db, groups_db,
-    get_courses_list_kb, get_subjects_list_kb, get_groups_list_kb, 
+    curators_db, teachers_db, groups_db,
+    get_courses_list_kb, get_subjects_list_kb, get_groups_list_kb,
     get_people_list_kb, get_confirmation_kb, add_person, remove_person
 )
 from common.keyboards import get_home_kb
@@ -80,12 +80,27 @@ def generate_staff_handlers(
     async def process_staff_telegram_id(message: Message, state: FSMContext):
         try:
             telegram_id = int(message.text.strip())
+
+            # Проверяем, существует ли уже пользователь с таким Telegram ID
+            from database import UserRepository
+            existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+
+            if existing_user:
+                await message.answer(
+                    text=f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
+                         f"Имя: {existing_user.name}\n"
+                         f"Роль: {existing_user.role}\n\n"
+                         f"Введите другой Telegram ID:",
+                    reply_markup=get_home_kb()
+                )
+                return
+
             await state.update_data(**{f"{callback_prefix}_telegram_id": telegram_id})
             await state.set_state(getattr(states_class, f"select_{callback_prefix}_course"))
-            
+
             await message.answer(
                 text=f"Выберите курс для {entity_name_accusative}:",
-                reply_markup=get_courses_list_kb(f"{callback_prefix}_course")
+                reply_markup=await get_courses_list_kb(f"{callback_prefix}_course")
             )
         except ValueError:
             await message.answer(
@@ -110,7 +125,7 @@ def generate_staff_handlers(
         
         await callback.message.edit_text(
             text=f"Курс: {course['name']}\n\nВыберите предмет:",
-            reply_markup=get_subjects_list_kb(f"{callback_prefix}_subject", course_id)
+            reply_markup=await get_subjects_list_kb(f"{callback_prefix}_subject", course_id)
         )
     
     @router.callback_query(getattr(states_class, f"select_{callback_prefix}_subject"), F.data.startswith(f"{callback_prefix}_subject_"))
@@ -176,7 +191,7 @@ def generate_staff_handlers(
     async def start_remove_staff(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
             text="Выберите предмет:",
-            reply_markup=get_subjects_list_kb(f"{callback_prefix}_delete_subject")
+            reply_markup=await get_subjects_list_kb(f"{callback_prefix}_delete_subject")
         )
         await state.set_state(getattr(states_class, f"select_subject_for_{callback_prefix}_deletion"))
     
