@@ -13,6 +13,7 @@ from manager.keyboards.lessons import (
     LessonCallback,
     LessonActions
 )
+from common.keyboards import get_home_kb
 
 router = Router()
 
@@ -52,24 +53,45 @@ async def show_courses(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(ManagerLessonStates.main)
 
-@router.callback_query(LessonCallback.filter(F.action == LessonActions.VIEW))
+@router.callback_query(LessonCallback.filter(F.action == LessonActions.VIEW), StateFilter(ManagerLessonStates.main, ManagerLessonStates.select_subject))
 async def process_view_action(callback: CallbackQuery, callback_data: LessonCallback, state: FSMContext):
     """Обработка просмотра списков"""
-    if callback_data.course_id is not None and callback_data.subject_id is None:
+    # Импортируем функцию для работы с callback_data и состоянием
+    from common.utils import check_if_id_in_callback_data
+
+    # Получаем course_id из callback_data или состояния
+    course_id = None
+    subject_id = None
+
+    if hasattr(callback_data, 'course_id') and callback_data.course_id is not None:
+        course_id = callback_data.course_id
+    else:
+        # Если callback_data не содержит course_id, берем из состояния
+        user_data = await state.get_data()
+        course_id = user_data.get('course_id')
+
+    if hasattr(callback_data, 'subject_id') and callback_data.subject_id is not None:
+        subject_id = callback_data.subject_id
+    else:
+        # Если callback_data не содержит subject_id, берем из состояния
+        user_data = await state.get_data()
+        subject_id = user_data.get('subject_id')
+
+    if course_id is not None and subject_id is None:
         # Показываем список предметов для курса
-        subjects = subjects_db.get(callback_data.course_id, [])
-        await state.update_data(course_id=callback_data.course_id)
+        subjects = subjects_db.get(course_id, [])
+        await state.update_data(course_id=course_id)
         await state.set_state(ManagerLessonStates.select_subject)
         await callback.message.edit_text(
-            text=f"Выберите предмет из курса {courses_db[callback_data.course_id]}:",
-            reply_markup=get_subjects_list_kb(subjects, callback_data.course_id)
+            text=f"Выберите предмет из курса {courses_db[course_id]}:",
+            reply_markup=get_subjects_list_kb(subjects, course_id)
         )
-    elif callback_data.subject_id is not None:
+    elif subject_id is not None:
         # Показываем список уроков для предмета
-        subject_name = subjects_db[callback_data.course_id][callback_data.subject_id]
+        subject_name = subjects_db[course_id][subject_id]
         lessons = lessons_db.get(subject_name, [])
         await state.update_data(
-            subject_id=callback_data.subject_id,
+            subject_id=subject_id,
             subject_name=subject_name
         )
         await state.set_state(ManagerLessonStates.lessons_list)
@@ -78,12 +100,46 @@ async def process_view_action(callback: CallbackQuery, callback_data: LessonCall
                  f"Всего уроков: {len(lessons)}",
             reply_markup=get_lessons_list_kb(
                 lessons,
-                course_id=callback_data.course_id,
-                subject_id=callback_data.subject_id
+                course_id=course_id,
+                subject_id=subject_id
             )
         )
 
-@router.callback_query(LessonCallback.filter(F.action == LessonActions.ADD))
+# Отдельные обработчики для навигации назад
+async def back_to_select_subject(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для возврата к выбору предмета"""
+    user_data = await state.get_data()
+    course_id = user_data.get('course_id')
+
+    if course_id:
+        subjects = subjects_db.get(course_id, [])
+        await state.set_state(ManagerLessonStates.select_subject)
+        await callback.message.edit_text(
+            text=f"Выберите предмет из курса {courses_db[course_id]}:",
+            reply_markup=get_subjects_list_kb(subjects, course_id)
+        )
+
+async def back_to_lessons_list(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для возврата к списку уроков"""
+    user_data = await state.get_data()
+    course_id = user_data.get('course_id')
+    subject_id = user_data.get('subject_id')
+    subject_name = user_data.get('subject_name')
+
+    if course_id and subject_id and subject_name:
+        lessons = lessons_db.get(subject_name, [])
+        await state.set_state(ManagerLessonStates.lessons_list)
+        await callback.message.edit_text(
+            text=f"📝 Список уроков по предмету {subject_name}:\n"
+                 f"Всего уроков: {len(lessons)}",
+            reply_markup=get_lessons_list_kb(
+                lessons,
+                course_id=course_id,
+                subject_id=subject_id
+            )
+        )
+
+@router.callback_query(LessonCallback.filter(F.action == LessonActions.ADD), StateFilter(ManagerLessonStates.lessons_list))
 async def start_add_lesson(callback: CallbackQuery, callback_data: LessonCallback, state: FSMContext):
     """Начинаем процесс добавления урока"""
     data = await state.get_data()
@@ -117,7 +173,7 @@ async def process_lesson_name(message: Message, state: FSMContext):
         )
     )
 
-@router.callback_query(LessonCallback.filter(F.action == LessonActions.DELETE))
+@router.callback_query(LessonCallback.filter(F.action == LessonActions.DELETE), StateFilter(ManagerLessonStates.lessons_list))
 async def confirm_delete(callback: CallbackQuery, callback_data: LessonCallback, state: FSMContext):
     """Запрашиваем подтверждение удаления урока"""
     data = await state.get_data()
@@ -130,7 +186,7 @@ async def confirm_delete(callback: CallbackQuery, callback_data: LessonCallback,
         reply_markup=confirm_delete_lesson_kb(callback_data.lesson_id)
     )
 
-@router.callback_query(LessonCallback.filter(F.action == LessonActions.CONFIRM_DELETE))
+@router.callback_query(LessonCallback.filter(F.action == LessonActions.CONFIRM_DELETE), StateFilter(ManagerLessonStates.confirm_deletion))
 async def process_delete_lesson(callback: CallbackQuery, callback_data: LessonCallback, state: FSMContext):
     """Удаляем урок после подтверждения"""
     data = await state.get_data()
@@ -148,7 +204,7 @@ async def process_delete_lesson(callback: CallbackQuery, callback_data: LessonCa
         )
     )
 
-@router.callback_query(LessonCallback.filter(F.action == LessonActions.CANCEL))
+@router.callback_query(LessonCallback.filter(F.action == LessonActions.CANCEL), StateFilter(ManagerLessonStates.confirm_deletion))
 async def cancel_action(callback: CallbackQuery, callback_data: LessonCallback, state: FSMContext):
     """Отмена действия"""
     data = await state.get_data()

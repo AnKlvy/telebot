@@ -1,12 +1,11 @@
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from .keyboards import (
-    get_analytics_menu_kb, get_groups_for_analytics_kb, 
+    get_analytics_menu_kb, get_groups_for_analytics_kb,
     get_students_for_analytics_kb
 )
-from common.statistics import (
-    check_if_id_in_callback_data
-)
+from common.utils import check_if_id_in_callback_data
+
 
 async def show_analytics_menu(callback: CallbackQuery, state: FSMContext, role: str):
     """

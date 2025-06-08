@@ -1,7 +1,8 @@
-from typing import Dict, List, Tuple, Optional
+from typing import Dict
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
+from common.utils import check_if_id_in_callback_data
 
 from common.analytics.keyboards import get_back_to_analytics_kb
 
@@ -493,7 +494,7 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    student_id = await check_if_id_in_callback_data("analytics_student_",callback, state, "student")
+    student_id = await check_if_id_in_callback_data("analytics_student_", callback, state, "student")
 
 
     # Получаем данные о студенте из общего компонента
@@ -518,7 +519,7 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    group_id = await check_if_id_in_callback_data("analytics_group_",callback, state, "group")
+    group_id = await check_if_id_in_callback_data("analytics_group_", callback, state, "group")
 
     # Получаем данные о группе из общего компонента
     group_data = get_group_stats(group_id)
@@ -532,15 +533,3 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
     )
 
 
-async def check_if_id_in_callback_data(callback_starts_with: str, callback: CallbackQuery, state: FSMContext, id_type)-> str:
-    # Проверяем, является ли callback.data ID группы или это кнопка "назад"
-    if callback.data.startswith(callback_starts_with):
-        id = callback.data.replace(callback_starts_with, "")
-        print(f"{id_type}_id: ", id)
-        await state.update_data(**{id_type:id})
-    else:
-        # Если это кнопка "назад" или другой callback, берем ID из состояния
-        user_data = await state.get_data()
-        id = user_data.get(id_type)
-        print(f"Using saved {id_type}_id: ", id)
-    return id

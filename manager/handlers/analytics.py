@@ -11,9 +11,10 @@ from ..keyboards.analytics import (
 )
 from common.analytics.keyboards import get_back_to_analytics_kb
 from common.statistics import (
-    check_if_id_in_callback_data, get_subject_stats, format_subject_stats, get_general_stats, format_general_stats, show_student_analytics,
+    get_subject_stats, format_subject_stats, get_general_stats, format_general_stats, show_student_analytics,
     show_group_analytics
 )
+from common.utils import check_if_id_in_callback_data
 import logging
 
 # Настройка логгера
