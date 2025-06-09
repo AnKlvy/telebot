@@ -30,6 +30,9 @@ POSTGRES_PASSWORD=your_secure_password_here
 # Настройки окружения
 ENVIRONMENT=production
 
+# Домен для nginx и webhook
+DOMAIN=your-domain.com
+
 # Webhook настройки (для максимальной скорости)
 WEBHOOK_MODE=true
 WEBHOOK_HOST=https://your-domain.com
