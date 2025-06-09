@@ -112,7 +112,7 @@ async def get_role_to_use(state: FSMContext, user_role: str) -> str:
         "teacher": ["TeacherMain", "TeacherGroupStates", "TeacherAnalyticsStates",
                     "TeacherTestsStatisticsStates"],
         "manager": ["ManagerMain", "ManagerAnalyticsStates", "AddHomeworkStates",
-                    "ManagerGroupStates", "ManagerTopicStates", "ManagerMonthTestsStates"],
+                    "ManagerGroupStates", "ManagerTopicStates", "ManagerLessonStates", "BonusTaskStates", "ManagerMonthTestsStates"],
         "admin": ["AdminMain"]
     }
     if current_state:

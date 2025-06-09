@@ -84,7 +84,7 @@ async def process_view_action(callback: CallbackQuery, callback_data: LessonCall
         await state.set_state(ManagerLessonStates.select_subject)
         await callback.message.edit_text(
             text=f"Выберите предмет из курса {courses_db[course_id]}:",
-            reply_markup=get_subjects_list_kb(subjects, course_id)
+            reply_markup=await get_subjects_list_kb(subjects, course_id)
         )
     elif subject_id is not None:
         # Показываем список уроков для предмета
@@ -116,7 +116,7 @@ async def back_to_select_subject(callback: CallbackQuery, state: FSMContext):
         await state.set_state(ManagerLessonStates.select_subject)
         await callback.message.edit_text(
             text=f"Выберите предмет из курса {courses_db[course_id]}:",
-            reply_markup=get_subjects_list_kb(subjects, course_id)
+            reply_markup=await get_subjects_list_kb(subjects, course_id)
         )
 
 async def back_to_lessons_list(callback: CallbackQuery, state: FSMContext):

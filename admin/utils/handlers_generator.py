@@ -6,7 +6,7 @@ from aiogram.filters import StateFilter
 
 from admin.utils.common import (
     get_entity_list_kb, get_confirmation_kb,
-    subjects_db, managers_db, add_subject, remove_subject, add_person, remove_person
+    managers_db, add_subject, remove_subject, add_person, remove_person
 )
 from common.keyboards import get_home_kb
 
@@ -184,8 +184,23 @@ def generate_person_entity_handlers(
     async def process_person_telegram_id(message: Message, state: FSMContext):
         try:
             telegram_id = int(message.text.strip())
+
+            # Проверяем, существует ли уже пользователь с таким Telegram ID
+            from database import UserRepository
+            existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+
+            if existing_user:
+                await message.answer(
+                    text=f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
+                         f"Имя: {existing_user.name}\n"
+                         f"Роль: {existing_user.role}\n\n"
+                         f"Введите другой Telegram ID:",
+                    reply_markup=get_home_kb()
+                )
+                return
+
             await state.update_data(**{f"{callback_prefix}_telegram_id": telegram_id})
-            
+
             # Если есть дополнительные поля, переходим к ним
             if additional_fields:
                 first_field = list(additional_fields.keys())[0]
@@ -197,7 +212,7 @@ def generate_person_entity_handlers(
             else:
                 # Переходим к подтверждению
                 await show_person_confirmation(message, state, entity_name, callback_prefix, states_class)
-                
+
         except ValueError:
             await message.answer(
                 text="❌ Telegram ID должен быть числом. Попробуйте еще раз:",

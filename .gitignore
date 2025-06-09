@@ -1,5 +1,24 @@
+# Python
 .venv
 .env
-.idea
 __pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.idea
 .vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
