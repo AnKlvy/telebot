@@ -247,82 +247,27 @@ install_git() {
     echo "✅ Git установлен"
 }
 
-# Функция установки Certbot
-install_certbot() {
-    echo "📦 Устанавливаем Certbot..."
+# Функция установки acme.sh (замена certbot)
+install_acme() {
+    echo "📦 Устанавливаем acme.sh..."
 
-    # Определяем дистрибутив
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS=$NAME
+    # Проверяем, не установлен ли уже
+    if [ -d "$HOME/.acme.sh" ]; then
+        echo "✅ acme.sh уже установлен"
+        return 0
     fi
 
-    # Для Kali Linux используем специальную установку
-    if [[ "$OS" == *"Kali"* ]]; then
-        echo "🐉 Kali Linux обнаружен, используем альтернативные методы..."
+    # Устанавливаем acme.sh
+    curl https://get.acme.sh | sh -s email=admin@localhost
 
-        # Метод 1: Пробуем установить через snap
-        if command -v snap &> /dev/null; then
-            echo "📦 Устанавливаем через snap..."
-            if sudo snap install --classic certbot; then
-                sudo ln -sf /snap/bin/certbot /usr/bin/certbot
-                echo "✅ Certbot установлен через snap"
-                return 0
-            fi
-        fi
-
-        # Метод 2: Устанавливаем snap если его нет
-        echo "📦 Устанавливаем snapd..."
-        sudo apt update
-        sudo apt install -y snapd
-        sudo systemctl enable --now snapd
-        sudo systemctl start snapd
-
-        # Ждем запуска snapd
-        sleep 5
-
-        # Пробуем установить certbot через snap
-        if sudo snap install --classic certbot; then
-            sudo ln -sf /snap/bin/certbot /usr/bin/certbot
-            echo "✅ Certbot установлен через snap"
-            return 0
-        fi
-
-        # Метод 3: Устанавливаем через pip
-        echo "📦 Пробуем установить через pip..."
-        if command -v pip3 &> /dev/null; then
-            sudo pip3 install certbot certbot-nginx
-            echo "✅ Certbot установлен через pip"
-            return 0
-        fi
-
-        # Метод 4: Скачиваем certbot-auto (устаревший, но работает)
-        echo "📦 Скачиваем certbot-auto..."
-        sudo wget -O /usr/local/bin/certbot-auto https://dl.eff.org/certbot-auto
-        sudo chmod a+x /usr/local/bin/certbot-auto
-        sudo ln -sf /usr/local/bin/certbot-auto /usr/bin/certbot
-        echo "✅ Certbot-auto установлен"
+    if [ -d "$HOME/.acme.sh" ]; then
+        echo "✅ acme.sh установлен успешно"
+        # Добавляем в PATH для текущей сессии
+        export PATH="$HOME/.acme.sh:$PATH"
         return 0
-
     else
-        # Для других дистрибутивов стандартная установка
-        echo "🐧 Стандартная установка для $OS..."
-
-        # Исправляем проблемы с пакетами
-        sudo apt update --fix-missing || true
-        sudo apt install -f -y || true
-
-        # Пробуем установить certbot
-        if sudo apt install -y certbot; then
-            echo "✅ Certbot установлен через apt"
-            return 0
-        elif sudo apt install -y certbot --fix-missing; then
-            echo "✅ Certbot установлен через apt с исправлением"
-            return 0
-        else
-            echo "❌ Не удалось установить Certbot через apt"
-            return 1
-        fi
+        echo "❌ Ошибка установки acme.sh"
+        return 1
     fi
 }
 
@@ -424,21 +369,24 @@ if ! command -v git &> /dev/null; then
     fi
 fi
 
-# Проверяем Certbot (необязательно)
-if ! command -v certbot &> /dev/null; then
-    echo "⚠️ Certbot не установлен (нужен только для автоматических SSL сертификатов)"
-    read -p "Установить Certbot автоматически? (y/n): " -n 1 -r
+# Проверяем acme.sh (рекомендуется вместо certbot)
+if [ ! -d "$HOME/.acme.sh" ]; then
+    echo "⚠️ acme.sh не установлен (нужен для автоматических SSL сертификатов)"
+    read -p "Установить acme.sh автоматически? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        if install_certbot; then
-            echo "✅ Certbot установлен успешно"
+        if install_acme; then
+            echo "✅ acme.sh установлен успешно"
+            echo "💡 Для настройки SSL запустите: chmod +x scripts/setup_ssl_acme.sh && ./scripts/setup_ssl_acme.sh"
         else
-            echo "⚠️ Certbot не установлен, но это не критично"
+            echo "⚠️ acme.sh не установлен, но это не критично"
             echo "💡 SSL сертификаты можно настроить вручную позже"
         fi
     else
-        echo "⚠️ Certbot пропущен. SSL сертификаты нужно будет настроить вручную"
+        echo "⚠️ acme.sh пропущен. SSL сертификаты нужно будет настроить вручную"
     fi
+else
+    echo "✅ acme.sh уже установлен"
 fi
 
 # Функция для проверки и исправления прав Docker
@@ -560,19 +508,9 @@ if grep -q "WEBHOOK_MODE=true" /etc/telebot/env; then
         read -p "Настроить SSL сертификаты сейчас? (y/n): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Выберите способ получения SSL:"
-            echo "1) acme.sh (рекомендуется, проще)"
-            echo "2) certbot (может не работать в Kali)"
-            read -p "Ваш выбор (1/2): " -n 1 -r
-            echo
-
-            if [[ $REPLY == "1" ]]; then
-                chmod +x scripts/setup_ssl_acme.sh
-                ./scripts/setup_ssl_acme.sh
-            else
-                chmod +x scripts/setup_ssl.sh
-                sudo ./scripts/setup_ssl.sh
-            fi
+            echo "Настраиваем SSL через acme.sh (без crontab)..."
+            chmod +x scripts/setup_ssl_acme.sh
+            ./scripts/setup_ssl_acme.sh
         else
             echo "⚠️ Без SSL сертификатов webhook работать не будет"
             echo "📝 Запустите позже: chmod +x scripts/setup_ssl.sh && sudo ./scripts/setup_ssl.sh"
