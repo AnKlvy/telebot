@@ -31,6 +31,7 @@ from manager.states.states_lessons import STATE_TRANSITIONS as MANAGER_LESSONS_T
 from manager.states.states_bonus_tasks import STATE_TRANSITIONS as MANAGER_BONUS_TASKS_TRANSITIONS, STATE_HANDLERS as MANAGER_BONUS_TASKS_HANDLERS
 from manager.states.states_month_tests import STATE_TRANSITIONS as MANAGER_MONTH_TESTS_TRANSITIONS, STATE_HANDLERS as MANAGER_MONTH_TESTS_HANDLERS
 from admin.states.states_main import STATE_TRANSITIONS as ADMIN_TRANSITIONS, STATE_HANDLERS as ADMIN_HANDLERS
+from admin.states.states_subjects import STATE_TRANSITIONS as ADMIN_SUBJECTS_TRANSITIONS, STATE_HANDLERS as ADMIN_SUBJECTS_HANDLERS
 
 def register_handlers():
     """Регистрация всех обработчиков и переходов"""
@@ -50,8 +51,12 @@ def register_handlers():
     manager_transitions = {**MANAGER_ANALYTICS_TRANSITIONS, **MANAGER_HOMEWORK_TRANSITIONS, **MANAGER_TOPICS_TRANSITIONS, **MANAGER_LESSONS_TRANSITIONS, **MANAGER_BONUS_TASKS_TRANSITIONS, **MANAGER_MONTH_TESTS_TRANSITIONS}
     manager_handlers = {**MANAGER_ANALYTICS_HANDLERS, **MANAGER_HOMEWORK_HANDLERS, **MANAGER_TOPICS_HANDLERS, **MANAGER_LESSONS_HANDLERS, **MANAGER_BONUS_TASKS_HANDLERS, **MANAGER_MONTH_TESTS_HANDLERS}
 
+    # Объединяем словари переходов и обработчиков для админа
+    admin_transitions = {**ADMIN_TRANSITIONS, **ADMIN_SUBJECTS_TRANSITIONS}
+    admin_handlers = {**ADMIN_HANDLERS, **ADMIN_SUBJECTS_HANDLERS}
+
     navigation_manager.register_role("student", student_transitions, {None: show_student_main_menu, **student_handlers})
     navigation_manager.register_role("curator", curator_transitions, {None: show_curator_main_menu, **curator_handlers})
     navigation_manager.register_role("teacher", teacher_transitions, {None: show_teacher_main_menu, **teacher_handlers})
     navigation_manager.register_role("manager", manager_transitions, {None: show_manager_main_menu, **manager_handlers})
-    navigation_manager.register_role("admin", ADMIN_TRANSITIONS, {None: show_admin_main_menu, **ADMIN_HANDLERS})
+    navigation_manager.register_role("admin", admin_transitions, {None: show_admin_main_menu, **admin_handlers})

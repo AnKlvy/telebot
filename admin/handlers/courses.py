@@ -154,7 +154,7 @@ async def finish_subject_selection(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirmation_kb("add", "course")
     )
 
-@router.callback_query(AdminCoursesStates.confirm_add_course, F.data.startswith("confirm_add_course"))
+@router.callback_query(StateFilter(AdminCoursesStates.confirm_add_course), F.data.startswith("confirm_add_course_"))
 async def confirm_add_course(callback: CallbackQuery, state: FSMContext):
     """Подтвердить добавление курса"""
     data = await state.get_data()
@@ -211,7 +211,7 @@ async def select_course_to_delete(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirmation_kb("delete", "course", str(course_id))
     )
 
-@router.callback_query(AdminCoursesStates.confirm_delete_course, F.data.startswith("confirm_delete_course"))
+@router.callback_query(StateFilter(AdminCoursesStates.confirm_delete_course), F.data.startswith("confirm_delete_course_"))
 async def confirm_delete_course(callback: CallbackQuery, state: FSMContext):
     """Подтвердить удаление курса"""
     data = await state.get_data()
@@ -231,6 +231,26 @@ async def confirm_delete_course(callback: CallbackQuery, state: FSMContext):
             reply_markup=get_home_kb()
         )
 
+    await state.clear()
+
+# === ОБРАБОТЧИКИ ОТМЕНЫ ===
+
+@router.callback_query(StateFilter(AdminCoursesStates.confirm_add_course), F.data.startswith("cancel_add_course"))
+async def cancel_add_course(callback: CallbackQuery, state: FSMContext):
+    """Отменить добавление курса"""
+    await callback.message.edit_text(
+        text="❌ Добавление курса отменено",
+        reply_markup=get_home_kb()
+    )
+    await state.clear()
+
+@router.callback_query(StateFilter(AdminCoursesStates.confirm_delete_course), F.data.startswith("cancel_delete_course"))
+async def cancel_delete_course(callback: CallbackQuery, state: FSMContext):
+    """Отменить удаление курса"""
+    await callback.message.edit_text(
+        text="❌ Удаление курса отменено",
+        reply_markup=get_home_kb()
+    )
     await state.clear()
 
 # === ОТМЕНА ДЕЙСТВИЙ ===

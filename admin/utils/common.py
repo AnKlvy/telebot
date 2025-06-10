@@ -150,17 +150,73 @@ async def remove_course(course_id: int) -> bool:
         print(f"Ошибка при удалении курса: {e}")
         return False
 
-async def add_subject(name: str) -> bool:
-    """Добавить новый предмет"""
+async def add_subject(name: str) -> tuple[bool, str]:
+    """Добавить новый предмет
+
+    Returns:
+        tuple[bool, str]: (успех, сообщение об ошибке или пустая строка)
+    """
+    # Валидация входных данных
+    if not name or not name.strip():
+        return False, "Название предмета не может быть пустым"
+
+    name = name.strip()
+
+    if len(name) < 2:
+        return False, "Название предмета должно содержать минимум 2 символа"
+
+    if len(name) > 100:
+        return False, "Название предмета не должно превышать 100 символов"
+
+    # Проверка на недопустимые символы (только те, что реально мешают)
+    forbidden_chars = ['\n', '\r', '\t']
+    if any(char in name for char in forbidden_chars):
+        return False, "Название не должно содержать переносы строк и табуляцию"
+
     try:
         await SubjectRepository.create(name)
-        return True
-    except Exception:
-        return False
+        return True, ""
+    except ValueError as e:
+        # Ошибка дублирования или другая бизнес-логика
+        return False, str(e)
+    except Exception as e:
+        # Неожиданные ошибки базы данных
+        return False, f"Ошибка базы данных: {str(e)}"
 
-async def remove_subject(subject_id: int) -> bool:
-    """Удалить предмет"""
-    return await SubjectRepository.delete(subject_id)
+async def remove_subject(subject_id: int) -> tuple[bool, str]:
+    """Удалить предмет
+
+    Returns:
+        tuple[bool, str]: (успех, сообщение об ошибке или пустая строка)
+    """
+    try:
+        # Проверяем, существует ли предмет
+        subject = await SubjectRepository.get_by_id(subject_id)
+        if not subject:
+            return False, "Предмет не найден"
+
+        # Проверяем, используется ли предмет в курсах
+        from database import CourseRepository
+        all_courses = await CourseRepository.get_all()
+        linked_courses = []
+
+        for course in all_courses:
+            course_subjects = await SubjectRepository.get_by_course(course.id)
+            if any(s.id == subject_id for s in course_subjects):
+                linked_courses.append(course.name)
+
+        if linked_courses:
+            courses_text = ", ".join(linked_courses)
+            return False, f"Предмет используется в курсах: {courses_text}. Сначала удалите его из курсов."
+
+        success = await SubjectRepository.delete(subject_id)
+        if success:
+            return True, ""
+        else:
+            return False, "Не удалось удалить предмет из базы данных"
+
+    except Exception as e:
+        return False, f"Ошибка базы данных: {str(e)}"
 
 # Функции для получения данных
 async def get_courses_list():

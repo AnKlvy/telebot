@@ -64,15 +64,15 @@ async def select_subject_for_group(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirmation_kb("add", "group")
     )
 
-@router.callback_query(AdminGroupsStates.confirm_add_group, F.data.startswith("confirm_add_group"))
+@router.callback_query(StateFilter(AdminGroupsStates.confirm_add_group), F.data.startswith("confirm_add_group_"))
 async def confirm_add_group(callback: CallbackQuery, state: FSMContext):
     """Подтвердить добавление группы"""
     data = await state.get_data()
     group_name = data.get("group_name", "")
     subject = data.get("group_subject", "")
-    
+
     success = add_group(group_name, subject)
-    
+
     if success:
         await callback.message.edit_text(
             text=f"✅ Группа '{group_name}' успешно создана для предмета '{subject}'!",
@@ -83,7 +83,7 @@ async def confirm_add_group(callback: CallbackQuery, state: FSMContext):
             text=f"❌ Группа '{group_name}' уже существует для предмета '{subject}'!",
             reply_markup=get_home_kb()
         )
-    
+
     await state.clear()
 
 # === УДАЛЕНИЕ ГРУППЫ ===
@@ -128,15 +128,15 @@ async def select_group_to_delete(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirmation_kb("delete", "group", group_name)
     )
 
-@router.callback_query(AdminGroupsStates.confirm_delete_group, F.data.startswith("confirm_delete_group"))
+@router.callback_query(StateFilter(AdminGroupsStates.confirm_delete_group), F.data.startswith("confirm_delete_group_"))
 async def confirm_delete_group(callback: CallbackQuery, state: FSMContext):
     """Подтвердить удаление группы"""
     data = await state.get_data()
     group_name = data.get("group_to_delete", "")
     subject = data.get("deletion_subject", "")
-    
+
     success = remove_group(group_name, subject)
-    
+
     if success:
         await callback.message.edit_text(
             text=f"✅ Группа '{group_name}' успешно удалена из предмета '{subject}'!",
@@ -147,7 +147,27 @@ async def confirm_delete_group(callback: CallbackQuery, state: FSMContext):
             text=f"❌ Группа '{group_name}' не найдена в предмете '{subject}'!",
             reply_markup=get_home_kb()
         )
-    
+
+    await state.clear()
+
+# === ОБРАБОТЧИКИ ОТМЕНЫ ===
+
+@router.callback_query(StateFilter(AdminGroupsStates.confirm_add_group), F.data.startswith("cancel_add_group"))
+async def cancel_add_group(callback: CallbackQuery, state: FSMContext):
+    """Отменить добавление группы"""
+    await callback.message.edit_text(
+        text="❌ Добавление группы отменено",
+        reply_markup=get_home_kb()
+    )
+    await state.clear()
+
+@router.callback_query(StateFilter(AdminGroupsStates.confirm_delete_group), F.data.startswith("cancel_delete_group"))
+async def cancel_delete_group(callback: CallbackQuery, state: FSMContext):
+    """Отменить удаление группы"""
+    await callback.message.edit_text(
+        text="❌ Удаление группы отменено",
+        reply_markup=get_home_kb()
+    )
     await state.clear()
 
 # === ОТМЕНА ДЕЙСТВИЙ ===

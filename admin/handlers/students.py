@@ -172,21 +172,21 @@ async def select_student_tariff(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirmation_kb("add", "student")
     )
 
-@router.callback_query(AdminStudentsStates.confirm_add_student, F.data.startswith("confirm_add_student"))
+@router.callback_query(StateFilter(AdminStudentsStates.confirm_add_student), F.data.startswith("confirm_add_student_"))
 async def confirm_add_student(callback: CallbackQuery, state: FSMContext):
     """Подтвердить добавление ученика"""
     data = await state.get_data()
-    
+
     student_name = data.get("student_name", "")
     telegram_id = data.get("student_telegram_id", "")
     course = data.get("student_course", "")
     group = data.get("student_group", "")
     tariff = data.get("student_tariff", "")
-    
+
     # Добавляем ученика
-    student_id = add_person(students_db, student_name, telegram_id, 
+    student_id = add_person(students_db, student_name, telegram_id,
                            course=course, group=group, tariff=tariff)
-    
+
     await callback.message.edit_text(
         text=f"✅ Ученик '{student_name}' успешно добавлен!",
         reply_markup=get_home_kb()
@@ -303,17 +303,17 @@ async def select_student_to_delete(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirmation_kb("delete", "student", student_id)
     )
 
-@router.callback_query(AdminStudentsStates.confirm_delete_student, F.data.startswith("confirm_delete_student"))
+@router.callback_query(StateFilter(AdminStudentsStates.confirm_delete_student), F.data.startswith("confirm_delete_student_"))
 async def confirm_delete_student(callback: CallbackQuery, state: FSMContext):
     """Подтвердить удаление ученика"""
     data = await state.get_data()
     student_id = data.get("student_to_delete", "")
-    
+
     student = students_db.get(student_id)
     student_name = student.get("name", "Неизвестно") if student else "Неизвестно"
-    
+
     success = remove_person(students_db, student_id)
-    
+
     if success:
         await callback.message.edit_text(
             text=f"✅ Ученик '{student_name}' успешно удален!",
@@ -324,16 +324,25 @@ async def confirm_delete_student(callback: CallbackQuery, state: FSMContext):
             text="❌ Ученик не найден!",
             reply_markup=get_home_kb()
         )
-    
+
     await state.clear()
 
 # === ОТМЕНА ДЕЙСТВИЙ ===
 
-@router.callback_query(F.data.startswith("cancel_add_student") | F.data.startswith("cancel_delete_student"))
-async def cancel_student_action(callback: CallbackQuery, state: FSMContext):
-    """Отменить действие с учеником"""
+@router.callback_query(StateFilter(AdminStudentsStates.confirm_add_student), F.data.startswith("cancel_add_student"))
+async def cancel_add_student(callback: CallbackQuery, state: FSMContext):
+    """Отменить добавление ученика"""
     await callback.message.edit_text(
-        text="❌ Действие отменено",
+        text="❌ Добавление ученика отменено",
+        reply_markup=get_home_kb()
+    )
+    await state.clear()
+
+@router.callback_query(StateFilter(AdminStudentsStates.confirm_delete_student), F.data.startswith("cancel_delete_student"))
+async def cancel_delete_student(callback: CallbackQuery, state: FSMContext):
+    """Отменить удаление ученика"""
+    await callback.message.edit_text(
+        text="❌ Удаление ученика отменено",
         reply_markup=get_home_kb()
     )
     await state.clear()

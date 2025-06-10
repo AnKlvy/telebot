@@ -61,13 +61,13 @@ def generate_simple_entity_handlers(
         )
     
     # Обработчик подтверждения добавления
-    @router.callback_query(F.data.startswith(f"confirm_add_{callback_prefix}"))
+    @router.callback_query(StateFilter(getattr(states_class, f"confirm_add_{callback_prefix}")), F.data.startswith(f"confirm_add_{callback_prefix}_"))
     async def confirm_add_entity(callback: CallbackQuery, state: FSMContext):
         data = await state.get_data()
         entity_name_input = data.get(f"{callback_prefix}_name")
-        
+
         success = add_function(entity_name_input)
-        
+
         if success:
             await callback.message.edit_text(
                 text=f"✅ {entity_name.capitalize()} '{entity_name_input}' успешно добавлен!",
@@ -78,7 +78,7 @@ def generate_simple_entity_handlers(
                 text=f"❌ {entity_name.capitalize()} '{entity_name_input}' уже существует!",
                 reply_markup=get_home_kb()
             )
-        
+
         await state.clear()
     
     # Обработчик начала удаления
@@ -111,13 +111,13 @@ def generate_simple_entity_handlers(
         )
     
     # Обработчик подтверждения удаления
-    @router.callback_query(F.data.startswith(f"confirm_delete_{callback_prefix}"))
+    @router.callback_query(StateFilter(getattr(states_class, f"confirm_delete_{callback_prefix}")), F.data.startswith(f"confirm_delete_{callback_prefix}_"))
     async def confirm_delete_entity(callback: CallbackQuery, state: FSMContext):
         data = await state.get_data()
         entity_id = data.get(f"{callback_prefix}_to_delete")
-        
+
         success = remove_function(entity_id)
-        
+
         if success:
             await callback.message.edit_text(
                 text=f"✅ {entity_name.capitalize()} '{entity_id}' успешно удален!",
@@ -128,14 +128,22 @@ def generate_simple_entity_handlers(
                 text=f"❌ {entity_name.capitalize()} '{entity_id}' не найден!",
                 reply_markup=get_home_kb()
             )
-        
+
         await state.clear()
     
-    # Обработчик отмены
-    @router.callback_query(F.data.startswith(f"cancel_add_{callback_prefix}") | F.data.startswith(f"cancel_delete_{callback_prefix}"))
-    async def cancel_entity_action(callback: CallbackQuery, state: FSMContext):
+    # Обработчики отмены
+    @router.callback_query(StateFilter(getattr(states_class, f"confirm_add_{callback_prefix}")), F.data.startswith(f"cancel_add_{callback_prefix}"))
+    async def cancel_add_entity(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
-            text="❌ Действие отменено",
+            text=f"❌ Добавление {entity_name_accusative} отменено",
+            reply_markup=get_home_kb()
+        )
+        await state.clear()
+
+    @router.callback_query(StateFilter(getattr(states_class, f"confirm_delete_{callback_prefix}")), F.data.startswith(f"cancel_delete_{callback_prefix}"))
+    async def cancel_delete_entity(callback: CallbackQuery, state: FSMContext):
+        await callback.message.edit_text(
+            text=f"❌ Удаление {entity_name_accusative} отменено",
             reply_markup=get_home_kb()
         )
         await state.clear()
@@ -220,7 +228,7 @@ def generate_person_entity_handlers(
             )
 
     # Обработчик подтверждения добавления
-    @router.callback_query(F.data.startswith(f"confirm_add_{callback_prefix}"))
+    @router.callback_query(StateFilter(getattr(states_class, f"confirm_add_{callback_prefix}")), F.data.startswith(f"confirm_add_{callback_prefix}_"))
     async def confirm_add_person(callback: CallbackQuery, state: FSMContext):
         data = await state.get_data()
         person_name = data.get(f"{callback_prefix}_name")
@@ -253,10 +261,10 @@ def generate_person_entity_handlers(
         await state.clear()
 
     # Обработчик отмены
-    @router.callback_query(F.data.startswith(f"cancel_add_{callback_prefix}"))
+    @router.callback_query(StateFilter(getattr(states_class, f"confirm_add_{callback_prefix}")), F.data.startswith(f"cancel_add_{callback_prefix}"))
     async def cancel_add_person(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
-            text="❌ Действие отменено",
+            text=f"❌ Добавление {entity_name_accusative} отменено",
             reply_markup=get_home_kb()
         )
         await state.clear()
