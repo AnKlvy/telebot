@@ -497,6 +497,14 @@ chown -R $USER:$USER logs 2>/dev/null || true  # Пытаемся сменить
 touch logs/bot_$(date +%Y-%m-%d).log 2>/dev/null || true
 chmod 666 logs/bot_$(date +%Y-%m-%d).log 2>/dev/null || true
 
+# Загружаем переменные окружения для проверки SSL
+if [ -f "/etc/edu_telebot/env" ]; then
+    source /etc/edu_telebot/env
+    echo "✅ Переменные окружения загружены"
+else
+    echo "⚠️ Файл переменных окружения не найден, используем значения по умолчанию"
+fi
+
 # Проверяем наличие SSL сертификатов для webhook режима
 if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
     # Создаем директорию для SSL, если она не существует
