@@ -147,8 +147,8 @@ EOF
     
     # Обновляем переменные окружения
     echo "📝 Обновляем переменные окружения..."
-    sudo sed -i "s|WEBHOOK_HOST=.*|WEBHOOK_HOST=https://$DOMAIN|" /etc/telebot/env
-    sudo sed -i "s|WEBHOOK_MODE=.*|WEBHOOK_MODE=true|" /etc/telebot/env
+    sudo sed -i "s|WEBHOOK_HOST=.*|WEBHOOK_HOST=https://$DOMAIN|" /etc/edu_telebot/env
+    sudo sed -i "s|WEBHOOK_MODE=.*|WEBHOOK_MODE=true|" /etc/edu_telebot/env
     
     # Запускаем nginx
     echo "▶️ Запускаем nginx с SSL..."

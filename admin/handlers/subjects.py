@@ -41,41 +41,6 @@ async def process_subject_name(message: Message, state: FSMContext, user_role: s
     await log("process_subject_name", user_role, state)
     subject_name = message.text.strip()
 
-    # Предварительная валидация
-    if not subject_name:
-        await message.answer(
-            text="❌ Название предмета не может быть пустым!\n\n"
-                 "Введите название предмета:",
-            reply_markup=get_home_kb()
-        )
-        return
-
-    if len(subject_name) < 2:
-        await message.answer(
-            text="❌ Название предмета должно содержать минимум 2 символа!\n\n"
-                 "Введите название предмета:",
-            reply_markup=get_home_kb()
-        )
-        return
-
-    if len(subject_name) > 100:
-        await message.answer(
-            text="❌ Название предмета не должно превышать 100 символов!\n\n"
-                 "Введите название предмета:",
-            reply_markup=get_home_kb()
-        )
-        return
-
-    # Проверка на недопустимые символы (только те, что реально мешают)
-    forbidden_chars = ['\n', '\r', '\t']
-    if any(char in subject_name for char in forbidden_chars):
-        await message.answer(
-            text="❌ Название не должно содержать переносы строк и табуляцию!\n\n"
-                 "Введите название предмета:",
-            reply_markup=get_home_kb()
-        )
-        return
-
     await state.update_data(subject_name=subject_name)
     await state.set_state(AdminSubjectsStates.confirm_add_subject)
 
@@ -93,7 +58,7 @@ async def confirm_add_subject(callback: CallbackQuery, state: FSMContext, user_r
     data = await state.get_data()
     subject_name = data.get("subject_name", "")
 
-    success, error_message = await add_subject(subject_name)
+    success = await add_subject(subject_name)
 
     if success:
         await callback.message.edit_text(
@@ -102,8 +67,8 @@ async def confirm_add_subject(callback: CallbackQuery, state: FSMContext, user_r
         )
     else:
         await callback.message.edit_text(
-            text=f"❌ Ошибка при создании предмета '{subject_name}'!\n\n"
-                 f"Причина: {error_message}",
+            text=f"❌ Ошибка при создании предмета '{subject_name}'!\n"
+                 f"Возможно, предмет с таким названием уже существует.",
             reply_markup=get_home_kb()
         )
     await state.clear()
@@ -171,7 +136,7 @@ async def select_subject_to_delete(callback: CallbackQuery, state: FSMContext, u
     await log("select_subject_to_delete", user_role, state)
 
     try:
-        from database import SubjectRepository, CourseRepository
+        from database import SubjectRepository
 
         subject_id = int(callback.data.replace("delete_subject_", ""))
         subject = await SubjectRepository.get_by_id(subject_id)
@@ -183,26 +148,12 @@ async def select_subject_to_delete(callback: CallbackQuery, state: FSMContext, u
             )
             return
 
-        # Проверяем, используется ли предмет в курсах
-        all_courses = await CourseRepository.get_all()
-        linked_courses = []
-
-        for course in all_courses:
-            course_subjects = await SubjectRepository.get_by_course(course.id)
-            if any(s.id == subject_id for s in course_subjects):
-                linked_courses.append(course.name)
-
-        warning_text = ""
-        if linked_courses:
-            courses_text = ", ".join(linked_courses)
-            warning_text = f"\n⚠️ ВНИМАНИЕ: Предмет используется в курсах: {courses_text}\n"
-
         await state.update_data(subject_to_delete=subject_id, subject_name=subject.name)
         await state.set_state(AdminSubjectsStates.confirm_delete_subject)
 
         await callback.message.edit_text(
             text=f"🗑 Подтверждение удаления предмета:\n\n"
-                 f"Название: {subject.name}{warning_text}\n"
+                 f"Название: {subject.name}\n\n"
                  f"⚠️ Это действие нельзя отменить!",
             reply_markup=get_confirmation_kb("delete", "subject", str(subject_id))
         )
@@ -230,7 +181,7 @@ async def confirm_delete_subject(callback: CallbackQuery, state: FSMContext, use
     subject_id = data.get("subject_to_delete")
     subject_name = data.get("subject_name", "Неизвестный предмет")
 
-    success, error_message = await remove_subject(subject_id)
+    success = await remove_subject(subject_id)
 
     if success:
         await callback.message.edit_text(
@@ -239,8 +190,7 @@ async def confirm_delete_subject(callback: CallbackQuery, state: FSMContext, use
         )
     else:
         await callback.message.edit_text(
-            text=f"❌ Ошибка при удалении предмета '{subject_name}'!\n\n"
-                 f"Причина: {error_message}",
+            text=f"❌ Ошибка при удалении предмета '{subject_name}'!",
             reply_markup=get_home_kb()
         )
 

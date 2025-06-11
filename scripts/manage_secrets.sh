@@ -2,8 +2,8 @@
 
 # Скрипт для управления секретами телеграм бота
 
-SECRETS_DIR="/etc/telebot/secrets"
-ENV_FILE="/etc/telebot/env"
+SECRETS_DIR="/etc/edu_telebot/secrets"
+ENV_FILE="/etc/edu_telebot/env"
 
 create_secrets_dir() {
     echo "📁 Создание директории для секретов..."

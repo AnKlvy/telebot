@@ -95,7 +95,7 @@ if [ $? -eq 0 ]; then
     sed -i "s/your-domain.com/$DOMAIN/g" nginx/nginx.conf
 
     # Обновляем домен в файле переменных окружения
-    sudo sed -i "s/your-domain.com/$DOMAIN/g" /etc/telebot/env
+    sudo sed -i "s/your-domain.com/$DOMAIN/g" /etc/edu_telebot/env
 
     echo "✅ Конфигурация nginx и переменные окружения обновлены"
     echo ""

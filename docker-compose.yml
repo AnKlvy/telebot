@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     container_name: telebot_postgres
     env_file:
-      - /etc/telebot/env
+      - /etc/edu_telebot/env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # ports:
@@ -34,7 +34,7 @@ services:
       - DOMAIN=${DOMAIN:-localhost}
     command: /bin/sh -c "envsubst '$$DOMAIN' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
     env_file:
-      - /etc/telebot/env
+      - /etc/edu_telebot/env
     depends_on:
       bot:
         condition: service_healthy
@@ -46,7 +46,7 @@ services:
     build: .
     container_name: telebot_app
     env_file:
-      - /etc/telebot/env  # Все переменные берутся из безопасного файла
+      - /etc/edu_telebot/env  # Все переменные берутся из безопасного файла
     depends_on:
       postgres:
         condition: service_healthy

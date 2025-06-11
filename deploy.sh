@@ -461,19 +461,19 @@ else
 fi
 
 # Проверяем наличие файла с переменными окружения
-if [ ! -f /etc/telebot/env ]; then
-    echo "❌ Файл /etc/telebot/env не найден."
+if [ ! -f /etc/edu_telebot/env ]; then
+    echo "❌ Файл /etc/edu_telebot/env не найден."
     read -p "Настроить переменные окружения сейчас? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         chmod +x scripts/setup_env.sh
         sudo ./scripts/setup_env.sh
-        echo "📝 Теперь отредактируйте файл: sudo nano /etc/telebot/env"
+        echo "📝 Теперь отредактируйте файл: sudo nano /etc/edu_telebot/env"
         echo "После редактирования запустите скрипт снова"
         exit 0
     else
         echo "📝 Запустите позже: chmod +x scripts/setup_env.sh && sudo ./scripts/setup_env.sh"
-        echo "📝 Затем отредактируйте: sudo nano /etc/telebot/env"
+        echo "📝 Затем отредактируйте: sudo nano /etc/edu_telebot/env"
         exit 1
     fi
 fi
@@ -495,7 +495,7 @@ touch logs/bot_$(date +%Y-%m-%d).log 2>/dev/null || true
 chmod 666 logs/bot_$(date +%Y-%m-%d).log 2>/dev/null || true
 
 # Проверяем наличие SSL сертификатов для webhook режима
-if grep -q "WEBHOOK_MODE=true" /etc/telebot/env; then
+if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
     # Создаем директорию для SSL, если она не существует
     if [ ! -d "nginx/ssl" ]; then
         echo "📁 Создаем директорию для SSL сертификатов..."

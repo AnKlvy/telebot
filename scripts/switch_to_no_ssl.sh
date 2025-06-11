@@ -20,8 +20,8 @@ sudo cp nginx/nginx-no-ssl.conf nginx/nginx.conf
 
 # Обновляем переменные окружения для HTTP режима
 echo "⚙️ Обновляем переменные окружения..."
-sudo sed -i 's/WEBHOOK_MODE=true/WEBHOOK_MODE=false/' /etc/telebot/env
-sudo sed -i 's/https:/http:/' /etc/telebot/env
+sudo sed -i 's/WEBHOOK_MODE=true/WEBHOOK_MODE=false/' /etc/edu_telebot/env
+sudo sed -i 's/https:/http:/' /etc/edu_telebot/env
 
 echo "✅ Конфигурация обновлена"
 echo ""

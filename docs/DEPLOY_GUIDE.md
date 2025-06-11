@@ -40,7 +40,7 @@ chmod +x scripts/setup_env.sh
 sudo ./scripts/setup_env.sh
 
 # Редактирование переменных окружения
-sudo nano /etc/telebot/env
+sudo nano /etc/edu_telebot/env
 ```
 
 ### Обязательные переменные окружения:
@@ -56,7 +56,7 @@ sudo nano /etc/telebot/env
 
 ## 4. Настройка SSL для webhook (для максимальной скорости)
 
-Если вы включили режим webhook (`WEBHOOK_MODE=true` в `/etc/telebot/env`), скрипт `deploy.sh` автоматически проверит наличие SSL сертификатов и предложит их настроить. Вы также можете настроить их вручную:
+Если вы включили режим webhook (`WEBHOOK_MODE=true` в `/etc/edu_telebot/env`), скрипт `deploy.sh` автоматически проверит наличие SSL сертификатов и предложит их настроить. Вы также можете настроить их вручную:
 
 ```bash
 # Настраиваем SSL сертификат
@@ -279,7 +279,7 @@ sudo ./scripts/setup_ssl.sh
 ### Проблемы с переменными окружения
 ```bash
 # Проверка переменных окружения
-sudo cat /etc/telebot/env
+sudo cat /etc/edu_telebot/env
 
 # Перенастройка переменных окружения
 chmod +x scripts/setup_env.sh

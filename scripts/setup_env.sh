@@ -11,12 +11,12 @@ if ! id "telebot" &>/dev/null; then
 fi
 
 # Создаем защищенную директорию для конфигов
-sudo mkdir -p /etc/telebot
-sudo chmod 750 /etc/telebot  # rwx для root, r-x для группы telebot
-sudo chown root:telebot /etc/telebot
+sudo mkdir -p /etc/edu_telebot
+sudo chmod 750 /etc/edu_telebot  # rwx для root, r-x для группы telebot
+sudo chown root:telebot /etc/edu_telebot
 
 # Создаем файл с переменными окружения
-sudo tee /etc/telebot/env > /dev/null << EOF
+sudo tee /etc/edu_telebot/env > /dev/null << EOF
 # Telegram Bot Configuration
 BOT_TOKEN=your_bot_token_here
 
@@ -42,9 +42,9 @@ WEB_SERVER_PORT=8000
 EOF
 
 # Устанавливаем безопасные права доступа
-sudo chmod 640 /etc/telebot/env  # rw- для root, r-- для группы telebot
-sudo chown root:telebot /etc/telebot/env
+sudo chmod 640 /etc/edu_telebot/env  # rw- для root, r-- для группы telebot
+sudo chown root:telebot /etc/edu_telebot/env
 
-echo "✅ Файл конфигурации создан: /etc/telebot/env"
+echo "✅ Файл конфигурации создан: /etc/edu_telebot/env"
 echo "📝 Отредактируйте файл и добавьте реальные значения:"
-echo "sudo nano /etc/telebot/env"
+echo "sudo nano /etc/edu_telebot/env"
