@@ -2,15 +2,11 @@ from typing import Dict, List, Any
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from common.keyboards import back_to_main_button
-from database import CourseRepository, SubjectRepository
+from database import CourseRepository, SubjectRepository, GroupRepository
 
 
 
-groups_db = {
-    "Математика": ["МАТ-1", "МАТ-2", "МАТ-3"],
-    "Физика": ["ФИЗ-1", "ФИЗ-2"],
-    "Python": ["PY-1", "PY-2", "PY-3"]
-}
+# groups_db удален - теперь используется база данных через GroupRepository
 
 students_db = {}
 curators_db = {}
@@ -72,16 +68,14 @@ async def get_subjects_list_kb(callback_prefix: str = "select_subject", course_i
     subjects_list = [{"id": subject.id, "name": subject.name} for subject in subjects]
     return get_entity_list_kb(subjects_list, callback_prefix)
 
-def get_groups_list_kb(callback_prefix: str = "select_group", subject: str = None) -> InlineKeyboardMarkup:
+async def get_groups_list_kb(callback_prefix: str = "select_group", subject_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура со списком групп (опционально отфильтрованных по предмету)"""
-    if subject and subject in groups_db:
-        groups_list = groups_db[subject]
+    if subject_id:
+        groups = await GroupRepository.get_by_subject(subject_id)
     else:
-        # Показываем все группы
-        groups_list = []
-        for subject_groups in groups_db.values():
-            groups_list.extend(subject_groups)
-    
+        groups = await GroupRepository.get_all()
+
+    groups_list = [{"id": group.id, "name": group.name} for group in groups]
     return get_entity_list_kb(groups_list, callback_prefix)
 
 def get_people_list_kb(people_db: Dict, callback_prefix: str, subject: str = None, group: str = None) -> InlineKeyboardMarkup:
@@ -175,22 +169,18 @@ async def get_subject_by_id(subject_id: int):
     """Получить предмет по ID"""
     return await SubjectRepository.get_by_id(subject_id)
 
-def add_group(name: str, subject: str) -> bool:
+async def add_group(name: str, subject_id: int) -> bool:
     """Добавить новую группу"""
-    if subject not in groups_db:
-        groups_db[subject] = []
-    
-    if name not in groups_db[subject]:
-        groups_db[subject].append(name)
+    try:
+        await GroupRepository.create(name, subject_id)
         return True
-    return False
+    except ValueError:
+        # Группа уже существует или предмет не найден
+        return False
 
-def remove_group(name: str, subject: str) -> bool:
+async def remove_group(group_id: int) -> bool:
     """Удалить группу"""
-    if subject in groups_db and name in groups_db[subject]:
-        groups_db[subject].remove(name)
-        return True
-    return False
+    return await GroupRepository.delete(group_id)
 
 def add_person(person_db: Dict, name: str, telegram_id: int, **kwargs) -> str:
     """Универсальная функция добавления человека"""

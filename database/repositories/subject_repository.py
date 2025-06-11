@@ -92,15 +92,20 @@ class SubjectRepository:
     
     @staticmethod
     async def delete(subject_id: int) -> bool:
-        """Удалить предмет и все его связи с курсами"""
-        from ..models import course_subjects
+        """Удалить предмет, все его связи с курсами и группы"""
+        from ..models import course_subjects, Group
         async with get_db_session() as session:
-            # Сначала удаляем связи с курсами
+            # Сначала удаляем все группы предмета
+            await session.execute(
+                delete(Group).where(Group.subject_id == subject_id)
+            )
+
+            # Затем удаляем связи с курсами
             await session.execute(
                 delete(course_subjects).where(course_subjects.c.subject_id == subject_id)
             )
 
-            # Затем удаляем сам предмет
+            # Наконец удаляем сам предмет
             result = await session.execute(delete(Subject).where(Subject.id == subject_id))
             await session.commit()
             return result.rowcount > 0

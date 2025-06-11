@@ -9,10 +9,11 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import (
-    init_database, 
-    UserRepository, 
-    CourseRepository, 
-    SubjectRepository
+    init_database,
+    UserRepository,
+    CourseRepository,
+    SubjectRepository,
+    GroupRepository
 )
 
 
@@ -90,14 +91,51 @@ async def add_initial_data():
         (444555666, "Преподаватель Тестовый", "teacher"),
         (777888999, "Студент Тестовый", "student"),
     ]
-    
+
     for telegram_id, name, role in test_users:
         try:
             user = await UserRepository.create(telegram_id, name, role)
             print(f"✅ Пользователь '{user.name}' ({user.role}) создан (Telegram ID: {user.telegram_id})")
         except Exception as e:
             print(f"⚠️ Пользователь с Telegram ID {telegram_id} уже существует или ошибка: {e}")
-    
+
+    print("👥 Добавление тестовых групп...")
+    # Тестовые группы для каждого предмета
+    test_groups = {
+        "Математика": ["МАТ-1", "МАТ-2", "МАТ-3"],
+        "Физика": ["ФИЗ-1", "ФИЗ-2"],
+        "Python": ["PY-1", "PY-2", "PY-3"],
+        "Химия": ["ХИМ-1", "ХИМ-2"],
+        "Биология": ["БИО-1", "БИО-2", "БИО-3"],
+        "JavaScript": ["JS-1", "JS-2"],
+        "Java": ["JAVA-1", "JAVA-2"],
+        "История Казахстана": ["ИСТ-1", "ИСТ-2"]
+    }
+
+    created_groups_count = 0
+
+    for subject_name, group_names in test_groups.items():
+        if subject_name in created_subjects:
+            subject = created_subjects[subject_name]
+            print(f"📚 Создаем группы для предмета '{subject_name}':")
+
+            for group_name in group_names:
+                try:
+                    # Проверяем, существует ли уже такая группа
+                    existing_groups = await GroupRepository.get_by_subject(subject.id)
+                    if any(g.name == group_name for g in existing_groups):
+                        print(f"   ⚠️  Группа '{group_name}' уже существует")
+                        continue
+
+                    # Создаем группу
+                    group = await GroupRepository.create(group_name, subject.id)
+                    print(f"   ✅ Создана группа '{group.name}' (ID: {group.id})")
+                    created_groups_count += 1
+
+                except Exception as e:
+                    print(f"   ❌ Ошибка при создании группы '{group_name}': {e}")
+
+    print(f"📊 Создано групп: {created_groups_count}")
     print("🎉 Начальные данные добавлены!")
 
 

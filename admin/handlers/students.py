@@ -5,7 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import StateFilter
 
 from admin.utils.common import (
-    students_db, groups_db,
+    students_db,
     get_courses_list_kb, get_groups_list_kb, get_people_list_kb, 
     get_confirmation_kb, get_tariff_selection_kb, add_person, remove_person
 )

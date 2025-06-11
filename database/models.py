@@ -53,3 +53,18 @@ class Subject(Base):
 
     # Связь Many-to-Many с курсами
     courses = relationship("Course", secondary=course_subjects, back_populates="subjects")
+    # Связь One-to-Many с группами
+    groups = relationship("Group", back_populates="subject", cascade="all, delete-orphan")
+
+
+# Модель группы
+class Group(Base):
+    __tablename__ = 'groups'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    subject_id = Column(Integer, ForeignKey('subjects.id'), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связь Many-to-One с предметом
+    subject = relationship("Subject", back_populates="groups")
