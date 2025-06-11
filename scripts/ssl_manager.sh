@@ -122,7 +122,30 @@ create_ssl_certs() {
     if ! command -v socat &> /dev/null; then
         echo "📦 Устанавливаем socat (нужен для SSL)..."
         sudo apt update -qq
-        sudo apt install -y socat curl
+        sudo apt install -y socat curl dig
+    fi
+
+    # Проверяем DNS перед созданием сертификатов
+    echo "🔍 Проверяем DNS для домена $DOMAIN..."
+    DOMAIN_IP=$(dig +short $DOMAIN 2>/dev/null | tail -n1)
+    EXTERNAL_IP=$(curl -s ifconfig.me 2>/dev/null)
+
+    if [ -z "$DOMAIN_IP" ]; then
+        echo "❌ Домен $DOMAIN не найден в DNS!"
+        echo "Убедитесь, что домен настроен и указывает на этот сервер"
+        return 1
+    fi
+
+    if [ "$EXTERNAL_IP" != "$DOMAIN_IP" ]; then
+        echo "⚠️ ВНИМАНИЕ: Домен указывает на IP $DOMAIN_IP, но внешний IP сервера $EXTERNAL_IP"
+        echo "SSL сертификат может не создаться!"
+        read -p "Продолжить? (y/n): " -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            echo "❌ Отменено"
+            return 1
+        fi
+    else
+        echo "✅ DNS настроен корректно"
     fi
 
     # Проверяем acme.sh
@@ -146,7 +169,7 @@ create_ssl_certs() {
 
     # Получаем сертификат
     echo "🔐 Получаем сертификат для $DOMAIN через Let's Encrypt..."
-    $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --accountemail andreyklimov.ver2@gmail.com
+    $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --accountemail andreyklimov.ver2@gmail.com --debug
 
     if [ $? -eq 0 ]; then
         # Копируем сертификаты
@@ -162,13 +185,39 @@ create_ssl_certs() {
         echo "✅ SSL сертификаты созданы успешно!"
         return 0
     else
-        echo "❌ Ошибка создания сертификатов"
-        echo "💡 Возможные причины:"
-        echo "   - Не установлен socat: sudo apt install socat"
-        echo "   - Домен $DOMAIN не указывает на этот сервер"
-        echo "   - Порт 80 заблокирован"
-        echo "   - Проблемы с DNS"
-        return 1
+        echo "❌ Let's Encrypt не сработал. Пробуем ZeroSSL..."
+
+        # Пробуем ZeroSSL как альтернативу
+        $HOME/.acme.sh/acme.sh --set-default-ca --server zerossl
+        $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server zerossl
+
+        if [ $? -eq 0 ]; then
+            # Копируем сертификаты
+            $HOME/.acme.sh/acme.sh --install-cert -d $DOMAIN \
+                --cert-file $(pwd)/nginx/ssl/cert.pem \
+                --key-file $(pwd)/nginx/ssl/privkey.pem \
+                --fullchain-file $(pwd)/nginx/ssl/fullchain.pem
+
+            # Устанавливаем права
+            chmod 644 nginx/ssl/fullchain.pem nginx/ssl/cert.pem
+            chmod 600 nginx/ssl/privkey.pem
+
+            echo "✅ SSL сертификаты созданы через ZeroSSL!"
+            return 0
+        else
+            echo "❌ Ошибка создания сертификатов через все провайдеры"
+            echo "💡 Возможные причины:"
+            echo "   - Домен $DOMAIN не указывает на этот сервер (IP: $EXTERNAL_IP)"
+            echo "   - Порт 80 заблокирован или занят"
+            echo "   - Проблемы с DNS"
+            echo "   - Превышен лимит запросов Let's Encrypt"
+            echo ""
+            echo "🔧 Попробуйте:"
+            echo "   1. Проверить DNS: dig $DOMAIN"
+            echo "   2. Проверить порт 80: sudo netstat -tlnp | grep :80"
+            echo "   3. Подождать час и попробовать снова"
+            return 1
+        fi
     fi
 }
 
