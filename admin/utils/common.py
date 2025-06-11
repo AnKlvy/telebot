@@ -2,7 +2,7 @@ from typing import Dict, List, Any
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from common.keyboards import back_to_main_button
-from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository
+from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository, CuratorRepository
 
 
 
@@ -270,3 +270,49 @@ async def get_course_by_id(course_id: int):
 async def get_group_by_id(group_id: int):
     """Получить группу по ID"""
     return await GroupRepository.get_by_id(group_id)
+
+# Функции для работы с кураторами
+async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: int, group_id: int) -> bool:
+    """Добавить нового куратора"""
+    try:
+        # Сначала создаем пользователя
+        user = await UserRepository.create(
+            telegram_id=telegram_id,
+            name=name,
+            role='curator'
+        )
+
+        # Затем создаем профиль куратора
+        await CuratorRepository.create(
+            user_id=user.id,
+            course_id=course_id,
+            subject_id=subject_id,
+            group_id=group_id
+        )
+        return True
+    except Exception:
+        # Куратор уже существует или другая ошибка
+        return False
+
+async def remove_curator(curator_id: int) -> bool:
+    """Удалить куратора"""
+    # Получаем куратора
+    curator = await CuratorRepository.get_by_id(curator_id)
+    if not curator:
+        return False
+
+    # Удаляем пользователя (куратор удалится каскадно)
+    from sqlalchemy import delete
+    from database.models import User
+    from database import get_db_session
+
+    async with get_db_session() as session:
+        result = await session.execute(delete(User).where(User.id == curator.user_id))
+        await session.commit()
+        return result.rowcount > 0
+
+async def get_curators_list_kb(callback_prefix: str = "select_curator", subject_id: int = None, group_id: int = None) -> InlineKeyboardMarkup:
+    """Клавиатура со списком кураторов (опционально отфильтрованных по предмету и группе)"""
+    curators = await CuratorRepository.get_by_subject_and_group(subject_id, group_id)
+    curators_list = [{"id": curator.id, "name": curator.user.name} for curator in curators]
+    return get_entity_list_kb(curators_list, callback_prefix)

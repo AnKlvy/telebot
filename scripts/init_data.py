@@ -14,7 +14,8 @@ from database import (
     CourseRepository,
     SubjectRepository,
     GroupRepository,
-    StudentRepository
+    StudentRepository,
+    CuratorRepository
 )
 
 
@@ -215,6 +216,90 @@ async def add_initial_data():
             print(f"   ❌ Ошибка при создании студента '{student_data['name']}': {e}")
 
     print(f"📊 Создано студентов: {created_students_count}")
+
+    print("👨‍🏫 Добавление тестовых кураторов...")
+    # Создаем тестовых кураторов
+    test_curators = [
+        {
+            "name": "Максат Байкадамов",
+            "telegram_id": 1268264380,
+            "course_name": "ЕНТ",
+            "subject_name": "Математика",
+            "group_name": "МАТ-1"
+        },
+        {
+            "name": "Куратор Химии",
+            "telegram_id": 444444444,
+            "course_name": "ЕНТ",
+            "subject_name": "Химия",
+            "group_name": "ХИМ-1"
+        },
+        {
+            "name": "Куратор Python",
+            "telegram_id": 555555555,
+            "course_name": "IT",
+            "subject_name": "Python",
+            "group_name": "PY-1"
+        }
+    ]
+
+    created_curators_count = 0
+
+    for curator_data in test_curators:
+        try:
+            # Находим курс
+            course = None
+            if curator_data["course_name"] == "ЕНТ":
+                course = course_ent
+            elif curator_data["course_name"] == "IT":
+                course = course_it
+
+            if not course:
+                print(f"   ❌ Курс '{curator_data['course_name']}' не найден для куратора {curator_data['name']}")
+                continue
+
+            # Находим предмет
+            subject = created_subjects.get(curator_data["subject_name"])
+            if not subject:
+                print(f"   ❌ Предмет '{curator_data['subject_name']}' не найден для куратора {curator_data['name']}")
+                continue
+
+            # Находим группу по имени и предмету
+            groups = await GroupRepository.get_by_subject(subject.id)
+            target_group = next((g for g in groups if g.name == curator_data["group_name"]), None)
+
+            if not target_group:
+                print(f"   ❌ Группа '{curator_data['group_name']}' не найдена для куратора {curator_data['name']}")
+                continue
+
+            # Проверяем, существует ли уже пользователь
+            existing_user = await UserRepository.get_by_telegram_id(curator_data["telegram_id"])
+            if existing_user:
+                print(f"   ⚠️  Пользователь с Telegram ID {curator_data['telegram_id']} уже существует")
+                continue
+
+            # Создаем пользователя
+            user = await UserRepository.create(
+                telegram_id=curator_data["telegram_id"],
+                name=curator_data["name"],
+                role='curator'
+            )
+
+            # Создаем профиль куратора
+            curator = await CuratorRepository.create(
+                user_id=user.id,
+                course_id=course.id,
+                subject_id=subject.id,
+                group_id=target_group.id
+            )
+
+            print(f"   ✅ Создан куратор '{curator_data['name']}' для группы '{target_group.name}' ({curator_data['subject_name']})")
+            created_curators_count += 1
+
+        except Exception as e:
+            print(f"   ❌ Ошибка при создании куратора '{curator_data['name']}': {e}")
+
+    print(f"📊 Создано кураторов: {created_curators_count}")
     print("🎉 Начальные данные добавлены!")
 
 

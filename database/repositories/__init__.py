@@ -6,11 +6,13 @@ from .course_repository import CourseRepository
 from .subject_repository import SubjectRepository
 from .group_repository import GroupRepository
 from .student_repository import StudentRepository
+from .curator_repository import CuratorRepository
 
 __all__ = [
     'UserRepository',
     'CourseRepository',
     'SubjectRepository',
     'GroupRepository',
-    'StudentRepository'
+    'StudentRepository',
+    'CuratorRepository'
 ]

@@ -111,7 +111,8 @@ def generate_staff_handlers(
     @router.callback_query(getattr(states_class, f"select_{callback_prefix}_course"), F.data.startswith(f"{callback_prefix}_course_"))
     async def select_staff_course(callback: CallbackQuery, state: FSMContext):
         course_id = int(callback.data.replace(f"{callback_prefix}_course_", ""))
-        course = courses_db.get(course_id)
+        from admin.utils.common import get_course_by_id
+        course = await get_course_by_id(course_id)
         
         if not course:
             await callback.message.edit_text(
@@ -120,26 +121,31 @@ def generate_staff_handlers(
             )
             return
         
-        await state.update_data(**{f"{callback_prefix}_course": course["name"], f"{callback_prefix}_course_id": course_id})
+        await state.update_data(**{f"{callback_prefix}_course": course.name, f"{callback_prefix}_course_id": course_id})
         await state.set_state(getattr(states_class, f"select_{callback_prefix}_subject"))
-        
+
         await callback.message.edit_text(
-            text=f"Курс: {course['name']}\n\nВыберите предмет:",
+            text=f"Курс: {course.name}\n\nВыберите предмет:",
             reply_markup=await get_subjects_list_kb(f"{callback_prefix}_subject", course_id)
         )
     
     @router.callback_query(getattr(states_class, f"select_{callback_prefix}_subject"), F.data.startswith(f"{callback_prefix}_subject_"))
     async def select_staff_subject(callback: CallbackQuery, state: FSMContext):
-        subject = callback.data.replace(f"{callback_prefix}_subject_", "")
+        subject_id = int(callback.data.replace(f"{callback_prefix}_subject_", ""))
         data = await state.get_data()
         course_name = data.get(f"{callback_prefix}_course", "")
-        
-        await state.update_data(**{f"{callback_prefix}_subject": subject})
+
+        # Получаем название предмета для отображения
+        from admin.utils.common import get_subject_by_id
+        subject = await get_subject_by_id(subject_id)
+        subject_name = subject.name if subject else "Неизвестный предмет"
+
+        await state.update_data(**{f"{callback_prefix}_subject": subject_name, f"{callback_prefix}_subject_id": subject_id})
         await state.set_state(getattr(states_class, f"select_{callback_prefix}_group"))
-        
+
         await callback.message.edit_text(
-            text=f"Курс: {course_name}\nПредмет: {subject}\n\nВыберите группу:",
-            reply_markup=get_groups_list_kb(f"{callback_prefix}_group", subject)
+            text=f"Курс: {course_name}\nПредмет: {subject_name}\n\nВыберите группу:",
+            reply_markup=await get_groups_list_kb(f"{callback_prefix}_group", subject_id)
         )
     
     @router.callback_query(getattr(states_class, f"select_{callback_prefix}_group"), F.data.startswith(f"{callback_prefix}_group_"))
@@ -197,14 +203,19 @@ def generate_staff_handlers(
     
     @router.callback_query(getattr(states_class, f"select_subject_for_{callback_prefix}_deletion"), F.data.startswith(f"{callback_prefix}_delete_subject_"))
     async def select_subject_for_staff_deletion(callback: CallbackQuery, state: FSMContext):
-        subject = callback.data.replace(f"{callback_prefix}_delete_subject_", "")
-        
-        await state.update_data(deletion_subject=subject)
+        subject_id = int(callback.data.replace(f"{callback_prefix}_delete_subject_", ""))
+
+        # Получаем название предмета для отображения
+        from admin.utils.common import get_subject_by_id
+        subject = await get_subject_by_id(subject_id)
+        subject_name = subject.name if subject else "Неизвестный предмет"
+
+        await state.update_data(deletion_subject=subject_name, deletion_subject_id=subject_id)
         await state.set_state(getattr(states_class, f"select_group_for_{callback_prefix}_deletion"))
-        
+
         await callback.message.edit_text(
-            text=f"Предмет: {subject}\n\nВыберите группу:",
-            reply_markup=get_groups_list_kb(f"{callback_prefix}_delete_group", subject)
+            text=f"Предмет: {subject_name}\n\nВыберите группу:",
+            reply_markup=await get_groups_list_kb(f"{callback_prefix}_delete_group", subject_id)
         )
     
     @router.callback_query(getattr(states_class, f"select_group_for_{callback_prefix}_deletion"), F.data.startswith(f"{callback_prefix}_delete_group_"))
