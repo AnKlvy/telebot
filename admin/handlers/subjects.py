@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import StateFilter
 
-from admin.utils.common import add_subject, remove_subject, get_confirmation_kb
+from admin.utils.common import add_subject, remove_subject, get_confirmation_kb, get_subjects_list_kb, get_subjects_list, get_subject_by_id
 from common.keyboards import back_to_main_button, get_home_kb
 
 async def log(name, role, state):
@@ -76,36 +76,14 @@ async def confirm_add_subject(callback: CallbackQuery, state: FSMContext, user_r
 
 # === УДАЛЕНИЕ ПРЕДМЕТА ===
 
-async def get_subjects_list_kb(callback_prefix: str = "select_subject"):
-    """Клавиатура со списком предметов"""
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    from database import SubjectRepository
-
-    subjects = await SubjectRepository.get_all()
-    buttons = []
-
-    for subject in subjects:
-        buttons.append([
-            InlineKeyboardButton(
-                text=subject.name,
-                callback_data=f"{callback_prefix}_{subject.id}"
-            )
-        ])
-
-    buttons.append(back_to_main_button())
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
 @router.callback_query(F.data == "remove_subject")
 async def start_remove_subject(callback: CallbackQuery, state: FSMContext, user_role: str = None):
     """Начать удаление предмета"""
     await log("start_remove_subject", user_role, state)
 
     try:
-        subjects_kb = await get_subjects_list_kb("delete_subject")
-
         # Проверяем, есть ли предметы
-        from database import SubjectRepository
-        subjects = await SubjectRepository.get_all()
+        subjects = await get_subjects_list()
 
         if not subjects:
             await callback.message.edit_text(
@@ -115,6 +93,7 @@ async def start_remove_subject(callback: CallbackQuery, state: FSMContext, user_
             )
             return
 
+        subjects_kb = await get_subjects_list_kb("delete_subject")
         await callback.message.edit_text(
             text="Выберите предмет для удаления:",
             reply_markup=subjects_kb
@@ -136,10 +115,8 @@ async def select_subject_to_delete(callback: CallbackQuery, state: FSMContext, u
     await log("select_subject_to_delete", user_role, state)
 
     try:
-        from database import SubjectRepository
-
         subject_id = int(callback.data.replace("delete_subject_", ""))
-        subject = await SubjectRepository.get_by_id(subject_id)
+        subject = await get_subject_by_id(subject_id)
 
         if not subject:
             await callback.message.edit_text(

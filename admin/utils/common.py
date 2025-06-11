@@ -171,6 +171,10 @@ async def get_subjects_list():
     """Получить список предметов"""
     return await SubjectRepository.get_all()
 
+async def get_subject_by_id(subject_id: int):
+    """Получить предмет по ID"""
+    return await SubjectRepository.get_by_id(subject_id)
+
 def add_group(name: str, subject: str) -> bool:
     """Добавить новую группу"""
     if subject not in groups_db:
