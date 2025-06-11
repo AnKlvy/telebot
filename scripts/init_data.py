@@ -27,18 +27,33 @@ async def add_initial_data():
     await init_database()
     
     print("📚 Добавление курсов...")
-    # Добавляем курсы
-    try:
-        course_ent = await CourseRepository.create("ЕНТ")
-        course_it = await CourseRepository.create("IT")
-        print(f"✅ Курс '{course_ent.name}' создан (ID: {course_ent.id})")
-        print(f"✅ Курс '{course_it.name}' создан (ID: {course_it.id})")
-    except Exception as e:
-        print(f"⚠️ Курсы уже существуют или ошибка: {e}")
-        # Получаем существующие курсы
-        courses = await CourseRepository.get_all()
-        course_ent = next((c for c in courses if c.name == "ЕНТ"), None)
-        course_it = next((c for c in courses if c.name == "IT"), None)
+    # Получаем существующие курсы
+    existing_courses = await CourseRepository.get_all()
+    existing_course_names = {course.name: course for course in existing_courses}
+
+    # Проверяем и создаем курс ЕНТ
+    if "ЕНТ" in existing_course_names:
+        course_ent = existing_course_names["ЕНТ"]
+        print(f"⚠️ Курс 'ЕНТ' уже существует (ID: {course_ent.id})")
+    else:
+        try:
+            course_ent = await CourseRepository.create("ЕНТ")
+            print(f"✅ Курс '{course_ent.name}' создан (ID: {course_ent.id})")
+        except Exception as e:
+            print(f"❌ Ошибка при создании курса 'ЕНТ': {e}")
+            course_ent = None
+
+    # Проверяем и создаем курс IT
+    if "IT" in existing_course_names:
+        course_it = existing_course_names["IT"]
+        print(f"⚠️ Курс 'IT' уже существует (ID: {course_it.id})")
+    else:
+        try:
+            course_it = await CourseRepository.create("IT")
+            print(f"✅ Курс '{course_it.name}' создан (ID: {course_it.id})")
+        except Exception as e:
+            print(f"❌ Ошибка при создании курса 'IT': {e}")
+            course_it = None
 
     print("📖 Добавление предметов...")
     # Создаем уникальные предметы
@@ -53,19 +68,22 @@ async def add_initial_data():
         "Java"
     ]
 
+    # Получаем существующие предметы
+    existing_subjects = await SubjectRepository.get_all()
+    existing_subject_names = {subject.name: subject for subject in existing_subjects}
+
     created_subjects = {}
     for subject_name in all_subjects:
-        try:
-            subject = await SubjectRepository.create(subject_name)
-            created_subjects[subject_name] = subject
-            print(f"✅ Предмет '{subject.name}' создан (ID: {subject.id})")
-        except Exception as e:
-            print(f"⚠️ Предмет '{subject_name}' уже существует: {e}")
-            # Получаем существующий предмет
-            all_existing = await SubjectRepository.get_all()
-            existing_subject = next((s for s in all_existing if s.name == subject_name), None)
-            if existing_subject:
-                created_subjects[subject_name] = existing_subject
+        if subject_name in existing_subject_names:
+            created_subjects[subject_name] = existing_subject_names[subject_name]
+            print(f"⚠️ Предмет '{subject_name}' уже существует (ID: {existing_subject_names[subject_name].id})")
+        else:
+            try:
+                subject = await SubjectRepository.create(subject_name)
+                created_subjects[subject_name] = subject
+                print(f"✅ Предмет '{subject.name}' создан (ID: {subject.id})")
+            except Exception as e:
+                print(f"❌ Ошибка при создании предмета '{subject_name}': {e}")
 
     print("🔗 Привязка предметов к курсам...")
     # Привязываем предметы к курсу ЕНТ
