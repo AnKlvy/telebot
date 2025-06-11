@@ -118,6 +118,13 @@ create_ssl_certs() {
         cp nginx/ssl/privkey.pem nginx/ssl/privkey.pem.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
     fi
 
+    # Проверяем зависимости
+    if ! command -v socat &> /dev/null; then
+        echo "📦 Устанавливаем socat (нужен для SSL)..."
+        sudo apt update -qq
+        sudo apt install -y socat curl
+    fi
+
     # Проверяем acme.sh
     if [ ! -d "$HOME/.acme.sh" ]; then
         echo "📦 Устанавливаем acme.sh..."
@@ -151,7 +158,11 @@ create_ssl_certs() {
         return 0
     else
         echo "❌ Ошибка создания сертификатов"
-        echo "Проверьте что домен $DOMAIN указывает на этот сервер"
+        echo "💡 Возможные причины:"
+        echo "   - Не установлен socat: sudo apt install socat"
+        echo "   - Домен $DOMAIN не указывает на этот сервер"
+        echo "   - Порт 80 заблокирован"
+        echo "   - Проблемы с DNS"
         return 1
     fi
 }
