@@ -516,6 +516,8 @@ if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
     # Функция поиска SSL сертификатов на сервере
     find_existing_ssl() {
         echo "🔍 Ищем существующие SSL сертификаты на сервере..."
+        echo "🔍 DEBUG: Домен для поиска: '$DOMAIN'"
+        echo "🔍 DEBUG: HOME директория: '$HOME'"
 
         # Возможные пути к сертификатам
         local cert_paths=(
@@ -528,11 +530,24 @@ if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
             "/var/ssl"
         )
 
+        echo "🔍 DEBUG: Проверяем пути:"
         for path in "${cert_paths[@]}"; do
+            echo "   - $path"
+        done
+
+        for path in "${cert_paths[@]}"; do
+            echo "🔍 DEBUG: Проверяем путь: $path"
             if [ -d "$path" ]; then
+                echo "✅ DEBUG: Директория существует: $path"
+
                 # Ищем fullchain.pem и privkey.pem
+                echo "🔍 DEBUG: Ищем fullchain.pem в $path"
                 local fullchain=$(find "$path" -name "fullchain.pem" -type f 2>/dev/null | head -1)
+                echo "🔍 DEBUG: Найден fullchain: '$fullchain'"
+
+                echo "🔍 DEBUG: Ищем privkey.pem в $path"
                 local privkey=$(find "$path" -name "privkey.pem" -type f 2>/dev/null | head -1)
+                echo "🔍 DEBUG: Найден privkey: '$privkey'"
 
                 if [ -n "$fullchain" ] && [ -n "$privkey" ]; then
                     echo "✅ Найдены SSL сертификаты:"
@@ -551,14 +566,27 @@ if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
 
                     echo "✅ SSL сертификаты скопированы и настроены"
                     return 0
+                else
+                    echo "❌ DEBUG: Один из файлов не найден в $path"
                 fi
+            else
+                echo "❌ DEBUG: Директория не существует: $path"
             fi
         done
 
         # Если не нашли точные файлы, ищем любые .pem файлы с cert/key в названии
         echo "🔍 Ищем альтернативные SSL файлы..."
+        echo "🔍 DEBUG: Ищем файлы с cert/certificate в названии..."
         local cert_file=$(sudo find /etc -name "*.pem" -type f 2>/dev/null | grep -E "(cert|certificate)" | grep -v "ca-certificates" | head -1)
+        echo "🔍 DEBUG: Найден cert файл: '$cert_file'"
+
+        echo "🔍 DEBUG: Ищем файлы с key/private в названии..."
         local key_file=$(sudo find /etc -name "*.pem" -type f 2>/dev/null | grep -E "(key|private)" | head -1)
+        echo "🔍 DEBUG: Найден key файл: '$key_file'"
+
+        echo "🔍 DEBUG: Проверяем найденные файлы..."
+        echo "🔍 DEBUG: cert_file не пустой: $([ -n "$cert_file" ] && echo 'ДА' || echo 'НЕТ')"
+        echo "🔍 DEBUG: key_file не пустой: $([ -n "$key_file" ] && echo 'ДА' || echo 'НЕТ')"
 
         if [ -n "$cert_file" ] && [ -n "$key_file" ]; then
             echo "⚠️ Найдены возможные SSL файлы:"
@@ -575,9 +603,14 @@ if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
                 sudo chown $USER:$USER nginx/ssl/*.pem 2>/dev/null || true
                 echo "✅ SSL файлы скопированы"
                 return 0
+            else
+                echo "❌ DEBUG: Пользователь отказался использовать найденные файлы"
             fi
+        else
+            echo "❌ DEBUG: Альтернативные SSL файлы не найдены или неполные"
         fi
 
+        echo "❌ DEBUG: Функция find_existing_ssl завершается с ошибкой"
         return 1
     }
 
