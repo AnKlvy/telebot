@@ -68,3 +68,20 @@ class Group(Base):
 
     # Связь Many-to-One с предметом
     subject = relationship("Subject", back_populates="groups")
+
+
+# Модель студента
+class Student(Base):
+    __tablename__ = 'students'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    group_id = Column(Integer, ForeignKey('groups.id', ondelete='SET NULL'), nullable=True)
+    tariff = Column(String(50), nullable=True)  # 'standard' или 'premium'
+    points = Column(Integer, default=0)
+    level = Column(String(50), default='Новичок')
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    user = relationship("User", backref="student_profile")
+    group = relationship("Group", backref="students")

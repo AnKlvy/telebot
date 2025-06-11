@@ -5,10 +5,12 @@ from .user_repository import UserRepository
 from .course_repository import CourseRepository
 from .subject_repository import SubjectRepository
 from .group_repository import GroupRepository
+from .student_repository import StudentRepository
 
 __all__ = [
     'UserRepository',
     'CourseRepository',
     'SubjectRepository',
-    'GroupRepository'
+    'GroupRepository',
+    'StudentRepository'
 ]

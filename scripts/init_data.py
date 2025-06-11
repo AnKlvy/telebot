@@ -13,7 +13,8 @@ from database import (
     UserRepository,
     CourseRepository,
     SubjectRepository,
-    GroupRepository
+    GroupRepository,
+    StudentRepository
 )
 
 
@@ -136,6 +137,84 @@ async def add_initial_data():
                     print(f"   ❌ Ошибка при создании группы '{group_name}': {e}")
 
     print(f"📊 Создано групп: {created_groups_count}")
+
+    print("🎓 Добавление тестовых студентов...")
+    # Создаем тестовых студентов
+    test_students = [
+        {
+            "name": "Муханбетжан Олжас",
+            "telegram_id": 1023397024,
+            "group_name": "МАТ-1",
+            "subject_name": "Математика",
+            "tariff": "premium"
+        },
+        {
+            "name": "Аружан Ахметова",
+            "telegram_id": 111111111,
+            "group_name": "ХИМ-1",
+            "subject_name": "Химия",
+            "tariff": "standard"
+        },
+        {
+            "name": "Мадияр Сапаров",
+            "telegram_id": 222222222,
+            "group_name": "БИО-1",
+            "subject_name": "Биология",
+            "tariff": "premium"
+        },
+        {
+            "name": "Диана Ержанова",
+            "telegram_id": 333333333,
+            "group_name": "PY-1",
+            "subject_name": "Python",
+            "tariff": "standard"
+        }
+    ]
+
+    created_students_count = 0
+
+    for student_data in test_students:
+        try:
+            # Находим группу по имени и предмету
+            subject = created_subjects.get(student_data["subject_name"])
+            if not subject:
+                print(f"   ❌ Предмет '{student_data['subject_name']}' не найден для студента {student_data['name']}")
+                continue
+
+            groups = await GroupRepository.get_by_subject(subject.id)
+            target_group = next((g for g in groups if g.name == student_data["group_name"]), None)
+
+            if not target_group:
+                print(f"   ❌ Группа '{student_data['group_name']}' не найдена для студента {student_data['name']}")
+                continue
+
+            # Проверяем, существует ли уже пользователь
+            existing_user = await UserRepository.get_by_telegram_id(student_data["telegram_id"])
+            if existing_user:
+                print(f"   ⚠️  Пользователь с Telegram ID {student_data['telegram_id']} уже существует")
+                continue
+
+            # Создаем пользователя
+            user = await UserRepository.create(
+                telegram_id=student_data["telegram_id"],
+                name=student_data["name"],
+                role='student'
+            )
+
+            # Создаем профиль студента
+            student = await StudentRepository.create(
+                user_id=user.id,
+                group_id=target_group.id,
+                tariff=student_data["tariff"]
+            )
+
+            print(f"   ✅ Создан студент '{student_data['name']}' в группе '{target_group.name}' ({student_data['subject_name']})")
+            created_students_count += 1
+
+        except Exception as e:
+            print(f"   ❌ Ошибка при создании студента '{student_data['name']}': {e}")
+
+    print(f"📊 Создано студентов: {created_students_count}")
     print("🎉 Начальные данные добавлены!")
 
 

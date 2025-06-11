@@ -2,7 +2,7 @@ from typing import Dict, List, Any
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from common.keyboards import back_to_main_button
-from database import CourseRepository, SubjectRepository, GroupRepository
+from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository
 
 
 
@@ -198,3 +198,75 @@ def remove_person(person_db: Dict, person_id: str) -> bool:
         del person_db[person_id]
         return True
     return False
+
+# Функции для работы со студентами
+async def add_student(name: str, telegram_id: int, group_id: int, tariff: str) -> bool:
+    """Добавить нового студента"""
+    try:
+        # Сначала создаем пользователя
+        user = await UserRepository.create(
+            telegram_id=telegram_id,
+            name=name,
+            role='student'
+        )
+
+        # Затем создаем профиль студента
+        await StudentRepository.create(
+            user_id=user.id,
+            group_id=group_id,
+            tariff=tariff
+        )
+        return True
+    except Exception:
+        # Студент уже существует или другая ошибка
+        return False
+
+async def remove_student(student_id: int) -> bool:
+    """Удалить студента"""
+    # Получаем студента
+    student = await StudentRepository.get_by_id(student_id)
+    if not student:
+        return False
+
+    # Удаляем пользователя (студент удалится каскадно)
+    from sqlalchemy import delete
+    from database.models import User
+    from database import get_db_session
+
+    async with get_db_session() as session:
+        result = await session.execute(delete(User).where(User.id == student.user_id))
+        await session.commit()
+        return result.rowcount > 0
+
+async def get_students_list_kb(callback_prefix: str = "select_student", course_id: int = None, group_id: int = None) -> InlineKeyboardMarkup:
+    """Клавиатура со списком студентов (опционально отфильтрованных по курсу и группе)"""
+    students = await StudentRepository.get_by_course_and_group(course_id, group_id)
+    students_list = [{"id": student.id, "name": student.user.name} for student in students]
+    return get_entity_list_kb(students_list, callback_prefix)
+
+async def get_groups_by_course_kb(callback_prefix: str = "select_group", course_id: int = None) -> InlineKeyboardMarkup:
+    """Клавиатура со списком групп для курса"""
+    if course_id:
+        # Получаем предметы курса через репозиторий
+        subjects = await SubjectRepository.get_by_course(course_id)
+
+        # Получаем все группы для предметов этого курса
+        all_groups = []
+        for subject in subjects:
+            subject_groups = await GroupRepository.get_by_subject(subject.id)
+            all_groups.extend(subject_groups)
+
+        groups_list = [{"id": group.id, "name": f"{group.name} ({group.subject.name})"} for group in all_groups]
+    else:
+        groups = await GroupRepository.get_all()
+        groups_list = [{"id": group.id, "name": f"{group.name} ({group.subject.name})"} for group in groups]
+
+    return get_entity_list_kb(groups_list, callback_prefix)
+
+async def get_course_by_id(course_id: int):
+    """Получить курс по ID"""
+    return await CourseRepository.get_by_id(course_id)
+
+async def get_group_by_id(group_id: int):
+    """Получить группу по ID"""
+    return await GroupRepository.get_by_id(group_id)
