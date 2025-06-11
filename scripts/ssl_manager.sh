@@ -139,9 +139,13 @@ create_ssl_certs() {
     # Создаем директорию
     mkdir -p nginx/ssl
 
+    # Переключаем на Let's Encrypt (надежнее чем ZeroSSL)
+    echo "🔧 Настраиваем Let's Encrypt..."
+    $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+
     # Получаем сертификат
-    echo "🔐 Получаем сертификат для $DOMAIN..."
-    $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80
+    echo "🔐 Получаем сертификат для $DOMAIN через Let's Encrypt..."
+    $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt
 
     if [ $? -eq 0 ]; then
         # Копируем сертификаты
