@@ -2,7 +2,7 @@
 Модели SQLAlchemy для базы данных
 """
 from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, ForeignKey, Table, UniqueConstraint
 from sqlalchemy.sql import func
 
 
@@ -133,3 +133,21 @@ class Manager(Base):
 
     # Связи
     user = relationship("User", backref="manager_profile")
+
+
+# Модель микротемы
+class Microtopic(Base):
+    __tablename__ = 'microtopics'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    subject = relationship("Subject", backref="microtopics")
+
+    # Уникальность: одно название микротемы на предмет
+    __table_args__ = (
+        UniqueConstraint('name', 'subject_id', name='unique_microtopic_per_subject'),
+    )

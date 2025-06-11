@@ -17,7 +17,8 @@ from database import (
     StudentRepository,
     CuratorRepository,
     TeacherRepository,
-    ManagerRepository
+    ManagerRepository,
+    MicrotopicRepository
 )
 
 
@@ -445,6 +446,50 @@ async def add_initial_data():
             print(f"   ❌ Ошибка при создании менеджера '{manager_data['name']}': {e}")
 
     print(f"📊 Создано менеджеров: {created_managers_count}")
+
+    print("📝 Добавление тестовых микротем...")
+    # Создаем тестовые микротемы
+    test_microtopics = {
+        "Математика": ["Дроби", "Проценты", "Уравнения", "Геометрия"],
+        "Физика": ["Механика", "Оптика", "Термодинамика", "Электричество"],
+        "Химия": ["Органическая химия", "Неорганическая химия", "Реакции"],
+        "Биология": ["Клетка", "Генетика", "Эволюция", "Экология"],
+        "Python": ["Переменные", "Функции", "Классы", "Модули"],
+        "JavaScript": ["DOM", "События", "Асинхронность", "Промисы"],
+        "Java": ["ООП", "Коллекции", "Исключения", "Потоки"]
+    }
+
+    # Получаем существующие микротемы для проверки дублей
+    existing_microtopics = await MicrotopicRepository.get_all()
+    existing_by_subject = {}
+    for mt in existing_microtopics:
+        if mt.subject_id not in existing_by_subject:
+            existing_by_subject[mt.subject_id] = set()
+        existing_by_subject[mt.subject_id].add(mt.name)
+
+    created_microtopics_count = 0
+
+    for subject_name, microtopic_names in test_microtopics.items():
+        if subject_name in created_subjects:
+            subject = created_subjects[subject_name]
+            existing_names = existing_by_subject.get(subject.id, set())
+
+            print(f"📝 Создаем микротемы для предмета '{subject_name}':")
+
+            for microtopic_name in microtopic_names:
+                if microtopic_name in existing_names:
+                    print(f"   ⚠️  Микротема '{microtopic_name}' уже существует")
+                    continue
+
+                try:
+                    microtopic = await MicrotopicRepository.create(microtopic_name, subject.id)
+                    print(f"   ✅ Создана микротема '{microtopic.name}' (ID: {microtopic.id})")
+                    created_microtopics_count += 1
+
+                except Exception as e:
+                    print(f"   ❌ Ошибка при создании микротемы '{microtopic_name}': {e}")
+
+    print(f"📊 Создано микротем: {created_microtopics_count}")
     print("🎉 Начальные данные добавлены!")
 
 

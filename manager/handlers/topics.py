@@ -4,14 +4,16 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 
 from manager.keyboards.topics import (
-    get_subjects_kb, 
-    get_topics_list_kb, 
-    confirm_delete_topic_kb, 
+    get_subjects_kb,
+    get_topics_list_kb,
+    confirm_delete_topic_kb,
     TopicCallback,
     TopicActions
 )
 from manager.keyboards.main import get_manager_main_menu_kb
 from aiogram.fsm.state import State, StatesGroup
+from database import SubjectRepository, MicrotopicRepository
+from common.keyboards import get_home_kb
 
 class ManagerTopicStates(StatesGroup):
     main = State()  # Главное меню микротем (выбор предмета)
@@ -24,45 +26,59 @@ class ManagerTopicStates(StatesGroup):
 
 router = Router()
 
-# Временное хранилище микротем (потом заменить на БД)
-topics_db = {
-    "Математика": ["Дроби", "Проценты"],
-    "Русский язык": ["Причастия", "Наречия"],
-    "Физика": ["Механика", "Оптика"]
-}
-
 @router.callback_query(F.data == "manager_topics")
 async def show_subjects(callback: CallbackQuery, state: FSMContext):
     """Показываем список предметов"""
     await state.set_state(ManagerTopicStates.main)
     await callback.message.edit_text(
         text="Выберите предмет для работы с микротемами:",
-        reply_markup=get_subjects_kb()
+        reply_markup=await get_subjects_kb()
     )
 
 @router.callback_query(TopicCallback.filter(F.action == TopicActions.VIEW))
 async def show_topics(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Показываем список микротем для выбранного предмета"""
-    subject = callback_data.subject
-    topics = topics_db.get(subject, [])
-    
+    subject_id = int(callback_data.subject)
+
+    # Получаем предмет и его микротемы из базы данных
+    subject = await SubjectRepository.get_by_id(subject_id)
+    if not subject:
+        await callback.message.edit_text(
+            text="❌ Предмет не найден!",
+            reply_markup=get_manager_main_menu_kb()
+        )
+        return
+
+    microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+
     await state.set_state(ManagerTopicStates.topics_list)
-    await state.update_data(current_subject=subject)
-    
+    await state.update_data(current_subject_id=subject_id, current_subject_name=subject.name)
+
     await callback.message.edit_text(
-        text=f"📝 Микротемы по предмету {subject}:\n"
-             f"Всего микротем: {len(topics)}",
-        reply_markup=get_topics_list_kb(subject, topics)
+        text=f"📝 Микротемы по предмету {subject.name}:\n"
+             f"Всего микротем: {len(microtopics)}",
+        reply_markup=await get_topics_list_kb(subject.name, microtopics)
     )
 
 @router.callback_query(TopicCallback.filter(F.action == TopicActions.ADD))
 async def start_add_topic(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Начинаем процесс добавления микротемы"""
+    subject_id = int(callback_data.subject)
+
+    # Получаем название предмета для отображения
+    subject = await SubjectRepository.get_by_id(subject_id)
+    if not subject:
+        await callback.message.edit_text(
+            text="❌ Предмет не найден!",
+            reply_markup=get_manager_main_menu_kb()
+        )
+        return
+
     await state.set_state(ManagerTopicStates.adding_topic)
-    await state.update_data(subject=callback_data.subject)
-    
+    await state.update_data(subject_id=subject_id, subject_name=subject.name)
+
     await callback.message.edit_text(
-        text="Введите название новой микротемы:",
+        text=f"Предмет: {subject.name}\n\nВведите название новой микротемы:",
         reply_markup=get_home_kb()
     )
 
@@ -70,50 +86,95 @@ async def start_add_topic(callback: CallbackQuery, callback_data: TopicCallback,
 async def process_topic_name(message: Message, state: FSMContext):
     """Обрабатываем ввод названия микротемы"""
     data = await state.get_data()
-    subject = data['subject']
+    subject_id = data['subject_id']
+    subject_name = data['subject_name']
     new_topic = message.text.strip()
-    
-    if subject not in topics_db:
-        topics_db[subject] = []
-    topics_db[subject].append(new_topic)
-    
-    await state.set_state(ManagerTopicStates.topics_list)
-    await message.answer(
-        text=f"✅ Микротема \"{new_topic}\" добавлена в предмет {subject}",
-        reply_markup=get_topics_list_kb(subject, topics_db[subject])
-    )
+
+    try:
+        # Создаем микротему в базе данных
+        microtopic = await MicrotopicRepository.create(new_topic, subject_id)
+
+        # Получаем обновленный список микротем
+        microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+
+        await state.set_state(ManagerTopicStates.topics_list)
+        await message.answer(
+            text=f"✅ Микротема \"{new_topic}\" добавлена в предмет {subject_name}",
+            reply_markup=await get_topics_list_kb(subject_name, microtopics)
+        )
+    except ValueError as e:
+        # Микротема уже существует
+        await message.answer(
+            text=f"❌ {str(e)}\n\nВведите другое название:",
+            reply_markup=get_home_kb()
+        )
 
 @router.callback_query(TopicCallback.filter(F.action == TopicActions.DELETE))
 async def confirm_delete(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Запрашиваем подтверждение удаления микротемы"""
+    microtopic_id = int(callback_data.topic)
+
+    # Получаем информацию о микротеме
+    microtopic = await MicrotopicRepository.get_by_id(microtopic_id)
+    if not microtopic:
+        await callback.message.edit_text(
+            text="❌ Микротема не найдена!",
+            reply_markup=get_manager_main_menu_kb()
+        )
+        return
+
     await state.set_state(ManagerTopicStates.confirm_deletion)
-    await state.update_data(subject=callback_data.subject, topic=callback_data.topic)
-    
+    await state.update_data(
+        microtopic_id=microtopic_id,
+        microtopic_name=microtopic.name,
+        subject_id=microtopic.subject_id,
+        subject_name=microtopic.subject.name
+    )
+
     await callback.message.edit_text(
-        text=f"❗️ Вы уверены, что хотите удалить микротему \"{callback_data.topic}\" из предмета {callback_data.subject}?",
-        reply_markup=confirm_delete_topic_kb(callback_data.subject, callback_data.topic)
+        text=f"❗️ Вы уверены, что хотите удалить микротему \"{microtopic.name}\" из предмета {microtopic.subject.name}?",
+        reply_markup=confirm_delete_topic_kb(str(microtopic.subject_id), str(microtopic_id))
     )
 
 @router.callback_query(TopicCallback.filter(F.action == TopicActions.CONFIRM_DELETE))
 async def delete_topic(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Удаляем микротему после подтверждения"""
-    subject = callback_data.subject
-    topic = callback_data.topic
-    
-    if subject in topics_db and topic in topics_db[subject]:
-        topics_db[subject].remove(topic)
-    
-    await state.set_state(ManagerTopicStates.topics_list)
-    await callback.message.edit_text(
-        text=f"✅ Микротема \"{topic}\" удалена из предмета {subject}",
-        reply_markup=get_topics_list_kb(subject, topics_db[subject])
-    )
+    data = await state.get_data()
+    microtopic_id = data['microtopic_id']
+    microtopic_name = data['microtopic_name']
+    subject_id = data['subject_id']
+    subject_name = data['subject_name']
+
+    # Удаляем микротему из базы данных
+    success = await MicrotopicRepository.delete(microtopic_id)
+
+    if success:
+        # Получаем обновленный список микротем
+        microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+
+        await state.set_state(ManagerTopicStates.topics_list)
+        await callback.message.edit_text(
+            text=f"✅ Микротема \"{microtopic_name}\" удалена из предмета {subject_name}",
+            reply_markup=await get_topics_list_kb(subject_name, microtopics)
+        )
+    else:
+        await callback.message.edit_text(
+            text=f"❌ Ошибка при удалении микротемы \"{microtopic_name}\"",
+            reply_markup=get_manager_main_menu_kb()
+        )
 
 @router.callback_query(TopicCallback.filter(F.action == TopicActions.CANCEL))
 async def cancel_delete(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Отменяем удаление микротемы"""
+    data = await state.get_data()
+    subject_id = data['subject_id']
+    subject_name = data['subject_name']
+
+    # Получаем список микротем
+    microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+
     await state.set_state(ManagerTopicStates.topics_list)
     await callback.message.edit_text(
-        text=f"📝 Микротемы по предмету {callback_data.subject}:",
-        reply_markup=get_topics_list_kb(callback_data.subject, topics_db[callback_data.subject])
+        text=f"📝 Микротемы по предмету {subject_name}:",
+        reply_markup=await get_topics_list_kb(subject_name, microtopics)
     )

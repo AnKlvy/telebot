@@ -2,6 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters.callback_data import CallbackData
 from common.keyboards import get_main_menu_back_button
 from typing import List, Literal
+from database import SubjectRepository
 
 # Константы для действий с микротемами
 class TopicActions:
@@ -18,47 +19,60 @@ class TopicCallback(CallbackData, prefix="topic"):
     subject: str  # Название предмета
     topic: str | None = None  # Название микротемы (опционально)
 
-def get_subjects_kb() -> InlineKeyboardMarkup:
+async def get_subjects_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета для микротемы"""
-    subjects = ["Математика", "Русский язык", "Физика"]  # Здесь должен быть список предметов из БД
+    subjects = await SubjectRepository.get_all()
     keyboard = []
-    
+
     for subject in subjects:
         keyboard.append([
             InlineKeyboardButton(
-                text=subject,
-                callback_data=TopicCallback(action=TopicActions.VIEW, subject=subject).pack()
+                text=subject.name,
+                callback_data=TopicCallback(action=TopicActions.VIEW, subject=str(subject.id)).pack()
             )
         ])
-    
+
     keyboard.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_topics_list_kb(subject: str, topics: List[str]) -> InlineKeyboardMarkup:
+async def get_topics_list_kb(subject_name: str, microtopics: List) -> InlineKeyboardMarkup:
     """Клавиатура со списком микротем по предмету"""
     keyboard = []
-    
+
+    # Получаем subject_id из первой микротемы (если есть) или ищем по названию
+    subject_id = None
+    if microtopics:
+        subject_id = microtopics[0].subject_id
+    else:
+        # Если микротем нет, ищем предмет по названию
+        subjects = await SubjectRepository.get_all()
+        for subject in subjects:
+            if subject.name == subject_name:
+                subject_id = subject.id
+                break
+
     # Кнопка добавления новой микротемы
-    keyboard.append([
-        InlineKeyboardButton(
-            text="➕ Добавить микротему",
-            callback_data=TopicCallback(action=TopicActions.ADD, subject=subject).pack()
-        )
-    ])
-    
-    # Список существующих микротем
-    for topic in topics:
+    if subject_id:
         keyboard.append([
             InlineKeyboardButton(
-                text=f"📝 {topic}",
-                callback_data=TopicCallback(action=TopicActions.VIEW, subject=subject, topic=topic).pack()
+                text="➕ Добавить микротему",
+                callback_data=TopicCallback(action=TopicActions.ADD, subject=str(subject_id)).pack()
+            )
+        ])
+
+    # Список существующих микротем
+    for microtopic in microtopics:
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"📝 {microtopic.name}",
+                callback_data=TopicCallback(action=TopicActions.VIEW, subject=str(microtopic.subject_id), topic=str(microtopic.id)).pack()
             ),
             InlineKeyboardButton(
                 text="❌",
-                callback_data=TopicCallback(action=TopicActions.DELETE, subject=subject, topic=topic).pack()
+                callback_data=TopicCallback(action=TopicActions.DELETE, subject=str(microtopic.subject_id), topic=str(microtopic.id)).pack()
             )
         ])
-    
+
     keyboard.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
