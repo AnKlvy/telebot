@@ -369,6 +369,10 @@ if ! command -v git &> /dev/null; then
     fi
 fi
 
+# Делаем все скрипты исполняемыми
+echo "🔧 Настраиваем права доступа к скриптам..."
+chmod +x scripts/*.sh 2>/dev/null || true
+
 # Проверяем acme.sh (рекомендуется вместо certbot)
 if [ ! -d "$HOME/.acme.sh" ]; then
     echo "⚠️ acme.sh не установлен (нужен для автоматических SSL сертификатов)"
@@ -377,7 +381,7 @@ if [ ! -d "$HOME/.acme.sh" ]; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         if install_acme; then
             echo "✅ acme.sh установлен успешно"
-            echo "💡 Для настройки SSL запустите: chmod +x scripts/setup_ssl_acme.sh && ./scripts/setup_ssl_acme.sh"
+            echo "💡 Для настройки SSL запустите: ./scripts/ssl_manager.sh"
         else
             echo "⚠️ acme.sh не установлен, но это не критично"
             echo "💡 SSL сертификаты можно настроить вручную позже"
@@ -466,13 +470,12 @@ if [ ! -f /etc/edu_telebot/env ]; then
     read -p "Настроить переменные окружения сейчас? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        chmod +x scripts/setup_env.sh
         sudo ./scripts/setup_env.sh
         echo "📝 Теперь отредактируйте файл: sudo nano /etc/edu_telebot/env"
         echo "После редактирования запустите скрипт снова"
         exit 0
     else
-        echo "📝 Запустите позже: chmod +x scripts/setup_env.sh && sudo ./scripts/setup_env.sh"
+        echo "📝 Запустите позже: sudo ./scripts/setup_env.sh"
         echo "📝 Затем отредактируйте: sudo nano /etc/edu_telebot/env"
         exit 1
     fi
@@ -505,22 +508,19 @@ if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
     # Проверяем наличие сертификатов
     if [ ! -f "nginx/ssl/fullchain.pem" ] || [ ! -f "nginx/ssl/privkey.pem" ]; then
         echo "⚠️ Режим webhook включен, но SSL сертификаты не найдены"
-        read -p "Настроить SSL сертификаты сейчас? (y/n): " -n 1 -r
+        echo "💡 Используйте универсальный SSL менеджер: ./scripts/ssl_manager.sh"
+        read -p "Настроить SSL сейчас? (y/n): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Настраиваем SSL через acme.sh (без crontab)..."
-            chmod +x scripts/setup_ssl_acme.sh
-            ./scripts/setup_ssl_acme.sh
-        else
-            echo "⚠️ Без SSL сертификатов webhook работать не будет"
-            echo "📝 Запустите позже: chmod +x scripts/setup_ssl.sh && sudo ./scripts/setup_ssl.sh"
+            ./scripts/ssl_manager.sh
         fi
     else
+        echo "✅ SSL сертификаты найдены"
         # Проверяем права доступа к сертификатам
-        if [ "$(stat -c %a nginx/ssl/fullchain.pem)" != "644" ] || [ "$(stat -c %a nginx/ssl/privkey.pem)" != "600" ]; then
+        if [ "$(stat -c %a nginx/ssl/fullchain.pem 2>/dev/null)" != "644" ] || [ "$(stat -c %a nginx/ssl/privkey.pem 2>/dev/null)" != "600" ]; then
             echo "🔐 Исправляем права доступа к SSL сертификатам..."
-            chmod 644 nginx/ssl/fullchain.pem
-            chmod 600 nginx/ssl/privkey.pem
+            chmod 644 nginx/ssl/fullchain.pem 2>/dev/null || true
+            chmod 600 nginx/ssl/privkey.pem 2>/dev/null || true
         fi
     fi
 fi
@@ -644,7 +644,6 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     if [ -f "scripts/backup_setup.sh" ]; then
         echo "🔧 Настраиваем автобэкапы..."
-        chmod +x scripts/backup_setup.sh
         ./scripts/backup_setup.sh
         echo "✅ Автобэкапы настроены!"
     else
@@ -658,7 +657,6 @@ read -p "Настроить автозапуск бота при перезаг�
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     if [ -f "scripts/setup_autostart.sh" ]; then
-        chmod +x scripts/setup_autostart.sh
         ./scripts/setup_autostart.sh
     else
         echo "❌ Скрипт scripts/setup_autostart.sh не найден"

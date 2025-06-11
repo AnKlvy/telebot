@@ -60,8 +60,7 @@ sudo nano /etc/edu_telebot/env
 
 ```bash
 # Настраиваем SSL сертификат
-chmod +x scripts/setup_ssl.sh
-sudo ./scripts/setup_ssl.sh
+./scripts/ssl_manager.sh
 ```
 
 ## 5. Запуск проекта
@@ -271,9 +270,8 @@ docker-compose restart bot
 
 ### Проблемы с SSL сертификатами
 ```bash
-# Перезапуск скрипта настройки SSL
-chmod +x scripts/setup_ssl.sh
-sudo ./scripts/setup_ssl.sh
+# Универсальный SSL менеджер
+./scripts/ssl_manager.sh
 ```
 
 ### Проблемы с переменными окружения
