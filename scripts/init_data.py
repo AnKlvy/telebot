@@ -16,7 +16,8 @@ from database import (
     GroupRepository,
     StudentRepository,
     CuratorRepository,
-    TeacherRepository
+    TeacherRepository,
+    ManagerRepository
 )
 
 
@@ -385,6 +386,47 @@ async def add_initial_data():
             print(f"   ❌ Ошибка при создании преподавателя '{teacher_data['name']}': {e}")
 
     print(f"📊 Создано преподавателей: {created_teachers_count}")
+
+    print("👨‍💼 Добавление тестовых менеджеров...")
+    # Создаем тестовых менеджеров
+    test_managers = [
+        {
+            "name": "Медина Махамбет",
+            "telegram_id": 7265679697  # Реальный пользователь
+        },
+        {
+            "name": "Менеджер Тестовый",
+            "telegram_id": 999999999
+        }
+    ]
+
+    created_managers_count = 0
+
+    for manager_data in test_managers:
+        try:
+            # Проверяем, существует ли уже пользователь
+            existing_user = await UserRepository.get_by_telegram_id(manager_data["telegram_id"])
+            if existing_user:
+                print(f"   ⚠️  Пользователь с Telegram ID {manager_data['telegram_id']} уже существует")
+                continue
+
+            # Создаем пользователя
+            user = await UserRepository.create(
+                telegram_id=manager_data["telegram_id"],
+                name=manager_data["name"],
+                role='manager'
+            )
+
+            # Создаем профиль менеджера
+            manager = await ManagerRepository.create(user_id=user.id)
+
+            print(f"   ✅ Создан менеджер '{manager_data['name']}'")
+            created_managers_count += 1
+
+        except Exception as e:
+            print(f"   ❌ Ошибка при создании менеджера '{manager_data['name']}': {e}")
+
+    print(f"📊 Создано менеджеров: {created_managers_count}")
     print("🎉 Начальные данные добавлены!")
 
 

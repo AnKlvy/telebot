@@ -2,8 +2,8 @@
 Модуль для работы с базой данных
 """
 from .database import init_database, close_database, get_db_session
-from .models import User, Course, Subject, Group, Student, Curator, Teacher
-from .repositories import UserRepository, CourseRepository, SubjectRepository, GroupRepository, StudentRepository, CuratorRepository, TeacherRepository
+from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager
+from .repositories import UserRepository, CourseRepository, SubjectRepository, GroupRepository, StudentRepository, CuratorRepository, TeacherRepository, ManagerRepository
 
 # Функции для совместимости со старым кодом
 async def get_user_role(telegram_id: int) -> str:
@@ -29,6 +29,7 @@ __all__ = [
     'Student',
     'Curator',
     'Teacher',
+    'Manager',
     'UserRepository',
     'CourseRepository',
     'SubjectRepository',
@@ -36,6 +37,7 @@ __all__ = [
     'StudentRepository',
     'CuratorRepository',
     'TeacherRepository',
+    'ManagerRepository',
     'get_user_role',
     'get_user_by_telegram_id',
     'create_user'

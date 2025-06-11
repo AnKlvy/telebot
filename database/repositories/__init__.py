@@ -8,6 +8,7 @@ from .group_repository import GroupRepository
 from .student_repository import StudentRepository
 from .curator_repository import CuratorRepository
 from .teacher_repository import TeacherRepository
+from .manager_repository import ManagerRepository
 
 __all__ = [
     'UserRepository',
@@ -16,5 +17,6 @@ __all__ = [
     'GroupRepository',
     'StudentRepository',
     'CuratorRepository',
-    'TeacherRepository'
+    'TeacherRepository',
+    'ManagerRepository'
 ]

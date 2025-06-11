@@ -121,3 +121,15 @@ class Teacher(Base):
     course = relationship("Course", backref="teachers")
     subject = relationship("Subject", backref="teachers")
     group = relationship("Group", backref="teacher")
+
+
+# Модель менеджера
+class Manager(Base):
+    __tablename__ = 'managers'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    user = relationship("User", backref="manager_profile")

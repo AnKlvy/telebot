@@ -2,7 +2,7 @@ from typing import Dict, List, Any
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from common.keyboards import back_to_main_button
-from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository, CuratorRepository, TeacherRepository
+from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository, CuratorRepository, TeacherRepository, ManagerRepository
 
 
 
@@ -362,3 +362,44 @@ async def get_teachers_list_kb(callback_prefix: str = "select_teacher", subject_
     teachers = await TeacherRepository.get_by_subject_and_group(subject_id, group_id)
     teachers_list = [{"id": teacher.id, "name": teacher.user.name} for teacher in teachers]
     return get_entity_list_kb(teachers_list, callback_prefix)
+
+# Функции для работы с менеджерами
+async def add_manager(name: str, telegram_id: int) -> bool:
+    """Добавить нового менеджера"""
+    try:
+        # Сначала создаем пользователя
+        user = await UserRepository.create(
+            telegram_id=telegram_id,
+            name=name,
+            role='manager'
+        )
+
+        # Затем создаем профиль менеджера
+        await ManagerRepository.create(user_id=user.id)
+        return True
+    except Exception:
+        # Менеджер уже существует или другая ошибка
+        return False
+
+async def remove_manager(manager_id: int) -> bool:
+    """Удалить менеджера"""
+    # Получаем менеджера
+    manager = await ManagerRepository.get_by_id(manager_id)
+    if not manager:
+        return False
+
+    # Удаляем пользователя (менеджер удалится каскадно)
+    from sqlalchemy import delete
+    from database.models import User
+    from database import get_db_session
+
+    async with get_db_session() as session:
+        result = await session.execute(delete(User).where(User.id == manager.user_id))
+        await session.commit()
+        return result.rowcount > 0
+
+async def get_managers_list_kb(callback_prefix: str = "select_manager") -> InlineKeyboardMarkup:
+    """Клавиатура со списком менеджеров"""
+    managers = await ManagerRepository.get_all()
+    managers_list = [{"id": manager.id, "name": manager.user.name} for manager in managers]
+    return get_entity_list_kb(managers_list, callback_prefix)
