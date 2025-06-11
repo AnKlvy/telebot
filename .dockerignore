@@ -49,22 +49,22 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Logs (исключаем только файлы логов, папку оставляем)
+# Logs
 *.log
 logs/*.log
 
-# Documentation (исключаем только в корне, папка docs/ нужна)
+# Documentation
 /*.md
 !README.md
 
-# Docker (эти файлы не нужны внутри контейнера)
+# Docker
 docker-compose*.yml
 .dockerignore
 
-# Deployment (исключаем только шаблон)
+# Deployment
 .env.production
 
 # Backup files
 *.sql
-!init.sql  # Исключение: init.sql нужен для инициализации БД
+!init.sql
 backup_*
