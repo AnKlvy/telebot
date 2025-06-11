@@ -101,6 +101,23 @@ create_ssl_certs() {
         return 1
     fi
 
+    # БЕЗОПАСНОСТЬ: Предупреждаем о перезаписи существующих сертификатов
+    if [ -f "nginx/ssl/fullchain.pem" ] && [ -f "nginx/ssl/privkey.pem" ]; then
+        echo "⚠️ ВНИМАНИЕ: Найдены существующие SSL сертификаты!"
+        echo "Срок действия:"
+        openssl x509 -in nginx/ssl/fullchain.pem -noout -dates 2>/dev/null || echo "Не удалось проверить"
+        echo ""
+        echo "Создание новых сертификатов ПЕРЕЗАПИШЕТ существующие!"
+        read -p "Вы уверены что хотите продолжить? (yes/no): " -r response
+        if [[ "$response" != "yes" ]]; then
+            echo "❌ Отменено. Существующие сертификаты сохранены."
+            return 1
+        fi
+        echo "⚠️ Создаем резервную копию существующих сертификатов..."
+        cp nginx/ssl/fullchain.pem nginx/ssl/fullchain.pem.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+        cp nginx/ssl/privkey.pem nginx/ssl/privkey.pem.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+    fi
+
     # Проверяем acme.sh
     if [ ! -d "$HOME/.acme.sh" ]; then
         echo "📦 Устанавливаем acme.sh..."
@@ -162,6 +179,8 @@ enable_ssl() {
             echo "❌ Без SSL сертификатов HTTPS режим невозможен"
             return 1
         fi
+    else
+        echo "✅ Используем существующие SSL сертификаты"
     fi
 
     # Останавливаем контейнеры
@@ -188,7 +207,8 @@ enable_ssl() {
     sudo docker-compose up -d
 
     echo "✅ HTTPS режим включен"
-    echo "🌐 Webhook URL: https://$DOMAIN/webhook"
+    echo "🌐 Webhook URL: https://$DOMAIN:8443/webhook"
+    echo "💡 Для стандартного порта 443 настройте reverse proxy"
 }
 
 # Функция переключения на HTTP
@@ -219,7 +239,8 @@ disable_ssl() {
     sudo docker-compose up -d
 
     echo "✅ HTTP режим включен"
-    echo "🌐 Webhook URL: http://${DOMAIN}/webhook"
+    echo "🌐 Webhook URL: http://${DOMAIN}:8080/webhook"
+    echo "💡 Для стандартного порта 80 настройте reverse proxy"
 }
 
 # Функция показа статуса
