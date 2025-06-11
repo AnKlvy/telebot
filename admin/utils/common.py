@@ -2,7 +2,7 @@ from typing import Dict, List, Any
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from common.keyboards import back_to_main_button
-from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository, CuratorRepository
+from database import CourseRepository, SubjectRepository, GroupRepository, UserRepository, StudentRepository, CuratorRepository, TeacherRepository
 
 
 
@@ -316,3 +316,49 @@ async def get_curators_list_kb(callback_prefix: str = "select_curator", subject_
     curators = await CuratorRepository.get_by_subject_and_group(subject_id, group_id)
     curators_list = [{"id": curator.id, "name": curator.user.name} for curator in curators]
     return get_entity_list_kb(curators_list, callback_prefix)
+
+# Функции для работы с преподавателями
+async def add_teacher(name: str, telegram_id: int, course_id: int, subject_id: int, group_id: int) -> bool:
+    """Добавить нового преподавателя"""
+    try:
+        # Сначала создаем пользователя
+        user = await UserRepository.create(
+            telegram_id=telegram_id,
+            name=name,
+            role='teacher'
+        )
+
+        # Затем создаем профиль преподавателя
+        await TeacherRepository.create(
+            user_id=user.id,
+            course_id=course_id,
+            subject_id=subject_id,
+            group_id=group_id
+        )
+        return True
+    except Exception:
+        # Преподаватель уже существует или другая ошибка
+        return False
+
+async def remove_teacher(teacher_id: int) -> bool:
+    """Удалить преподавателя"""
+    # Получаем преподавателя
+    teacher = await TeacherRepository.get_by_id(teacher_id)
+    if not teacher:
+        return False
+
+    # Удаляем пользователя (преподаватель удалится каскадно)
+    from sqlalchemy import delete
+    from database.models import User
+    from database import get_db_session
+
+    async with get_db_session() as session:
+        result = await session.execute(delete(User).where(User.id == teacher.user_id))
+        await session.commit()
+        return result.rowcount > 0
+
+async def get_teachers_list_kb(callback_prefix: str = "select_teacher", subject_id: int = None, group_id: int = None) -> InlineKeyboardMarkup:
+    """Клавиатура со списком преподавателей (опционально отфильтрованных по предмету и группе)"""
+    teachers = await TeacherRepository.get_by_subject_and_group(subject_id, group_id)
+    teachers_list = [{"id": teacher.id, "name": teacher.user.name} for teacher in teachers]
+    return get_entity_list_kb(teachers_list, callback_prefix)

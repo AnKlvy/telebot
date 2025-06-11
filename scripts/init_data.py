@@ -15,7 +15,8 @@ from database import (
     SubjectRepository,
     GroupRepository,
     StudentRepository,
-    CuratorRepository
+    CuratorRepository,
+    TeacherRepository
 )
 
 
@@ -300,6 +301,90 @@ async def add_initial_data():
             print(f"   ❌ Ошибка при создании куратора '{curator_data['name']}': {e}")
 
     print(f"📊 Создано кураторов: {created_curators_count}")
+
+    print("👨‍🏫 Добавление тестовых преподавателей...")
+    # Создаем тестовых преподавателей
+    test_teachers = [
+        {
+            "name": "Аслыхан Ещанов",
+            "telegram_id": 666666666,  # Заменим на реальный ID если есть
+            "course_name": "ЕНТ",
+            "subject_name": "Физика",
+            "group_name": "ФИЗ-1"
+        },
+        {
+            "name": "Преподаватель Биологии",
+            "telegram_id": 777777777,
+            "course_name": "ЕНТ",
+            "subject_name": "Биология",
+            "group_name": "БИО-1"
+        },
+        {
+            "name": "Преподаватель JavaScript",
+            "telegram_id": 888888888,
+            "course_name": "IT",
+            "subject_name": "JavaScript",
+            "group_name": "JS-1"
+        }
+    ]
+
+    created_teachers_count = 0
+
+    for teacher_data in test_teachers:
+        try:
+            # Находим курс
+            course = None
+            if teacher_data["course_name"] == "ЕНТ":
+                course = course_ent
+            elif teacher_data["course_name"] == "IT":
+                course = course_it
+
+            if not course:
+                print(f"   ❌ Курс '{teacher_data['course_name']}' не найден для преподавателя {teacher_data['name']}")
+                continue
+
+            # Находим предмет
+            subject = created_subjects.get(teacher_data["subject_name"])
+            if not subject:
+                print(f"   ❌ Предмет '{teacher_data['subject_name']}' не найден для преподавателя {teacher_data['name']}")
+                continue
+
+            # Находим группу по имени и предмету
+            groups = await GroupRepository.get_by_subject(subject.id)
+            target_group = next((g for g in groups if g.name == teacher_data["group_name"]), None)
+
+            if not target_group:
+                print(f"   ❌ Группа '{teacher_data['group_name']}' не найдена для преподавателя {teacher_data['name']}")
+                continue
+
+            # Проверяем, существует ли уже пользователь
+            existing_user = await UserRepository.get_by_telegram_id(teacher_data["telegram_id"])
+            if existing_user:
+                print(f"   ⚠️  Пользователь с Telegram ID {teacher_data['telegram_id']} уже существует")
+                continue
+
+            # Создаем пользователя
+            user = await UserRepository.create(
+                telegram_id=teacher_data["telegram_id"],
+                name=teacher_data["name"],
+                role='teacher'
+            )
+
+            # Создаем профиль преподавателя
+            teacher = await TeacherRepository.create(
+                user_id=user.id,
+                course_id=course.id,
+                subject_id=subject.id,
+                group_id=target_group.id
+            )
+
+            print(f"   ✅ Создан преподаватель '{teacher_data['name']}' для группы '{target_group.name}' ({teacher_data['subject_name']})")
+            created_teachers_count += 1
+
+        except Exception as e:
+            print(f"   ❌ Ошибка при создании преподавателя '{teacher_data['name']}': {e}")
+
+    print(f"📊 Создано преподавателей: {created_teachers_count}")
     print("🎉 Начальные данные добавлены!")
 
 

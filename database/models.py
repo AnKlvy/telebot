@@ -103,3 +103,21 @@ class Curator(Base):
     course = relationship("Course", backref="curators")
     subject = relationship("Subject", backref="curators")
     group = relationship("Group", backref="curator")
+
+
+# Модель преподавателя
+class Teacher(Base):
+    __tablename__ = 'teachers'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    course_id = Column(Integer, ForeignKey('courses.id', ondelete='SET NULL'), nullable=True)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
+    group_id = Column(Integer, ForeignKey('groups.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    user = relationship("User", backref="teacher_profile")
+    course = relationship("Course", backref="teachers")
+    subject = relationship("Subject", backref="teachers")
+    group = relationship("Group", backref="teacher")
