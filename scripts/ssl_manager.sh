@@ -129,7 +129,7 @@ create_ssl_certs() {
     if [ ! -d "$HOME/.acme.sh" ]; then
         echo "📦 Устанавливаем acme.sh..."
         # Используем корректный email для Let's Encrypt
-        curl https://get.acme.sh | sh -s email=admin@${DOMAIN}
+        curl https://get.acme.sh | sh -s email=andreyklimov.ver2@gmail.com
         source ~/.bashrc
     fi
 
@@ -146,7 +146,7 @@ create_ssl_certs() {
 
     # Получаем сертификат
     echo "🔐 Получаем сертификат для $DOMAIN через Let's Encrypt..."
-    $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --accountemail admin@${DOMAIN}
+    $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --accountemail andreyklimov.ver2@gmail.com
 
     if [ $? -eq 0 ]; then
         # Копируем сертификаты
