@@ -4,7 +4,7 @@
 # Поддерживает Beget хостинг и обычные VPS
 # Автоматически настраивает SSL сертификаты
 
-set -e  # Выход при ошибке
+# Убираем set -e чтобы обрабатывать ошибки вручную
 
 echo "🔐 Универсальный SSL менеджер для телеграм бота"
 echo "================================================"
@@ -158,41 +158,67 @@ detect_hosting() {
 # Функция установки зависимостей
 install_dependencies() {
     echo "📦 Проверяем и устанавливаем зависимости..."
-    
+
     # Обновляем пакеты
-    sudo apt update -qq
-    
+    echo "🔄 Обновляем список пакетов..."
+    if ! sudo apt update -qq; then
+        echo "⚠️ Не удалось обновить список пакетов, продолжаем..."
+    fi
+
     # Устанавливаем необходимые пакеты
-    local packages=("curl" "socat" "cron" "openssl")
+    local packages=("curl" "socat" "cron" "openssl" "dig")
+    local missing_packages=()
+
     for package in "${packages[@]}"; do
         if ! command -v $package &> /dev/null; then
-            echo "📦 Устанавливаем $package..."
-            sudo apt install -y $package
+            missing_packages+=("$package")
         else
             echo "✅ $package уже установлен"
         fi
     done
+
+    # Устанавливаем недостающие пакеты
+    if [ ${#missing_packages[@]} -gt 0 ]; then
+        echo "📦 Устанавливаем недостающие пакеты: ${missing_packages[*]}"
+        if sudo apt install -y "${missing_packages[@]}"; then
+            echo "✅ Зависимости установлены успешно"
+            return 0
+        else
+            echo "⚠️ Некоторые пакеты не удалось установить, но продолжаем..."
+            return 0  # Не критично, продолжаем работу
+        fi
+    else
+        echo "✅ Все зависимости уже установлены"
+        return 0
+    fi
 }
 
 # Функция установки acme.sh
 install_acme() {
     echo "📦 Устанавливаем acme.sh..."
-    
+
     if [ -d "$HOME/.acme.sh" ]; then
         echo "✅ acme.sh уже установлен"
-        return 0
-    fi
-    
-    # Устанавливаем acme.sh
-    curl https://get.acme.sh | sh -s email=admin@$DOMAIN
-    
-    if [ -d "$HOME/.acme.sh" ]; then
-        echo "✅ acme.sh установлен успешно"
-        # Добавляем в PATH
+        # Добавляем в PATH для текущей сессии
         export PATH="$HOME/.acme.sh:$PATH"
         return 0
+    fi
+
+    echo "⬇️ Скачиваем и устанавливаем acme.sh..."
+    # Устанавливаем acme.sh с обработкой ошибок
+    if curl -s https://get.acme.sh | sh -s email=admin@$DOMAIN; then
+        if [ -d "$HOME/.acme.sh" ]; then
+            echo "✅ acme.sh установлен успешно"
+            # Добавляем в PATH
+            export PATH="$HOME/.acme.sh:$PATH"
+            return 0
+        else
+            echo "❌ acme.sh скачан, но директория не создана"
+            return 1
+        fi
     else
-        echo "❌ Ошибка установки acme.sh"
+        echo "❌ Ошибка скачивания acme.sh"
+        echo "💡 Проверьте интернет-соединение и попробуйте снова"
         return 1
     fi
 }
@@ -200,39 +226,73 @@ install_acme() {
 # Функция получения SSL через HTTP валидацию
 get_ssl_http() {
     echo "🔐 Получаем SSL сертификат через HTTP валидацию..."
-    
-    # Создаем временную директорию для валидации
-    local webroot="/tmp/acme_webroot"
-    mkdir -p "$webroot"
-    
-    # Запускаем временный веб-сервер для валидации
-    echo "🌐 Запускаем временный веб-сервер на порту 80..."
-    
-    # Останавливаем nginx если запущен
-    if command -v docker-compose &> /dev/null && [ -f "docker-compose.yml" ]; then
-        echo "🛑 Временно останавливаем nginx..."
-        docker-compose stop nginx 2>/dev/null || true
+
+    # Проверяем что acme.sh установлен
+    if [ ! -d "$HOME/.acme.sh" ]; then
+        echo "❌ acme.sh не установлен"
+        return 1
     fi
-    
-    # Получаем сертификат
-    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80; then
+
+    # Проверяем что порт 80 свободен
+    echo "🔍 Проверяем доступность порта 80..."
+    if netstat -tuln 2>/dev/null | grep -q ":80 "; then
+        echo "⚠️ Порт 80 занят, останавливаем веб-сервисы..."
+
+        # Останавливаем nginx если запущен
+        if command -v docker-compose &> /dev/null && [ -f "docker-compose.yml" ]; then
+            echo "🛑 Останавливаем nginx через docker-compose..."
+            docker-compose stop nginx 2>/dev/null || true
+            sleep 2
+        fi
+
+        # Проверяем apache
+        if systemctl is-active --quiet apache2 2>/dev/null; then
+            echo "🛑 Останавливаем Apache..."
+            sudo systemctl stop apache2 2>/dev/null || true
+        fi
+
+        # Проверяем nginx системный
+        if systemctl is-active --quiet nginx 2>/dev/null; then
+            echo "🛑 Останавливаем системный Nginx..."
+            sudo systemctl stop nginx 2>/dev/null || true
+        fi
+    fi
+
+    echo "🌐 Запускаем процесс получения SSL сертификата..."
+    echo "📍 Домен: $DOMAIN"
+
+    # Получаем сертификат с подробным выводом
+    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --debug; then
         echo "✅ SSL сертификат получен успешно"
-        
+
+        # Создаем директорию для сертификатов
+        mkdir -p nginx/ssl
+
         # Копируем сертификаты
-        $HOME/.acme.sh/acme.sh --install-cert -d $DOMAIN \
+        echo "📋 Устанавливаем сертификаты..."
+        if $HOME/.acme.sh/acme.sh --install-cert -d $DOMAIN \
             --cert-file nginx/ssl/cert.pem \
             --key-file nginx/ssl/privkey.pem \
-            --fullchain-file nginx/ssl/fullchain.pem
-        
-        # Устанавливаем права
-        chmod 644 nginx/ssl/*.pem
-        chmod 600 nginx/ssl/privkey.pem
-        chown $USER:$USER nginx/ssl/*.pem 2>/dev/null || true
-        
-        echo "✅ SSL сертификаты установлены"
-        return 0
+            --fullchain-file nginx/ssl/fullchain.pem; then
+
+            # Устанавливаем права
+            chmod 644 nginx/ssl/*.pem 2>/dev/null || true
+            chmod 600 nginx/ssl/privkey.pem 2>/dev/null || true
+            chown $USER:$USER nginx/ssl/*.pem 2>/dev/null || true
+
+            echo "✅ SSL сертификаты установлены в nginx/ssl/"
+            return 0
+        else
+            echo "❌ Ошибка установки сертификатов"
+            return 1
+        fi
     else
         echo "❌ Ошибка получения SSL сертификата"
+        echo "💡 Возможные причины:"
+        echo "   - Домен $DOMAIN не указывает на этот сервер"
+        echo "   - Порт 80 заблокирован файрволом"
+        echo "   - Проблемы с DNS записями"
+        echo "   - Домен недоступен из интернета"
         return 1
     fi
 }
@@ -526,22 +586,45 @@ main() {
     case $method in
         1)  # HTTP валидация
             echo "🌐 Используем HTTP валидацию..."
-            install_dependencies
-            install_acme
+            echo "📋 Устанавливаем зависимости..."
+            if ! install_dependencies; then
+                echo "⚠️ Некоторые зависимости не установлены, но продолжаем..."
+            fi
+
+            echo "📋 Устанавливаем acme.sh..."
+            if ! install_acme; then
+                echo "❌ Не удалось установить acme.sh"
+                echo "💡 Попробуйте установить вручную или выберите другой метод"
+                return 1
+            fi
+
             if get_ssl_http; then
                 echo "🎉 SSL настроен через HTTP валидацию"
                 setup_auto_renewal
                 return 0
+            else
+                echo "❌ HTTP валидация не удалась"
             fi
             ;;
         2)  # DNS валидация
             echo "🔍 Используем DNS валидацию..."
-            install_dependencies
-            install_acme
+            echo "📋 Устанавливаем зависимости..."
+            if ! install_dependencies; then
+                echo "⚠️ Некоторые зависимости не установлены, но продолжаем..."
+            fi
+
+            echo "📋 Устанавливаем acme.sh..."
+            if ! install_acme; then
+                echo "❌ Не удалось установить acme.sh"
+                return 1
+            fi
+
             if get_ssl_dns; then
                 echo "🎉 SSL настроен через DNS валидацию"
                 setup_auto_renewal
                 return 0
+            else
+                echo "❌ DNS валидация не удалась"
             fi
             ;;
         3)  # Поиск существующих
@@ -613,208 +696,4 @@ case "${1:-}" in
         ;;
 esac
 
-# Функция для Beget хостинга
-setup_beget_ssl() {
-    echo "🏢 Настройка SSL для Beget хостинга..."
 
-    echo "💡 На Beget хостинге SSL сертификаты обычно предоставляются автоматически"
-    echo "💡 Проверьте панель управления хостингом для настройки SSL"
-
-    # Ищем сертификаты в стандартных местах Beget
-    local beget_paths=(
-        "/home/*/ssl"
-        "/var/www/*/ssl"
-        "/home/*/domains/*/ssl"
-    )
-
-    for path in "${beget_paths[@]}"; do
-        for expanded_path in $path; do
-            if [ -d "$expanded_path" ]; then
-                echo "🔍 Проверяем: $expanded_path"
-                local cert=$(find "$expanded_path" -name "*.crt" -o -name "*.pem" | head -1)
-                local key=$(find "$expanded_path" -name "*.key" | head -1)
-
-                if [ -n "$cert" ] && [ -n "$key" ]; then
-                    echo "✅ Найдены сертификаты Beget:"
-                    echo "   Сертификат: $cert"
-                    echo "   Ключ: $key"
-
-                    read -p "Использовать эти сертификаты? (y/n): " -n 1 -r
-                    echo
-                    if [[ $REPLY =~ ^[Yy]$ ]]; then
-                        cp "$cert" nginx/ssl/fullchain.pem
-                        cp "$key" nginx/ssl/privkey.pem
-                        chmod 644 nginx/ssl/fullchain.pem
-                        chmod 600 nginx/ssl/privkey.pem
-                        echo "✅ Сертификаты Beget настроены"
-                        return 0
-                    fi
-                fi
-            fi
-        done
-    done
-
-    echo "⚠️ Автоматические сертификаты Beget не найдены"
-    echo "💡 Настройте SSL в панели управления Beget или используйте Let's Encrypt"
-    return 1
-}
-
-# Функция для получения SSL через DNS валидацию
-get_ssl_dns() {
-    echo "🔐 Получаем SSL сертификат через DNS валидацию..."
-    echo "💡 Этот метод подходит если порт 80 недоступен"
-
-    # Запускаем процесс получения сертификата
-    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please; then
-        echo "📝 Добавьте TXT запись в DNS:"
-        echo "Имя: _acme-challenge.$DOMAIN"
-        echo "Значение: (будет показано выше)"
-        echo ""
-        read -p "После добавления записи нажмите Enter для продолжения..."
-
-        # Завершаем валидацию
-        if $HOME/.acme.sh/acme.sh --renew -d $DOMAIN --yes-I-know-dns-manual-mode-enough-go-ahead-please; then
-            # Устанавливаем сертификаты
-            $HOME/.acme.sh/acme.sh --install-cert -d $DOMAIN \
-                --cert-file nginx/ssl/cert.pem \
-                --key-file nginx/ssl/privkey.pem \
-                --fullchain-file nginx/ssl/fullchain.pem
-
-            chmod 644 nginx/ssl/*.pem
-            chmod 600 nginx/ssl/privkey.pem
-            chown $USER:$USER nginx/ssl/*.pem 2>/dev/null || true
-
-            echo "✅ SSL сертификаты получены через DNS"
-            return 0
-        fi
-    fi
-
-    echo "❌ Ошибка получения SSL через DNS"
-    return 1
-}
-
-# Функция проверки SSL сертификатов
-check_ssl_status() {
-    echo "🔍 Проверяем статус SSL сертификатов..."
-
-    if [ ! -f "nginx/ssl/fullchain.pem" ] || [ ! -f "nginx/ssl/privkey.pem" ]; then
-        echo "❌ SSL сертификаты не найдены"
-        return 1
-    fi
-
-    echo "✅ SSL файлы найдены"
-
-    # Проверяем срок действия
-    if command -v openssl &> /dev/null; then
-        local expiry=$(openssl x509 -enddate -noout -in nginx/ssl/fullchain.pem 2>/dev/null | cut -d= -f2)
-        if [ -n "$expiry" ]; then
-            echo "📅 Срок действия: $expiry"
-
-            # Проверяем, не истекает ли сертификат в ближайшие 30 дней
-            local expiry_timestamp=$(date -d "$expiry" +%s 2>/dev/null || echo "0")
-            local current_timestamp=$(date +%s)
-            local days_left=$(( (expiry_timestamp - current_timestamp) / 86400 ))
-
-            if [ $days_left -lt 30 ]; then
-                echo "⚠️ Сертификат истекает через $days_left дней"
-                echo "💡 Рекомендуется обновить сертификат"
-            else
-                echo "✅ Сертификат действителен еще $days_left дней"
-            fi
-        fi
-    fi
-
-    # Проверяем права доступа
-    local cert_perms=$(stat -c %a nginx/ssl/fullchain.pem 2>/dev/null)
-    local key_perms=$(stat -c %a nginx/ssl/privkey.pem 2>/dev/null)
-
-    if [ "$cert_perms" != "644" ] || [ "$key_perms" != "600" ]; then
-        echo "⚠️ Неправильные права доступа к сертификатам"
-        echo "🔧 Исправляем права..."
-        chmod 644 nginx/ssl/fullchain.pem
-        chmod 600 nginx/ssl/privkey.pem
-        echo "✅ Права доступа исправлены"
-    else
-        echo "✅ Права доступа к сертификатам корректны"
-    fi
-
-    return 0
-}
-
-# Функция интерактивного меню
-interactive_menu() {
-    while true; do
-        echo ""
-        echo "🔐 SSL Менеджер - Интерактивное меню"
-        echo "=================================="
-        echo "1) Автоматическая настройка SSL"
-        echo "2) Поиск существующих сертификатов"
-        echo "3) Получить новый сертификат (HTTP)"
-        echo "4) Получить новый сертификат (DNS)"
-        echo "5) Проверить статус SSL"
-        echo "6) Настроить автообновление"
-        echo "7) Настройка для Beget хостинга"
-        echo "0) Выход"
-        echo ""
-        read -p "Выберите действие (0-7): " -n 1 -r
-        echo
-
-        case $REPLY in
-            1)
-                main
-                ;;
-            2)
-                find_existing_ssl
-                ;;
-            3)
-                install_dependencies
-                install_acme
-                get_ssl_http
-                ;;
-            4)
-                install_dependencies
-                install_acme
-                get_ssl_dns
-                ;;
-            5)
-                check_ssl_status
-                ;;
-            6)
-                setup_auto_renewal
-                ;;
-            7)
-                setup_beget_ssl
-                ;;
-            0)
-                echo "👋 До свидания!"
-                exit 0
-                ;;
-            *)
-                echo "❌ Неверный выбор"
-                ;;
-        esac
-
-        echo ""
-        read -p "Нажмите Enter для продолжения..."
-    done
-}
-
-# Проверяем аргументы командной строки
-if [ "$1" = "--interactive" ] || [ "$1" = "-i" ]; then
-    interactive_menu
-elif [ "$1" = "--check" ] || [ "$1" = "-c" ]; then
-    check_ssl_status
-elif [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    echo "🔐 SSL Менеджер для телеграм бота"
-    echo ""
-    echo "Использование:"
-    echo "  $0                 - Автоматическая настройка SSL"
-    echo "  $0 --interactive   - Интерактивное меню"
-    echo "  $0 --check         - Проверить статус SSL"
-    echo "  $0 --help          - Показать эту справку"
-    echo ""
-    exit 0
-else
-    # Запускаем основную функцию
-    main "$@"
-fi
