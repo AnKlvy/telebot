@@ -1,5 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from common.keyboards import get_main_menu_back_button, get_universal_back_button
+from typing import List, Any
+from database import CourseRepository, SubjectRepository, LessonRepository, HomeworkRepository
 
 
 def get_homework_management_kb() -> InlineKeyboardMarkup:
@@ -10,81 +12,102 @@ def get_homework_management_kb() -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
     ])
 
-def get_courses_kb() -> InlineKeyboardMarkup:
+async def get_courses_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора курса"""
-    # В реальном приложении здесь будет запрос к базе данных
-    courses = [
-        {"id": "course_geo", "name": "Интенсив. География"},
-        {"id": "course_math", "name": "Интенсив. Математика"}
-    ]
-    
-    buttons = []
-    for course in courses:
-        buttons.append([
-            InlineKeyboardButton(
-                text=course["name"], 
-                callback_data=course["id"]
-            )
-        ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    try:
+        courses = await CourseRepository.get_all()
+        buttons = []
 
-def get_subjects_kb(course_id: str = None) -> InlineKeyboardMarkup:
+        for course in courses:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=course.name,
+                    callback_data=f"course_{course.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception:
+        # Fallback на хардкод данные в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="Интенсив. География", callback_data="course_1")],
+            [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_2")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_subjects_kb(course_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета"""
-    # В реальном приложении здесь будет запрос к базе данных
-    subjects = [
-        {"id": "sub_kz", "name": "История Казахстана"},
-        {"id": "sub_mathlit", "name": "Математическая грамотность"},
-        {"id": "sub_math", "name": "Математика"},
-        {"id": "sub_geo", "name": "География"},
-        {"id": "sub_bio", "name": "Биология"},
-        {"id": "sub_chem", "name": "Химия"},
-        {"id": "sub_inf", "name": "Информатика"}
-    ]
-    
-    buttons = []
-    for subject in subjects:
-        buttons.append([
-            InlineKeyboardButton(
-                text=subject["name"], 
-                callback_data=subject["id"]
-            )
-        ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    try:
+        if course_id:
+            # Получаем предметы для конкретного курса
+            course = await CourseRepository.get_by_id(course_id)
+            subjects = course.subjects if course else []
+        else:
+            # Получаем все предметы
+            subjects = await SubjectRepository.get_all()
 
-def get_lessons_kb(subject_id: str = None) -> InlineKeyboardMarkup:
+        buttons = []
+        for subject in subjects:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=subject.name,
+                    callback_data=f"subject_{subject.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception:
+        # Fallback на хардкод данные в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="История Казахстана", callback_data="subject_1")],
+            [InlineKeyboardButton(text="Математическая грамотность", callback_data="subject_2")],
+            [InlineKeyboardButton(text="География", callback_data="subject_3")],
+            [InlineKeyboardButton(text="Биология", callback_data="subject_4")],
+            [InlineKeyboardButton(text="Химия", callback_data="subject_5")],
+            [InlineKeyboardButton(text="Информатика", callback_data="subject_6")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_lessons_kb(subject_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора урока"""
-    # В реальном приложении здесь будет запрос к базе данных
-    lessons = [
-        {"id": "lesson_alkanes", "name": "1. Алканы"},
-        {"id": "lesson_isomeria", "name": "2. Изомерия"},
-        {"id": "lesson_acids", "name": "3. Кислоты"}
-    ]
-    
-    buttons = []
-    for lesson in lessons:
+    try:
+        if subject_id:
+            lessons = await LessonRepository.get_by_subject(subject_id)
+        else:
+            lessons = await LessonRepository.get_all()
+
+        buttons = []
+        for lesson in lessons:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=lesson.name,
+                    callback_data=f"lesson_{lesson.id}"
+                )
+            ])
+
         buttons.append([
             InlineKeyboardButton(
-                text=lesson["name"], 
-                callback_data=lesson["id"]
+                text="➕ Добавить новый урок",
+                callback_data="add_new_lesson"
             )
         ])
-    
-    buttons.append([
-        InlineKeyboardButton(
-            text="➕ Добавить новый урок", 
-            callback_data="add_new_lesson"
-        )
-    ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception:
+        # Fallback на хардкод данные в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="1. Алканы", callback_data="lesson_1")],
+            [InlineKeyboardButton(text="2. Изомерия", callback_data="lesson_2")],
+            [InlineKeyboardButton(text="3. Кислоты", callback_data="lesson_3")],
+            [InlineKeyboardButton(text="➕ Добавить новый урок", callback_data="add_new_lesson")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_time_limit_kb() -> InlineKeyboardMarkup:
@@ -112,19 +135,35 @@ def get_time_limit_kb() -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_correct_answer_kb() -> InlineKeyboardMarkup:
+def get_correct_answer_kb(answer_options: List[str] = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора правильного ответа"""
     buttons = []
-    for letter in ["A", "B", "C", "D", "E"]:
-        buttons.append([
-            InlineKeyboardButton(
-                text=f"Вариант {letter}", 
-                callback_data=f"correct_{letter}"
-            )
-        ])
-    
+
+    if answer_options:
+        # Используем реальные варианты ответов
+        letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+        for i, option in enumerate(answer_options):
+            if i < len(letters):
+                letter = letters[i]
+                # Обрезаем длинный текст для отображения
+                display_text = option[:30] + "..." if len(option) > 30 else option
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=f"{letter}. {display_text}",
+                        callback_data=f"correct_{i}"
+                    )
+                ])
+    else:
+        # Fallback на стандартные варианты
+        for i, letter in enumerate(["A", "B", "C", "D", "E"]):
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"Вариант {letter}",
+                    callback_data=f"correct_{i}"
+                )
+            ])
+
     buttons.extend(get_main_menu_back_button())
-    
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_add_question_kb(question_count: int) -> InlineKeyboardMarkup:
@@ -173,27 +212,39 @@ def get_confirm_homework_kb() -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_homeworks_list_kb(lesson_id: str) -> InlineKeyboardMarkup:
+async def get_homeworks_list_kb(lesson_id: int) -> InlineKeyboardMarkup:
     """Клавиатура со списком ДЗ для удаления"""
-    # В реальном приложении здесь будет запрос к базе данных
-    homeworks = [
-        {"id": "hw_1", "name": "Базовое ДЗ по алканам"},
-        {"id": "hw_2", "name": "Углубленное ДЗ по алканам"},
-        {"id": "hw_3", "name": "ДЗ на повторение"}
-    ]
-    
-    buttons = []
-    for hw in homeworks:
-        buttons.append([
-            InlineKeyboardButton(
-                text=hw["name"], 
-                callback_data=f"delete_hw_{hw['id']}"
-            )
-        ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    try:
+        homeworks = await HomeworkRepository.get_by_lesson(lesson_id)
+
+        buttons = []
+        for hw in homeworks:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=hw.name,
+                    callback_data=f"delete_hw_{hw.id}"
+                )
+            ])
+
+        if not homeworks:
+            buttons.append([
+                InlineKeyboardButton(
+                    text="📝 Нет домашних заданий",
+                    callback_data="no_homeworks"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception:
+        # Fallback на хардкод данные в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="Базовое ДЗ по алканам", callback_data="delete_hw_1")],
+            [InlineKeyboardButton(text="Углубленное ДЗ по алканам", callback_data="delete_hw_2")],
+            [InlineKeyboardButton(text="ДЗ на повторение", callback_data="delete_hw_3")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_photo_skip_kb() -> InlineKeyboardMarkup:
     """Клавиатура для пропуска добавления фото"""

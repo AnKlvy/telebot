@@ -1,7 +1,7 @@
 from .handlers import (
     enter_test_name, process_question_photo,
     finish_adding_questions, add_more_question,
-    start_adding_questions, add_question_photo, skip_photo, enter_answer_options, select_correct_answer,
+    start_adding_questions, add_question_photo, skip_photo, select_correct_answer,
     save_question, save_question_with_time, confirm_test
 )
 
@@ -22,8 +22,7 @@ def get_transitions_handlers(states_group, role):
         states_group.enter_question_text: states_group.enter_test_name,
         states_group.add_question_photo: states_group.enter_question_text,
         states_group.skip_photo: states_group.add_question_photo,
-        states_group.enter_answer_options: states_group.process_topic,
-        states_group.select_correct_answer: states_group.enter_answer_options,
+        states_group.select_correct_answer: states_group.process_topic,
         states_group.set_time_limit: states_group.select_correct_answer,
         states_group.add_question: states_group.set_time_limit,
         states_group.confirm_test: states_group.add_question,
@@ -37,7 +36,7 @@ def get_transitions_handlers(states_group, role):
         states_group.add_question_photo: add_question_photo,
         states_group.process_photo: process_question_photo,
         states_group.skip_photo: skip_photo,
-        states_group.enter_answer_options: enter_answer_options,
+
         states_group.select_correct_answer: select_correct_answer,
         states_group.set_time_limit: save_question,
         states_group.add_question: save_question_with_time,

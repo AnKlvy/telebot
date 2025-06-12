@@ -2,9 +2,10 @@
 Модуль для работы с базой данных
 """
 from .database import init_database, close_database, get_db_session
-from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager, Microtopic, Lesson
+from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager, Microtopic, Lesson, Homework, Question, AnswerOption
 from .repositories import UserRepository, CourseRepository, SubjectRepository, GroupRepository, StudentRepository, \
-    CuratorRepository, TeacherRepository, ManagerRepository, MicrotopicRepository, LessonRepository
+    CuratorRepository, TeacherRepository, ManagerRepository, MicrotopicRepository, LessonRepository, \
+    HomeworkRepository, QuestionRepository, AnswerOptionRepository
 
 
 # Функции для совместимости со старым кодом
@@ -34,6 +35,9 @@ __all__ = [
     'Manager',
     'Microtopic',
     'Lesson',
+    'Homework',
+    'Question',
+    'AnswerOption',
     'UserRepository',
     'CourseRepository',
     'SubjectRepository',
@@ -44,6 +48,9 @@ __all__ = [
     'ManagerRepository',
     'MicrotopicRepository',
     'LessonRepository',
+    'HomeworkRepository',
+    'QuestionRepository',
+    'AnswerOptionRepository',
     'get_user_role',
     'get_user_by_telegram_id',
     'create_user'

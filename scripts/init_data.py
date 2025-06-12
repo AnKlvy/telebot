@@ -19,7 +19,10 @@ from database import (
     TeacherRepository,
     ManagerRepository,
     MicrotopicRepository,
-    LessonRepository
+    LessonRepository,
+    HomeworkRepository,
+    QuestionRepository,
+    AnswerOptionRepository
 )
 
 
@@ -536,7 +539,171 @@ async def add_initial_data():
                     print(f"   ❌ Ошибка при создании урока '{lesson_name}': {e}")
 
     print(f"📊 Создано уроков: {created_lessons_count}")
+
+    print("📝 Добавление тестовых домашних заданий...")
+    # Создаем тестовые домашние задания
+    await add_test_homework_data(created_subjects, course_ent, course_it)
+
     print("🎉 Начальные данные добавлены!")
+
+
+async def add_test_homework_data(created_subjects, course_ent, course_it):
+    """Добавление тестовых данных для домашних заданий"""
+    try:
+        # Получаем менеджера для создания ДЗ
+        managers = await ManagerRepository.get_all()
+        if not managers:
+            print("   ❌ Не найден менеджер для создания ДЗ")
+            return
+
+        manager_user = managers[0].user  # Берем первого менеджера
+
+        # Получаем уроки для создания ДЗ
+        lessons = await LessonRepository.get_all()
+        if not lessons:
+            print("   ❌ Не найдены уроки для создания ДЗ")
+            return
+
+        # Создаем ДЗ для разных предметов
+        homework_data = [
+            {
+                "name": "Базовое ДЗ по алканам",
+                "subject_name": "Химия",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Какая общая формула алканов?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "CnH2n+2", "is_correct": True},
+                            {"text": "CnH2n", "is_correct": False},
+                            {"text": "CnH2n-2", "is_correct": False},
+                            {"text": "CnHn", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Какой тип гибридизации у атомов углерода в алканах?",
+                        "time_limit": 45,
+                        "answers": [
+                            {"text": "sp3", "is_correct": True},
+                            {"text": "sp2", "is_correct": False},
+                            {"text": "sp", "is_correct": False},
+                            {"text": "sp3d", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Основы Python",
+                "subject_name": "Python",
+                "course": course_it,
+                "questions": [
+                    {
+                        "text": "Какой тип данных используется для хранения текста в Python?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "str", "is_correct": True},
+                            {"text": "text", "is_correct": False},
+                            {"text": "string", "is_correct": False},
+                            {"text": "char", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Как создать список в Python?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "[]", "is_correct": True},
+                            {"text": "{}", "is_correct": False},
+                            {"text": "()", "is_correct": False},
+                            {"text": "<>", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Основы математики",
+                "subject_name": "Математика",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Чему равен корень из 16?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "4", "is_correct": True},
+                            {"text": "8", "is_correct": False},
+                            {"text": "2", "is_correct": False},
+                            {"text": "16", "is_correct": False}
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        created_homeworks_count = 0
+        created_questions_count = 0
+        created_answers_count = 0
+
+        for hw_data in homework_data:
+            try:
+                # Находим предмет
+                subject = created_subjects.get(hw_data["subject_name"])
+                if not subject:
+                    print(f"   ❌ Предмет '{hw_data['subject_name']}' не найден")
+                    continue
+
+                # Находим урок для этого предмета
+                subject_lessons = await LessonRepository.get_by_subject(subject.id)
+                if not subject_lessons:
+                    print(f"   ❌ Не найдены уроки для предмета '{hw_data['subject_name']}'")
+                    continue
+
+                lesson = subject_lessons[0]  # Берем первый урок
+
+                # Проверяем, существует ли уже такое ДЗ
+                existing_homeworks = await HomeworkRepository.get_by_lesson(lesson.id)
+                if any(hw.name == hw_data["name"] for hw in existing_homeworks):
+                    print(f"   ⚠️  ДЗ '{hw_data['name']}' уже существует")
+                    continue
+
+                # Создаем домашнее задание
+                homework = await HomeworkRepository.create(
+                    name=hw_data["name"],
+                    course_id=hw_data["course"].id,
+                    subject_id=subject.id,
+                    lesson_id=lesson.id,
+                    created_by=manager_user.id
+                )
+
+                print(f"   ✅ Создано ДЗ '{homework.name}' (ID: {homework.id})")
+                created_homeworks_count += 1
+
+                # Создаем вопросы
+                for question_data in hw_data["questions"]:
+                    question = await QuestionRepository.create(
+                        homework_id=homework.id,
+                        text=question_data["text"],
+                        time_limit=question_data["time_limit"]
+                    )
+
+                    created_questions_count += 1
+
+                    # Создаем варианты ответов
+                    await AnswerOptionRepository.create_multiple(
+                        question.id,
+                        question_data["answers"]
+                    )
+
+                    created_answers_count += len(question_data["answers"])
+
+            except Exception as e:
+                print(f"   ❌ Ошибка при создании ДЗ '{hw_data['name']}': {e}")
+
+        print(f"📊 Создано домашних заданий: {created_homeworks_count}")
+        print(f"📊 Создано вопросов: {created_questions_count}")
+        print(f"📊 Создано вариантов ответов: {created_answers_count}")
+
+    except Exception as e:
+        print(f"❌ Ошибка при добавлении тестовых данных ДЗ: {e}")
 
 
 if __name__ == "__main__":

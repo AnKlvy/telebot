@@ -2,7 +2,7 @@
 Модели SQLAlchemy для базы данных
 """
 from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, ForeignKey, Table, UniqueConstraint
+from sqlalchemy import Column, Integer, BigInteger, String, Text, DateTime, ForeignKey, Table, UniqueConstraint, Boolean
 from sqlalchemy.sql import func
 
 
@@ -168,4 +168,73 @@ class Microtopic(Base):
     # Уникальность: одно название микротемы на предмет
     __table_args__ = (
         UniqueConstraint('name', 'subject_id', name='unique_microtopic_per_subject'),
+    )
+
+
+# Модель домашнего задания
+class Homework(Base):
+    __tablename__ = 'homeworks'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    course = relationship("Course", backref="homeworks")
+    subject = relationship("Subject", backref="homeworks")
+    lesson = relationship("Lesson", backref="homeworks")
+    creator = relationship("User", backref="created_homeworks")
+    questions = relationship("Question", back_populates="homework", cascade="all, delete-orphan")
+
+    # Уникальность: одно название ДЗ на урок
+    __table_args__ = (
+        UniqueConstraint('name', 'lesson_id', name='unique_homework_per_lesson'),
+    )
+
+
+# Модель вопроса
+class Question(Base):
+    __tablename__ = 'questions'
+
+    id = Column(Integer, primary_key=True)
+    homework_id = Column(Integer, ForeignKey('homeworks.id', ondelete='CASCADE'), nullable=False)
+    text = Column(Text, nullable=False)
+    photo_path = Column(String(500), nullable=True)  # file_id фото от Telegram или путь к файлу
+    microtopic_id = Column(Integer, ForeignKey('microtopics.id', ondelete='SET NULL'), nullable=True)
+    time_limit = Column(Integer, nullable=False, default=30)  # Время в секундах
+    order_number = Column(Integer, nullable=False, default=1)  # Порядок вопроса в ДЗ
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    homework = relationship("Homework", back_populates="questions")
+    microtopic = relationship("Microtopic", backref="questions")
+    answer_options = relationship("AnswerOption", back_populates="question", cascade="all, delete-orphan")
+
+    # Уникальность: один порядковый номер на ДЗ
+    __table_args__ = (
+        UniqueConstraint('homework_id', 'order_number', name='unique_question_order_per_homework'),
+    )
+
+
+# Модель варианта ответа
+class AnswerOption(Base):
+    __tablename__ = 'answer_options'
+
+    id = Column(Integer, primary_key=True)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+    text = Column(Text, nullable=False)
+    is_correct = Column(Boolean, nullable=False, default=False)
+    order_number = Column(Integer, nullable=False, default=1)  # Порядок варианта (A, B, C, D...)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    question = relationship("Question", back_populates="answer_options")
+
+    # Уникальность: один порядковый номер на вопрос
+    __table_args__ = (
+        UniqueConstraint('question_id', 'order_number', name='unique_answer_order_per_question'),
     )

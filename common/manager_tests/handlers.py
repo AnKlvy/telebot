@@ -145,71 +145,187 @@ async def process_topic(message: Message, state: FSMContext, states_group):
     """Обработка выбора микротемы"""
     try:
         topic_number = int(message.text.strip())
-        topic_id = f"topic_{topic_number}"
 
-        # Словарь с названиями микротем
-        topic_names = {
-            "topic_1": "Строение алканов",
-            "topic_2": "Номенклатура алканов",
-            "topic_3": "Физические свойства алканов",
-            "topic_4": "Химические свойства алканов"
-        }
+        # Проверяем диапазон номера микротемы
+        if topic_number < 1 or topic_number > 50:
+            await message.answer("❌ Номер микротемы должен быть от 1 до 50. Попробуйте еще раз:")
+            return
 
-        topic_name = topic_names.get(topic_id, f"Микротема {topic_number}")
-
+        # Получаем данные о предмете для проверки микротемы
         user_data = await state.get_data()
-        current_question = user_data.get("current_question", {})
-        current_question["topic_id"] = topic_id
-        current_question["topic_name"] = topic_name
+        subject_id = user_data.get("subject_id")
 
-        await state.update_data(current_question=current_question)
-        await state.set_state(states_group.enter_answer_options)
+        if not subject_id:
+            await message.answer("❌ Ошибка: предмет не выбран. Начните создание ДЗ заново.")
+            return
 
-        await message.answer(
-            "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
-            "Поддерживаемые форматы:\n"
-            "• A. Первый вариант\n"
-            "• B Второй вариант\n"
-            "• Третий вариант\n"
-            "• Четвертый вариант\n\n"
-            "Минимум 2 варианта, максимум 10 вариантов."
-        )
+        # Импортируем репозитории для проверки микротемы
+        from database import MicrotopicRepository, SubjectRepository
+
+        # Получаем предмет и его микротемы
+        subject = await SubjectRepository.get_by_id(subject_id)
+        if not subject:
+            await message.answer("❌ Ошибка: предмет не найден. Начните создание ДЗ заново.")
+            return
+
+        microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+
+        # Ищем микротему по номеру (предполагаем, что номер в названии)
+        microtopic_id = None
+        microtopic_name = None
+
+        for microtopic in microtopics:
+            # Проверяем, содержит ли название микротемы номер
+            if str(topic_number) in microtopic.name or microtopic.name.startswith(f"{topic_number}.") or microtopic.name.startswith(f"Микротема {topic_number}"):
+                microtopic_id = microtopic.id
+                microtopic_name = microtopic.name
+                break
+
+        # Если микротема не найдена, требуем ввести заново
+        if not microtopic_id:
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+            # Показываем доступные микротемы для справки
+            available_topics = ""
+            if microtopics:
+                available_topics = "\n📋 Доступные микротемы:\n"
+                for mt in microtopics[:10]:  # Показываем первые 10
+                    # Пытаемся извлечь номер из названия
+                    topic_num = "?"
+                    if mt.name.startswith(f"{topic_number}."):
+                        topic_num = str(topic_number)
+                    elif any(char.isdigit() for char in mt.name):
+                        # Ищем первую цифру в названии
+                        for char in mt.name:
+                            if char.isdigit():
+                                topic_num = char
+                                break
+                    available_topics += f"   {topic_num}. {mt.name}\n"
+
+                if len(microtopics) > 10:
+                    available_topics += f"   ... и еще {len(microtopics) - 10} микротем\n"
+
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="➕ Добавить новую микротему", callback_data=f"add_microtopic_{subject_id}_{topic_number}")],
+                [InlineKeyboardButton(text="🔄 Ввести номер заново", callback_data="retry_microtopic")]
+            ])
+
+            await message.answer(
+                f"❌ Микротема с номером {topic_number} не найдена в базе данных для предмета '{subject.name}'.\n"
+                f"{available_topics}\n"
+                "Выберите действие:",
+                reply_markup=keyboard
+            )
+            return
+        else:
+            await message.answer(
+                f"✅ Выбрана микротема: {microtopic_name}\n\n"
+                "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+                "Поддерживаемые форматы:\n"
+                "• A. Первый вариант\n"
+                "• B Второй вариант\n"
+                "• Третий вариант\n"
+                "• Четвертый вариант\n\n"
+                "Минимум 2 варианта, максимум 10 вариантов."
+            )
+
+            # Сохраняем данные микротемы
+            current_question = user_data.get("current_question", {})
+            current_question["microtopic_id"] = microtopic_id
+            current_question["microtopic_name"] = microtopic_name
+            current_question["topic_number"] = topic_number
+
+            await state.update_data(current_question=current_question)
+            await state.set_state(states_group.enter_answer_options)
 
     except ValueError:
-        await message.answer("Пожалуйста, введите корректное число для номера микротемы.")
+        await message.answer("❌ Пожалуйста, введите корректное число для номера микротемы (от 1 до 50):")
+    except Exception as e:
+        logger.error(f"Ошибка при обработке микротемы: {e}")
+        await message.answer("❌ Произошла ошибка при обработке микротемы. Попробуйте еще раз:")
 
 
-async def enter_answer_options(message: Message, state: FSMContext):
-    """Ввод вариантов ответов"""
-    logger.info("Вызван обработчик enter_answer_options")
-    topic_id = 'topic_'+message.data
-
-    # Словарь с названиями микротем
-    topic_names = {
-        "topic_1": "Строение алканов",
-        "topic_2": "Номенклатура алканов",
-        "topic_3": "Физические свойства алканов",
-        "topic_4": "Химические свойства алканов"
-    }
-
-    topic_name = topic_names.get(topic_id, "Неизвестная микротема")
-
-    user_data = await state.get_data()
-    current_question = user_data.get("current_question", {})
-    current_question["topic_id"] = topic_id
-    current_question["topic_name"] = topic_name
-
-    await state.update_data(current_question=current_question)
-
-    await message.answer(
-        "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
-        "Поддерживаемые форматы:\n"
-        "• A. Первый вариант\n"
-        "• B Второй вариант\n"
-        "• Третий вариант\n"
-        "• Четвертый вариант\n\n"
-        "Минимум 2 варианта, максимум 10 вариантов."
+async def handle_microtopic_retry(callback: CallbackQuery, state: FSMContext):
+    """Обработка повторного ввода номера микротемы"""
+    await callback.message.edit_text(
+        "Введите номер микротемы (от 1 до 50):"
     )
+    await callback.answer()
+
+
+async def handle_add_microtopic(callback: CallbackQuery, state: FSMContext):
+    """Обработка добавления новой микротемы"""
+    # Извлекаем subject_id и topic_number из callback_data
+    data_parts = callback.data.split("_")  # add_microtopic_{subject_id}_{topic_number}
+    if len(data_parts) >= 4:
+        subject_id = int(data_parts[2])
+        topic_number = int(data_parts[3])
+
+        # Сохраняем данные для создания микротемы
+        user_data = await state.get_data()
+        await state.update_data(
+            pending_microtopic_subject_id=subject_id,
+            pending_microtopic_number=topic_number
+        )
+
+        await callback.message.edit_text(
+            f"Введите название для микротемы №{topic_number}:"
+        )
+
+        # Устанавливаем состояние для ввода названия микротемы
+        from manager.handlers.homework import AddHomeworkStates
+        await state.set_state(AddHomeworkStates.add_microtopic_name)
+
+    await callback.answer()
+
+
+async def process_new_microtopic_name(message: Message, state: FSMContext):
+    """Обработка названия новой микротемы"""
+    try:
+        microtopic_name = message.text.strip()
+
+        if not microtopic_name:
+            await message.answer("❌ Название микротемы не может быть пустым. Попробуйте еще раз:")
+            return
+
+        user_data = await state.get_data()
+        subject_id = user_data.get("pending_microtopic_subject_id")
+        topic_number = user_data.get("pending_microtopic_number")
+
+        if not subject_id or not topic_number:
+            await message.answer("❌ Ошибка: данные микротемы не найдены. Начните создание вопроса заново.")
+            return
+
+        # Импортируем репозиторий
+        from database import MicrotopicRepository
+
+        # Создаем новую микротему
+        new_microtopic = await MicrotopicRepository.create(
+            name=f"{topic_number}. {microtopic_name}",
+            subject_id=subject_id
+        )
+
+        await message.answer(
+            f"✅ Микротема создана: {new_microtopic.name}\n\n"
+            "Теперь введите номер микротемы снова:"
+        )
+
+        # Очищаем временные данные
+        await state.update_data(
+            pending_microtopic_subject_id=None,
+            pending_microtopic_number=None
+        )
+
+        # Возвращаемся к состоянию выбора микротемы
+        from manager.handlers.homework import AddHomeworkStates
+        await state.set_state(AddHomeworkStates.request_topic)
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании микротемы: {e}")
+        await message.answer("❌ Произошла ошибка при создании микротемы. Попробуйте еще раз:")
+
+
+
 
 
 async def select_correct_answer(message: Message, state: FSMContext, states_group):

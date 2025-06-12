@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 
 from .handlers import (
     enter_test_name, start_adding_questions, add_question_photo, process_question_photo, request_topic,
-    enter_answer_options, select_correct_answer, save_question, save_question_with_time, add_more_question,
+    select_correct_answer, save_question, save_question_with_time, add_more_question,
     finish_adding_questions, process_topic, confirm_test
 )
 import inspect
@@ -54,11 +54,7 @@ def register_test_handlers(router: Router, states_group, role: str):
         await process_topic(message, state, states_group)
 
 
-    @router.message(states_group.select_topic)
-    async def role_enter_answer_options(message: Message, state: FSMContext):
-        await log(inspect.currentframe().f_code.co_name, role, state)
-        await enter_answer_options(message, state)
-        await state.set_state(states_group.enter_answer_options)
+
 
 
     @router.message(states_group.enter_answer_options)

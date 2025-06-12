@@ -11,6 +11,9 @@ from .teacher_repository import TeacherRepository
 from .manager_repository import ManagerRepository
 from .microtopic_repository import MicrotopicRepository
 from .lesson_repository import LessonRepository
+from .homework_repository import HomeworkRepository
+from .question_repository import QuestionRepository
+from .answer_option_repository import AnswerOptionRepository
 
 __all__ = [
     'UserRepository',
@@ -22,5 +25,8 @@ __all__ = [
     'TeacherRepository',
     'ManagerRepository',
     'MicrotopicRepository',
-    'LessonRepository'
+    'LessonRepository',
+    'HomeworkRepository',
+    'QuestionRepository',
+    'AnswerOptionRepository'
 ]
