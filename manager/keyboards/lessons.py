@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters.callback_data import CallbackData
 from common.keyboards import get_main_menu_back_button
-from typing import List, Literal, Dict
+from typing import List, Literal, Dict, Any
 
 # Константы для действий с уроками
 class LessonActions:
@@ -28,66 +28,69 @@ def get_lessons_menu_kb() -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
     ])
 
-def get_courses_list_kb(courses: Dict[int, str]) -> InlineKeyboardMarkup:
+async def get_courses_list_kb(courses: List[Any]) -> InlineKeyboardMarkup:
     """Клавиатура со списком курсов"""
     keyboard = []
-    for course_id, course_name in courses.items():
+    
+    for course in courses:
         keyboard.append([
             InlineKeyboardButton(
-                text=course_name,
+                text=course.name,
                 callback_data=LessonCallback(
                     action=LessonActions.VIEW,
-                    course_id=course_id
+                    course_id=course.id
                 ).pack()
             )
         ])
+    
     keyboard.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_subjects_list_kb(subjects: List[str], course_id: int) -> InlineKeyboardMarkup:
+async def get_subjects_list_kb(subjects: List[Any], course_id: int) -> InlineKeyboardMarkup:
     """Клавиатура со списком предметов"""
     keyboard = []
-    for subject_id, subject_name in enumerate(subjects):
+    
+    for subject in subjects:
         keyboard.append([
             InlineKeyboardButton(
-                text=subject_name,
+                text=subject.name,
                 callback_data=LessonCallback(
                     action=LessonActions.VIEW,
                     course_id=course_id,
-                    subject_id=subject_id
+                    subject_id=subject.id
                 ).pack()
             )
         ])
+    
     keyboard.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_lessons_list_kb(lessons: List[str], course_id: int | None = None, subject_id: int | None = None) -> InlineKeyboardMarkup:
+async def get_lessons_list_kb(lessons: List[Any], course_id: int, subject_id: int) -> InlineKeyboardMarkup:
     """Клавиатура со списком уроков"""
     keyboard = []
     
     # Кнопка добавления нового урока
-    if course_id is not None and subject_id is not None:
-        keyboard.append([
-            InlineKeyboardButton(
-                text="➕ Добавить урок",
-                callback_data=LessonCallback(
-                    action=LessonActions.ADD,
-                    course_id=course_id,
-                    subject_id=subject_id
-                ).pack()
-            )
-        ])
+    keyboard.append([
+        InlineKeyboardButton(
+            text="➕ Добавить урок",
+            callback_data=LessonCallback(
+                action=LessonActions.ADD,
+                course_id=course_id,
+                subject_id=subject_id
+            ).pack()
+        )
+    ])
     
     # Список существующих уроков
-    for lesson_id, lesson_name in enumerate(lessons):
+    for lesson in lessons:
         keyboard.append([
             InlineKeyboardButton(
-                text=f"📝 {lesson_name}",
+                text=f"📝 {lesson.name}",
                 callback_data=LessonCallback(
                     action=LessonActions.VIEW,
                     course_id=course_id,
                     subject_id=subject_id,
-                    lesson_id=lesson_id
+                    lesson_id=lesson.id
                 ).pack()
             ),
             InlineKeyboardButton(
@@ -96,10 +99,11 @@ def get_lessons_list_kb(lessons: List[str], course_id: int | None = None, subjec
                     action=LessonActions.DELETE,
                     course_id=course_id,
                     subject_id=subject_id,
-                    lesson_id=lesson_id
+                    lesson_id=lesson.id
                 ).pack()
             )
         ])
+
     
     keyboard.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -109,16 +113,19 @@ def confirm_delete_lesson_kb(lesson_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
-                text="✅ Подтвердить",
+                text="✅ Да, удалить",
                 callback_data=LessonCallback(
                     action=LessonActions.CONFIRM_DELETE,
                     lesson_id=lesson_id
                 ).pack()
-            ),
-            InlineKeyboardButton(
-                text="❌ Отменить",
-                callback_data=LessonCallback(action=LessonActions.CANCEL).pack()
             )
         ],
-        *get_main_menu_back_button()
+        [
+            InlineKeyboardButton(
+                text="❌ Отмена",
+                callback_data=LessonCallback(
+                    action=LessonActions.CANCEL
+                ).pack()
+            )
+        ]
     ])

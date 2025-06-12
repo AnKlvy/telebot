@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from ..models import Course
+from ..models import Course, course_subjects
 from ..database import get_db_session
 
 
@@ -16,12 +16,16 @@ class CourseRepository:
     async def get_all() -> List[Course]:
         """Получить все курсы"""
         async with get_db_session() as session:
-            result = await session.execute(select(Course).order_by(Course.name))
+            result = await session.execute(
+                select(Course)
+                .options(selectinload(Course.subjects))
+                .order_by(Course.name)
+            )
             return list(result.scalars().all())
     
     @staticmethod
     async def get_by_id(course_id: int) -> Optional[Course]:
-        """Получить курс по ID с загрузкой связанных предметов"""
+        """Получить курс по ID"""
         async with get_db_session() as session:
             result = await session.execute(
                 select(Course)

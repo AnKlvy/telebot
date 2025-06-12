@@ -10,6 +10,7 @@ from .curator_repository import CuratorRepository
 from .teacher_repository import TeacherRepository
 from .manager_repository import ManagerRepository
 from .microtopic_repository import MicrotopicRepository
+from .lesson_repository import LessonRepository
 
 __all__ = [
     'UserRepository',
@@ -20,5 +21,6 @@ __all__ = [
     'CuratorRepository',
     'TeacherRepository',
     'ManagerRepository',
-    'MicrotopicRepository'
+    'MicrotopicRepository',
+    'LessonRepository'
 ]

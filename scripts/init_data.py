@@ -18,7 +18,8 @@ from database import (
     CuratorRepository,
     TeacherRepository,
     ManagerRepository,
-    MicrotopicRepository
+    MicrotopicRepository,
+    LessonRepository
 )
 
 
@@ -490,6 +491,51 @@ async def add_initial_data():
                     print(f"   ❌ Ошибка при создании микротемы '{microtopic_name}': {e}")
 
     print(f"📊 Создано микротем: {created_microtopics_count}")
+
+    print("📚 Добавление тестовых уроков...")
+    # Создаем тестовые уроки
+    test_lessons = {
+        "Математика": ["Урок 1: Основы алгебры", "Урок 2: Линейные уравнения", "Урок 3: Квадратные уравнения", "Урок 4: Системы уравнений"],
+        "Физика": ["Урок 1: Кинематика", "Урок 2: Динамика", "Урок 3: Законы Ньютона", "Урок 4: Работа и энергия"],
+        "Химия": ["Урок 1: Атомная структура", "Урок 2: Химические связи", "Урок 3: Реакции окисления", "Урок 4: Органические соединения"],
+        "Биология": ["Урок 1: Строение клетки", "Урок 2: Митоз и мейоз", "Урок 3: Законы Менделя", "Урок 4: Естественный отбор"],
+        "История Казахстана": ["Урок 1: Древний Казахстан", "Урок 2: Средневековье", "Урок 3: Казахское ханство", "Урок 4: Современность"],
+        "Python": ["Урок 1: Синтаксис Python", "Урок 2: Работа с данными", "Урок 3: Функции и модули", "Урок 4: ООП в Python"],
+        "JavaScript": ["Урок 1: Основы JS", "Урок 2: Работа с DOM", "Урок 3: Асинхронный JS", "Урок 4: Современный JS"],
+        "Java": ["Урок 1: Основы Java", "Урок 2: ООП в Java", "Урок 3: Коллекции", "Урок 4: Многопоточность"]
+    }
+
+    # Получаем существующие уроки для проверки дублей
+    existing_lessons = await LessonRepository.get_all()
+    existing_lessons_by_subject = {}
+    for lesson in existing_lessons:
+        if lesson.subject_id not in existing_lessons_by_subject:
+            existing_lessons_by_subject[lesson.subject_id] = set()
+        existing_lessons_by_subject[lesson.subject_id].add(lesson.name)
+
+    created_lessons_count = 0
+
+    for subject_name, lesson_names in test_lessons.items():
+        if subject_name in created_subjects:
+            subject = created_subjects[subject_name]
+            existing_names = existing_lessons_by_subject.get(subject.id, set())
+
+            print(f"📚 Создаем уроки для предмета '{subject_name}':")
+
+            for lesson_name in lesson_names:
+                if lesson_name in existing_names:
+                    print(f"   ⚠️  Урок '{lesson_name}' уже существует")
+                    continue
+
+                try:
+                    lesson = await LessonRepository.create(lesson_name, subject.id)
+                    print(f"   ✅ Создан урок '{lesson.name}' (ID: {lesson.id})")
+                    created_lessons_count += 1
+
+                except Exception as e:
+                    print(f"   ❌ Ошибка при создании урока '{lesson_name}': {e}")
+
+    print(f"📊 Создано уроков: {created_lessons_count}")
     print("🎉 Начальные данные добавлены!")
 
 
