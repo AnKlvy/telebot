@@ -12,13 +12,21 @@ def get_photo_skip_kb() -> InlineKeyboardMarkup:
     ], back_to_main_button()]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_correct_answer_kb() -> InlineKeyboardMarkup:
-    """Клавиатура выбора правильного ответа"""
+def get_correct_answer_kb(options: dict) -> InlineKeyboardMarkup:
+    """Клавиатура выбора правильного ответа с отображением текста вариантов"""
     buttons = []
-    for letter in ["A", "B", "C", "D", "E"]:
+
+    # Сортируем варианты по буквам
+    sorted_options = sorted(options.items())
+
+    for letter, text in sorted_options:
+        # Обрезаем текст если он слишком длинный для кнопки
+        display_text = text[:30] + "..." if len(text) > 30 else text
+        button_text = f"{letter}. {display_text}"
+
         buttons.append([
             InlineKeyboardButton(
-                text=f"Вариант {letter}", 
+                text=button_text,
                 callback_data=f"correct_{letter}"
             )
         ])

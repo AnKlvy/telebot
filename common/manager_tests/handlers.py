@@ -148,12 +148,13 @@ async def process_topic(message: Message, state: FSMContext, states_group):
         await state.set_state(states_group.enter_answer_options)
 
         await message.answer(
-            "Введите 5 вариантов ответа, каждый с новой строки в формате:\n"
-            "A. Первый вариант\n"
-            "B. Второй вариант\n"
-            "C. Третий вариант\n"
-            "D. Четвертый вариант\n"
-            "E. Пятый вариант"
+            "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+            "Поддерживаемые форматы:\n"
+            "• A. Первый вариант\n"
+            "• B Второй вариант\n"
+            "• Третий вариант\n"
+            "• Четвертый вариант\n\n"
+            "Минимум 2 варианта, максимум 10 вариантов."
         )
 
     except ValueError:
@@ -183,12 +184,13 @@ async def enter_answer_options(message: Message, state: FSMContext):
     await state.update_data(current_question=current_question)
 
     await message.answer(
-        "Введите 5 вариантов ответа, каждый с новой строки в формате:\n"
-        "A. Первый вариант\n"
-        "B. Второй вариант\n"
-        "C. Третий вариант\n"
-        "D. Четвертый вариант\n"
-        "E. Пятый вариант"
+        "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+        "Поддерживаемые форматы:\n"
+        "• A. Первый вариант\n"
+        "• B Второй вариант\n"
+        "• Третий вариант\n"
+        "• Четвертый вариант\n\n"
+        "Минимум 2 варианта, максимум 10 вариантов."
     )
 
 
@@ -197,11 +199,11 @@ async def select_correct_answer(message: Message, state: FSMContext, states_grou
     logger.info("Вызван обработчик select_correct_answer")
     answer_text = message.text.strip()
 
-    # Проверяем, что введены все 5 вариантов
+    # Проверяем, что введено минимум 2 варианта
     lines = answer_text.split("\n")
-    if len(lines) < 5:
+    if len(lines) < 2:
         await message.answer(
-            "Необходимо ввести 5 вариантов ответа, каждый с новой строки. Пожалуйста, попробуйте снова:"
+            "Необходимо ввести минимум 2 варианта ответа, каждый с новой строки. Пожалуйста, попробуйте снова:"
         )
         # Остаемся в том же состоянии для повторного ввода
         return
@@ -209,33 +211,74 @@ async def select_correct_answer(message: Message, state: FSMContext, states_grou
     # Проверяем формат вариантов и заменяем кириллические буквы на латинские
     options = {}
     cyrillic_to_latin = {
-        'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'а': 'a', 'в': 'b', 'с': 'c', 'е': 'e'
+        'А': 'A', 'В': 'B', 'С': 'C', 'Д': 'D', 'Е': 'E', 'Ф': 'F', 'Г': 'G', 'Х': 'H', 'И': 'I', 'Й': 'J',
+        'а': 'a', 'в': 'b', 'с': 'c', 'д': 'd', 'е': 'e', 'ф': 'f', 'г': 'g', 'х': 'h', 'и': 'i', 'й': 'j'
     }
 
-    for line in lines[:5]:  # Берем только первые 5 строк
-        if not line or "." not in line:
+    # Допустимые буквы для вариантов (до 10 вариантов)
+    valid_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+
+    for line in lines[:10]:  # Берем максимум 10 строк
+        line = line.strip()
+        if not line:
             continue
 
-        parts = line.split(".", 1)
-        if len(parts) != 2:
-            continue
+        # Проверяем формат с точкой (A. Текст)
+        if "." in line:
+            parts = line.split(".", 1)
+            if len(parts) == 2:
+                letter = parts[0].strip().upper()
+                text = parts[1].strip()
+            else:
+                continue
+        # Проверяем формат без точки (A Текст или просто текст)
+        else:
+            # Если строка начинается с буквы и пробела
+            if len(line) > 2 and line[1] == ' ':
+                letter = line[0].upper()
+                text = line[2:].strip()
+            # Если это просто текст без буквы - автоматически присваиваем букву
+            else:
+                # Определяем следующую доступную букву
+                used_letters = set(options.keys())
+                letter = None
+                for available_letter in valid_letters:
+                    if available_letter not in used_letters:
+                        letter = available_letter
+                        break
 
-        letter = parts[0].strip().upper()
+                if letter is None:
+                    continue  # Все буквы уже использованы
+
+                text = line
+
         # Заменяем кириллические буквы на латинские
         if letter in cyrillic_to_latin:
             letter = cyrillic_to_latin[letter]
 
-        text = parts[1].strip()
-
-        if letter in ["A", "B", "C", "D", "E"]:
+        if letter in valid_letters and text:
             options[letter] = text
 
-    # Проверяем, что все варианты введены
-    if len(options) < 5 or not all(letter in options for letter in ["A", "B", "C", "D", "E"]):
+    # Проверяем, что введено минимум 2 варианта
+    if len(options) < 2:
         await message.answer(
-            "Необходимо ввести все 5 вариантов ответа (A, B, C, D, E). Пожалуйста, попробуйте снова:"
+            "❌ Необходимо ввести минимум 2 варианта ответа.\n\n"
+            "Поддерживаемые форматы:\n"
+            "• A. Первый вариант\n"
+            "• B Второй вариант\n"
+            "• Третий вариант\n\n"
+            "Попробуйте снова:"
         )
         # Остаемся в том же состоянии для повторного ввода
+        return
+
+    # Проверяем, что варианты идут по порядку (A, B, C, ...)
+    sorted_letters = sorted(options.keys())
+    expected_letters = valid_letters[:len(options)]
+    if sorted_letters != expected_letters:
+        await message.answer(
+            f"Варианты должны идти по порядку: {', '.join(expected_letters[:len(options)])}. Пожалуйста, попробуйте снова:"
+        )
         return
 
     user_data = await state.get_data()
@@ -246,7 +289,7 @@ async def select_correct_answer(message: Message, state: FSMContext, states_grou
 
     await message.answer(
         "Выберите правильный вариант ответа:",
-        reply_markup=get_correct_answer_kb()
+        reply_markup=get_correct_answer_kb(options)
     )
     await state.set_state(states_group.select_correct_answer)
 
