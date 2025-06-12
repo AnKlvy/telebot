@@ -263,6 +263,18 @@ get_ssl_http() {
         return 1
     fi
 
+    # Проверяем что исполняемый файл существует
+    if [ ! -f "$HOME/.acme.sh/acme.sh" ]; then
+        echo "❌ Исполняемый файл acme.sh не найден в $HOME/.acme.sh/"
+        echo "🔍 Ищем acme.sh в системе..."
+        find /root -name "acme.sh" -type f 2>/dev/null | head -5
+        return 1
+    fi
+
+    # Добавляем в PATH и делаем исполняемым
+    export PATH="$HOME/.acme.sh:$PATH"
+    chmod +x "$HOME/.acme.sh/acme.sh" 2>/dev/null || true
+
     # Проверяем что порт 80 свободен
     echo "🔍 Проверяем доступность порта 80..."
     if netstat -tuln 2>/dev/null | grep -q ":80 "; then
@@ -292,11 +304,32 @@ get_ssl_http() {
     echo "📍 Домен: $DOMAIN"
     echo "🔧 Используем Let's Encrypt сервер..."
 
+    # Находим правильный путь к acme.sh
+    local acme_cmd=""
+    if [ -f "$HOME/.acme.sh/acme.sh" ]; then
+        acme_cmd="$HOME/.acme.sh/acme.sh"
+    elif command -v acme.sh &> /dev/null; then
+        acme_cmd="acme.sh"
+    else
+        echo "❌ acme.sh не найден"
+        echo "🔍 Поиск acme.sh в системе..."
+        local found_acme=$(find /root -name "acme.sh" -type f -executable 2>/dev/null | head -1)
+        if [ -n "$found_acme" ]; then
+            echo "✅ Найден acme.sh: $found_acme"
+            acme_cmd="$found_acme"
+        else
+            echo "❌ acme.sh не найден в системе"
+            return 1
+        fi
+    fi
+
+    echo "🔧 Используем acme.sh: $acme_cmd"
+
     # Устанавливаем Let's Encrypt как сервер по умолчанию
-    $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+    $acme_cmd --set-default-ca --server letsencrypt
 
     # Получаем сертификат с подробным выводом
-    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --debug; then
+    if $acme_cmd --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --debug; then
         echo "✅ SSL сертификат получен успешно"
 
         # Создаем директорию для сертификатов
@@ -304,7 +337,7 @@ get_ssl_http() {
 
         # Копируем сертификаты
         echo "📋 Устанавливаем сертификаты..."
-        if $HOME/.acme.sh/acme.sh --install-cert -d $DOMAIN \
+        if $acme_cmd --install-cert -d $DOMAIN \
             --cert-file nginx/ssl/cert.pem \
             --key-file nginx/ssl/privkey.pem \
             --fullchain-file nginx/ssl/fullchain.pem; then
