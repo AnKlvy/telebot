@@ -165,7 +165,16 @@ create_ssl_certs() {
 
     # Переключаем на Let's Encrypt (надежнее чем ZeroSSL)
     echo "🔧 Настраиваем Let's Encrypt..."
-    $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+    echo "🔍 Отладка: Проверяем acme.sh в $HOME/.acme.sh/"
+    if [ -f "$HOME/.acme.sh/acme.sh" ]; then
+        echo "✅ acme.sh найден"
+        echo "🔍 Выполняем: $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt"
+        $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+        echo "🔍 Результат команды set-default-ca: $?"
+    else
+        echo "❌ acme.sh не найден в $HOME/.acme.sh/"
+        return 1
+    fi
 
     # Получаем сертификат
     echo "🔐 Получаем сертификат для $DOMAIN через Let's Encrypt..."
