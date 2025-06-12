@@ -520,120 +520,90 @@ fi
 
 # Проверяем наличие SSL сертификатов для webhook режима
 if grep -q "WEBHOOK_MODE=true" /etc/edu_telebot/env; then
+    echo "🔐 Проверяем SSL настройки для webhook режима..."
+
     # Создаем директорию для SSL, если она не существует
     if [ ! -d "nginx/ssl" ]; then
         echo "📁 Создаем директорию для SSL сертификатов..."
         mkdir -p nginx/ssl
     fi
-    
-    # Функция поиска SSL сертификатов на сервере
-    find_existing_ssl() {
-        echo "🔍 Ищем существующие SSL сертификаты на сервере..."
-        # Возможные пути к сертификатам
-        local cert_paths=(
-            "/etc/letsencrypt/live/$DOMAIN"
-            "/etc/letsencrypt/live"
-            "$HOME/.acme.sh/$DOMAIN"
-            "$HOME/.acme.sh"
-            "/etc/ssl/certs"
-            "/opt/ssl"
-            "/var/ssl"
-        )
-
-        for path in "${cert_paths[@]}"; do
-            if [ -d "$path" ]; then
-                # Ищем fullchain.pem и privkey.pem
-                local fullchain=$(find "$path" -name "fullchain.pem" -type f 2>/dev/null | head -1)
-                local privkey=$(find "$path" -name "privkey.pem" -type f 2>/dev/null | head -1)
-
-                if [ -n "$fullchain" ] && [ -n "$privkey" ]; then
-                    echo "✅ Найдены SSL сертификаты:"
-                    echo "   Fullchain: $fullchain"
-                    echo "   Private key: $privkey"
-
-                    # Копируем сертификаты в папку проекта
-                    echo "📋 Копируем сертификаты в nginx/ssl/..."
-                    sudo cp "$fullchain" nginx/ssl/fullchain.pem
-                    sudo cp "$privkey" nginx/ssl/privkey.pem
-
-                    # Устанавливаем правильные права
-                    sudo chmod 644 nginx/ssl/fullchain.pem
-                    sudo chmod 600 nginx/ssl/privkey.pem
-                    sudo chown $USER:$USER nginx/ssl/*.pem 2>/dev/null || true
-
-                    echo "✅ SSL сертификаты скопированы и настроены"
-                    return 0
-                fi
-            fi
-        done
-
-        # Если не нашли точные файлы, ищем любые .pem файлы с cert/key в названии
-        echo "🔍 Ищем альтернативные SSL файлы..."
-        local cert_file=$(sudo find /etc -name "*.pem" -type f 2>/dev/null | grep -E "(cert|certificate)" | grep -v "ca-certificates" | head -1)
-        local key_file=$(sudo find /etc -name "*.pem" -type f 2>/dev/null | grep -E "(key|private)" | head -1)
-
-        if [ -n "$cert_file" ] && [ -n "$key_file" ]; then
-            echo "⚠️ Найдены возможные SSL файлы:"
-            echo "   Сертификат: $cert_file"
-            echo "   Ключ: $key_file"
-            echo ""
-            read -p "Использовать эти файлы? (y/n): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                sudo cp "$cert_file" nginx/ssl/fullchain.pem
-                sudo cp "$key_file" nginx/ssl/privkey.pem
-                sudo chmod 644 nginx/ssl/fullchain.pem
-                sudo chmod 600 nginx/ssl/privkey.pem
-                sudo chown $USER:$USER nginx/ssl/*.pem 2>/dev/null || true
-                echo "✅ SSL файлы скопированы"
-                return 0
-            fi
-        fi
-
-        return 1
-    }
 
     # Проверяем наличие сертификатов в папке проекта
     if [ ! -f "nginx/ssl/fullchain.pem" ] || [ ! -f "nginx/ssl/privkey.pem" ]; then
         echo "⚠️ SSL сертификаты не найдены в nginx/ssl/"
+        echo "💡 Запускаем автоматическую настройку SSL..."
 
-        # Пытаемся найти существующие сертификаты
-        if find_existing_ssl; then
-            echo "🎉 Используем найденные SSL сертификаты"
-        else
-            echo "❌ SSL сертификаты не найдены на сервере"
-            echo "💡 Используйте универсальный SSL менеджер: ./scripts/ssl_manager.sh"
-            read -p "Настроить SSL сейчас? (y/n): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                if ./scripts/ssl_manager.sh; then
-                    echo "✅ SSL настроен успешно"
-                else
-                    echo "❌ Ошибка настройки SSL"
-                    echo "💡 Установите недостающие зависимости:"
-                    echo "   sudo apt update && sudo apt install socat curl -y"
-                    echo "💡 Проверьте что домен указывает на этот сервер"
-                    echo "💡 Затем запустите: ./scripts/ssl_manager.sh"
-                    echo ""
-                    read -p "Продолжить деплой без SSL? (y/n): " -n 1 -r
-                    echo
-                    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                        echo "❌ Деплой остановлен. Настройте SSL и запустите снова."
-                        exit 1
-                    fi
-                    echo "⚠️ Продолжаем деплой без SSL (только HTTP режим)"
+        # Запускаем SSL менеджер
+        if [ -f "scripts/ssl_manager.sh" ]; then
+            chmod +x scripts/ssl_manager.sh
+            if ./scripts/ssl_manager.sh; then
+                echo "✅ SSL настроен успешно"
+            else
+                echo "❌ Ошибка настройки SSL"
+                echo ""
+                echo "💡 Возможные решения:"
+                echo "   1. Проверьте что домен $DOMAIN указывает на этот сервер"
+                echo "   2. Убедитесь что порт 80 открыт"
+                echo "   3. Установите недостающие зависимости:"
+                echo "      sudo apt update && sudo apt install socat curl openssl -y"
+                echo "   4. Запустите SSL менеджер вручную: ./scripts/ssl_manager.sh"
+                echo ""
+                read -p "Продолжить деплой без SSL (только HTTP)? (y/n): " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    echo "❌ Деплой остановлен. Настройте SSL и запустите снова."
+                    echo "💡 Для настройки SSL: ./scripts/ssl_manager.sh"
+                    exit 1
                 fi
+                echo "⚠️ Продолжаем деплой без SSL (только HTTP режим)"
+
+                # Переключаем на HTTP режим
+                echo "🔧 Переключаем на HTTP режим..."
+                sudo sed -i 's/WEBHOOK_MODE=true/WEBHOOK_MODE=false/' /etc/edu_telebot/env
+                echo "✅ Переключено на HTTP режим (polling)"
+            fi
+        else
+            echo "❌ SSL менеджер не найден: scripts/ssl_manager.sh"
+            echo "💡 Создайте SSL сертификаты вручную или используйте HTTP режим"
+            read -p "Продолжить без SSL? (y/n): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
             fi
         fi
     else
         echo "✅ SSL сертификаты найдены в nginx/ssl/"
+
         # Проверяем права доступа к сертификатам
         if [ "$(stat -c %a nginx/ssl/fullchain.pem 2>/dev/null)" != "644" ] || [ "$(stat -c %a nginx/ssl/privkey.pem 2>/dev/null)" != "600" ]; then
             echo "🔐 Исправляем права доступа к SSL сертификатам..."
             chmod 644 nginx/ssl/fullchain.pem 2>/dev/null || true
             chmod 600 nginx/ssl/privkey.pem 2>/dev/null || true
         fi
+
+        # Проверяем срок действия сертификата
+        if command -v openssl &> /dev/null; then
+            echo "📅 Проверяем срок действия SSL сертификата..."
+            expiry=$(openssl x509 -enddate -noout -in nginx/ssl/fullchain.pem 2>/dev/null | cut -d= -f2)
+            if [ -n "$expiry" ]; then
+                expiry_timestamp=$(date -d "$expiry" +%s 2>/dev/null || echo "0")
+                current_timestamp=$(date +%s)
+                days_left=$(( (expiry_timestamp - current_timestamp) / 86400 ))
+
+                echo "⏰ Сертификат действителен еще $days_left дней"
+                if [ $days_left -lt 30 ]; then
+                    echo "⚠️ Сертификат скоро истечет, рекомендуется обновление"
+                    read -p "Обновить SSL сертификат сейчас? (y/n): " -n 1 -r
+                    echo
+                    if [[ $REPLY =~ ^[Yy]$ ]]; then
+                        ./scripts/ssl_manager.sh --renew
+                    fi
+                fi
+            fi
+        fi
     fi
+else
+    echo "ℹ️ Webhook режим отключен, SSL не требуется"
 fi
 
 # Останавливаем существующие контейнеры
