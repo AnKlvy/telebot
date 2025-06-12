@@ -151,8 +151,8 @@ create_ssl_certs() {
     # Проверяем acme.sh
     if [ ! -d "$HOME/.acme.sh" ]; then
         echo "📦 Устанавливаем acme.sh..."
-        # Используем корректный email для Let's Encrypt
-        curl https://get.acme.sh | sh -s email=mkaribzanovs@gmail.com
+        # Устанавливаем без email - он будет запрошен при первом использовании
+        curl https://get.acme.sh | sh
         source ~/.bashrc
     fi
 
