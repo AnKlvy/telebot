@@ -200,11 +200,142 @@ def get_photo_skip_kb() -> InlineKeyboardMarkup:
     buttons = [
         [
             InlineKeyboardButton(
-                text="⏩ Пропустить (без фото)", 
+                text="⏩ Пропустить (без фото)",
                 callback_data="skip_photo"
             )
         ],
         *get_main_menu_back_button()
     ]
-    
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_photo_edit_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для редактирования фото"""
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text="📷 Изменить фото",
+                callback_data="edit_photo"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🗑 Удалить фото",
+                callback_data="remove_photo"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="➡️ Продолжить",
+                callback_data="continue_without_edit"
+            )
+        ],
+        *get_main_menu_back_button()
+    ]
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_step_edit_kb(step: str, has_data: bool = True) -> InlineKeyboardMarkup:
+    """Универсальная клавиатура для редактирования на каждом шаге"""
+    buttons = []
+
+    # Определяем текст кнопок в зависимости от шага
+    edit_texts = {
+        "test_name": "✏️ Изменить название",
+        "question_text": "✏️ Изменить текст вопроса",
+        "photo": "📷 Изменить фото" if has_data else "📷 Добавить фото",
+        "answer_options": "✏️ Изменить варианты ответов",
+        "correct_answer": "✅ Изменить правильный ответ",
+        "time_limit": "⏱ Изменить время",
+        "topic": "🏷 Изменить микротему",
+        "summary": "✏️ Редактировать"
+    }
+
+    continue_texts = {
+        "test_name": "➡️ Добавить вопросы",
+        "question_text": "📷 Добавить фото",
+        "photo": "🏷 Выбрать микротему",
+        "answer_options": "✅ Выбрать правильный ответ",
+        "correct_answer": "⏱ Установить время",
+        "time_limit": "💾 Сохранить вопрос",
+        "topic": "📝 Ввести варианты ответов",
+        "summary": "➡️ Продолжить"
+    }
+
+    edit_text = edit_texts.get(step, "✏️ Редактировать")
+    continue_text = continue_texts.get(step, "➡️ Продолжить")
+
+    if has_data or step == "photo":
+        buttons.append([
+            InlineKeyboardButton(
+                text=edit_text,
+                callback_data=f"edit_{step}"
+            )
+        ])
+
+    buttons.append([
+        InlineKeyboardButton(
+            text=continue_text,
+            callback_data=f"continue_{step}"
+        )
+    ])
+
+    buttons.extend(get_main_menu_back_button())
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_question_edit_kb(question_num: int) -> InlineKeyboardMarkup:
+    """Клавиатура для редактирования вопроса"""
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text="✏️ Изменить текст вопроса",
+                callback_data=f"edit_question_text_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📷 Изменить фото",
+                callback_data=f"edit_question_photo_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📝 Изменить варианты ответов",
+                callback_data=f"edit_answer_options_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="✅ Изменить правильный ответ",
+                callback_data=f"edit_correct_answer_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="⏱ Изменить время",
+                callback_data=f"edit_time_limit_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🏷 Изменить микротему",
+                callback_data=f"edit_topic_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🗑 Удалить вопрос",
+                callback_data=f"delete_question_{question_num}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="➡️ Продолжить",
+                callback_data="continue_editing"
+            )
+        ],
+        *get_main_menu_back_button()
+    ]
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)

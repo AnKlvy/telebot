@@ -6,6 +6,7 @@ from .keyboards import (
     get_time_limit_kb, get_add_question_kb,
     get_confirm_test_kb
 )
+from manager.keyboards.homework import get_photo_edit_kb
 from common.keyboards import get_home_and_back_kb, get_home_kb
 
 # Настройка логирования
@@ -70,12 +71,14 @@ async def start_adding_questions(message: Message, state: FSMContext):
             f"Курс: {course_name}\n"
             f"Предмет: {subject_name}\n"
             f"Урок: {lesson_name}\n"
-            f"Название ДЗ: {test_name}\n\n"
+            f"🏷 Название ДЗ: {test_name}\n\n"
         )
 
+    # Показываем название с возможностью редактирования
+    from manager.keyboards.homework import get_step_edit_kb
     await message.answer(
-        info_text + "Теперь добавим вопросы. Введите текст первого вопроса:",
-        reply_markup=get_home_and_back_kb()
+        info_text + "Название сохранено! Хотите изменить или продолжить?",
+        reply_markup=get_step_edit_kb("test_name", True)
     )
 
 
@@ -90,16 +93,24 @@ async def add_question_photo(message: Message, state: FSMContext):
 
     await state.update_data(current_question={"text": question_text})
 
+    # Показываем текст вопроса с возможностью редактирования
+    from manager.keyboards.homework import get_step_edit_kb
     await message.answer(
-        "Отправьте фото для этого вопроса (если нужно) или нажмите 'Пропустить':",
-        reply_markup=get_photo_skip_kb()
+        f"📝 Текст вопроса:\n{question_text}\n\nХотите изменить текст или продолжить?",
+        reply_markup=get_step_edit_kb("question_text", True)
     )
 
 
 async def skip_photo(callback: CallbackQuery, state: FSMContext):
     """Пропуск добавления фото"""
     logger.info("Вызван обработчик skip_photo")
-    await request_topic(callback.message, state)
+
+    # Показываем что фото пропущено с возможностью добавить
+    from manager.keyboards.homework import get_step_edit_kb
+    await callback.message.edit_text(
+        "📷 Фото пропущено (вопрос без изображения)\n\nХотите добавить фото или продолжить?",
+        reply_markup=get_step_edit_kb("photo", False)
+    )
 
 
 async def process_question_photo(message: Message, state: FSMContext):
@@ -113,7 +124,14 @@ async def process_question_photo(message: Message, state: FSMContext):
     current_question["photo_id"] = file_id
 
     await state.update_data(current_question=current_question)
-    await request_topic(message, state)
+
+    # Показываем фото с возможностью редактирования
+    from manager.keyboards.homework import get_step_edit_kb
+    await message.answer_photo(
+        photo=file_id,
+        caption="📷 Фото добавлено! Хотите изменить фото или продолжить?",
+        reply_markup=get_step_edit_kb("photo", True)
+    )
 
 
 async def request_topic(message: Message, state: FSMContext):
@@ -287,11 +305,16 @@ async def select_correct_answer(message: Message, state: FSMContext, states_grou
 
     await state.update_data(current_question=current_question)
 
+    # Показываем варианты ответов с возможностью редактирования
+    options_text = ""
+    for letter, text in sorted(options.items()):
+        options_text += f"{letter}. {text}\n"
+
+    from manager.keyboards.homework import get_step_edit_kb
     await message.answer(
-        "Выберите правильный вариант ответа:",
-        reply_markup=get_correct_answer_kb(options)
+        f"📝 Варианты ответов:\n{options_text}\nХотите изменить варианты или продолжить к выбору правильного ответа?",
+        reply_markup=get_step_edit_kb("answer_options", True)
     )
-    await state.set_state(states_group.select_correct_answer)
 
 
 async def save_question(callback: CallbackQuery, state: FSMContext):
@@ -380,12 +403,13 @@ async def confirm_test(callback: CallbackQuery, state: FSMContext):
 
     # Формируем текст для подтверждения
     confirmation_text = (
-        f"Курс: {course_name}\n"
-        f"Предмет: {subject_name}\n"
-        f"Урок: {lesson_name}\n"
-        f"Название ДЗ: {test_name}\n"
-        f"Количество вопросов: {len(questions)}\n\n"
-        f"Время на ответ:\n{questions_info}\n"
+        f"📋 ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ДЗ\n\n"
+        f"📚 Курс: {course_name}\n"
+        f"📖 Предмет: {subject_name}\n"
+        f"📝 Урок: {lesson_name}\n"
+        f"🏷 Название ДЗ: {test_name}\n"
+        f"❓ Количество вопросов: {len(questions)}\n\n"
+        f"⏱ Время на ответ:\n{questions_info}\n"
         "Подтвердите создание домашнего задания:"
     )
 
@@ -393,4 +417,627 @@ async def confirm_test(callback: CallbackQuery, state: FSMContext):
         confirmation_text,
         reply_markup=get_confirm_test_kb()
     )
+
+
+async def show_test_summary_with_edit(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку теста с возможностью редактирования"""
+    user_data = await state.get_data()
+    course_name = user_data.get("course_name", "")
+    subject_name = user_data.get("subject_name", "")
+    lesson_name = user_data.get("lesson_name", "")
+    test_name = user_data.get("test_name", "")
+    questions = user_data.get("questions", [])
+
+    summary_text = (
+        f"📋 ТЕКУЩЕЕ СОСТОЯНИЕ ДЗ\n\n"
+        f"📚 Курс: {course_name} ✏️\n"
+        f"📖 Предмет: {subject_name} ✏️\n"
+        f"📝 Урок: {lesson_name} ✏️\n"
+        f"🏷 Название ДЗ: {test_name} ✏️\n"
+        f"❓ Вопросов добавлено: {len(questions)}\n\n"
+        "Что хотите изменить?"
+    )
+
+    from manager.keyboards.homework import get_step_edit_kb
+    await callback.message.edit_text(
+        summary_text,
+        reply_markup=get_step_edit_kb("summary", True)
+    )
+
+
+# ==================== ОБРАБОТЧИКИ РЕДАКТИРОВАНИЯ ====================
+
+async def edit_test_name(callback: CallbackQuery, state: FSMContext, states_group):
+    """Редактирование названия теста"""
+    logger.info("Вызван обработчик edit_test_name")
+
+    user_data = await state.get_data()
+    current_name = user_data.get("test_name", "")
+
+    await callback.message.edit_text(
+        f"📝 Текущее название ДЗ: **{current_name}**\n\n"
+        "Введите новое название домашнего задания:"
+    )
+    await state.set_state(states_group.edit_test_name)
+
+
+async def process_edit_test_name(message: Message, state: FSMContext, states_group):
+    """Обработка нового названия теста"""
+    new_name = message.text.strip()
+
+    if not new_name:
+        await message.answer("❌ Название не может быть пустым. Попробуйте снова:")
+        return
+
+    await state.update_data(test_name=new_name)
+    await message.answer(
+        f"✅ Название ДЗ изменено на: {new_name}"
+    )
+
+    # Возвращаемся к сводке
+    await show_test_summary_with_edit(message, state)
+
+
+async def edit_question_text(callback: CallbackQuery, state: FSMContext, states_group, question_num: int):
+    """Редактирование текста вопроса"""
+    logger.info(f"Редактирование вопроса {question_num}")
+
+    user_data = await state.get_data()
+    questions = user_data.get("questions", [])
+
+    if question_num <= len(questions):
+        current_question = questions[question_num - 1]
+        current_text = current_question.get("text", "")
+
+        await callback.message.edit_text(
+            f"📝 Текущий текст вопроса {question_num}:\n\n"
+            f"**{current_text}**\n\n"
+            "Введите новый текст вопроса:"
+        )
+
+        await state.update_data(editing_question_num=question_num)
+        await state.set_state(states_group.edit_question_text)
+    else:
+        await callback.answer("❌ Вопрос не найден")
+
+
+async def process_edit_question_text(message: Message, state: FSMContext):
+    """Обработка нового текста вопроса"""
+    new_text = message.text.strip()
+
+    if not new_text:
+        await message.answer("❌ Текст вопроса не может быть пустым. Попробуйте снова:")
+        return
+
+    user_data = await state.get_data()
+    questions = user_data.get("questions", [])
+    question_num = user_data.get("editing_question_num", 1)
+
+    if question_num <= len(questions):
+        questions[question_num - 1]["text"] = new_text
+        await state.update_data(questions=questions)
+
+        await message.answer(
+            f"✅ Текст вопроса {question_num} изменен!"
+        )
+
+        # Показываем обновленную сводку
+        await show_test_summary_with_edit(message, state)
+
+
+async def edit_answer_options(callback: CallbackQuery, state: FSMContext, states_group, question_num: int):
+    """Редактирование вариантов ответов"""
+    logger.info(f"Редактирование вариантов ответов для вопроса {question_num}")
+
+    user_data = await state.get_data()
+    questions = user_data.get("questions", [])
+
+    if question_num <= len(questions):
+        current_question = questions[question_num - 1]
+        current_options = current_question.get("options", {})
+
+        options_text = ""
+        for letter, text in sorted(current_options.items()):
+            options_text += f"{letter}. {text}\n"
+
+        await callback.message.edit_text(
+            f"📝 Текущие варианты ответов для вопроса {question_num}:\n\n"
+            f"{options_text}\n"
+            "Введите новые варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+            "Поддерживаемые форматы:\n"
+            "• A. Первый вариант\n"
+            "• B Второй вариант\n"
+            "• Третий вариант\n"
+            "• Четвертый вариант"
+        )
+
+        await state.update_data(editing_question_num=question_num)
+        await state.set_state(states_group.edit_answer_options)
+    else:
+        await callback.answer("❌ Вопрос не найден")
+
+
+async def process_edit_answer_options(message: Message, state: FSMContext, states_group):
+    """Обработка новых вариантов ответов"""
+    # Используем ту же логику, что и в основном обработчике
+    answer_text = message.text.strip()
+    lines = answer_text.split("\n")
+
+    if len(lines) < 2:
+        await message.answer(
+            "❌ Необходимо ввести минимум 2 варианта ответа.\n\n"
+            "Поддерживаемые форматы:\n"
+            "• A. Первый вариант\n"
+            "• B Второй вариант\n"
+            "• Третий вариант\n\n"
+            "Попробуйте снова:"
+        )
+        return
+
+    # Парсим варианты ответов (используем ту же логику)
+    options = {}
+    cyrillic_to_latin = {
+        'А': 'A', 'В': 'B', 'С': 'C', 'Д': 'D', 'Е': 'E', 'Ф': 'F', 'Г': 'G', 'Х': 'H', 'И': 'I', 'Й': 'J',
+        'а': 'a', 'в': 'b', 'с': 'c', 'д': 'd', 'е': 'e', 'ф': 'f', 'г': 'g', 'х': 'h', 'и': 'i', 'й': 'j'
+    }
+    valid_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+
+    for line in lines[:10]:
+        line = line.strip()
+        if not line:
+            continue
+
+        if "." in line:
+            parts = line.split(".", 1)
+            if len(parts) == 2:
+                letter = parts[0].strip().upper()
+                text = parts[1].strip()
+            else:
+                continue
+        else:
+            if len(line) > 2 and line[1] == ' ':
+                letter = line[0].upper()
+                text = line[2:].strip()
+            else:
+                used_letters = set(options.keys())
+                letter = None
+                for available_letter in valid_letters:
+                    if available_letter not in used_letters:
+                        letter = available_letter
+                        break
+
+                if letter is None:
+                    continue
+
+                text = line
+
+        if letter in cyrillic_to_latin:
+            letter = cyrillic_to_latin[letter]
+
+        if letter in valid_letters and text:
+            options[letter] = text
+
+    if len(options) < 2:
+        await message.answer(
+            "❌ Необходимо ввести минимум 2 варианта ответа. Попробуйте снова:"
+        )
+        return
+
+    # Обновляем вопрос
+    user_data = await state.get_data()
+    questions = user_data.get("questions", [])
+    question_num = user_data.get("editing_question_num", 1)
+
+    if question_num <= len(questions):
+        questions[question_num - 1]["options"] = options
+        await state.update_data(questions=questions)
+
+        await message.answer(
+            f"✅ Варианты ответов для вопроса {question_num} обновлены!"
+        )
+
+        # Показываем выбор правильного ответа
+        from common.manager_tests.keyboards import get_correct_answer_kb
+        await message.answer(
+            "Выберите новый правильный вариант ответа:",
+            reply_markup=get_correct_answer_kb(options)
+        )
+        await state.set_state(states_group.edit_correct_answer)
+
+
+async def edit_photo(callback: CallbackQuery, state: FSMContext, states_group, question_num: int):
+    """Редактирование фото вопроса"""
+    logger.info(f"Редактирование фото для вопроса {question_num}")
+
+    user_data = await state.get_data()
+    questions = user_data.get("questions", [])
+
+    if question_num <= len(questions):
+        current_question = questions[question_num - 1]
+        has_photo = "photo_id" in current_question
+
+        if has_photo:
+            await callback.message.edit_text(
+                f"📷 У вопроса {question_num} уже есть фото.\n\n"
+                "Отправьте новое фото или удалите текущее:",
+                reply_markup=get_photo_edit_kb()
+            )
+        else:
+            await callback.message.edit_text(
+                f"📷 Отправьте фото для вопроса {question_num}:"
+            )
+
+        await state.update_data(editing_question_num=question_num)
+        await state.set_state(states_group.edit_question_photo)
+    else:
+        await callback.answer("❌ Вопрос не найден")
+
+
+async def process_edit_photo(message: Message, state: FSMContext):
+    """Обработка нового фото"""
+    if not message.photo:
+        await message.answer("❌ Пожалуйста, отправьте фото.")
+        return
+
+    photo = message.photo[-1]
+    file_id = photo.file_id
+
+    user_data = await state.get_data()
+    questions = user_data.get("questions", [])
+    question_num = user_data.get("editing_question_num", 1)
+
+    if question_num <= len(questions):
+        questions[question_num - 1]["photo_id"] = file_id
+        await state.update_data(questions=questions)
+
+        await message.answer(
+            f"✅ Фото для вопроса {question_num} обновлено!"
+        )
+
+        # Возвращаемся к сводке
+        await show_test_summary_with_edit(message, state)
+
+
+# ==================== РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ РЕДАКТИРОВАНИЯ ====================
+
+def register_edit_handlers(router, states_group):
+    """Регистрация всех обработчиков редактирования"""
+    from aiogram import F
+    from aiogram.filters import StateFilter
+
+    # Обработчики редактирования названия теста
+    @router.callback_query(F.data == "edit_test_name")
+    async def handle_edit_test_name(callback: CallbackQuery, state: FSMContext):
+        await edit_test_name(callback, state, states_group)
+
+    @router.message(StateFilter(states_group.edit_test_name))
+    async def handle_process_edit_test_name(message: Message, state: FSMContext):
+        new_name = message.text.strip()
+
+        if not new_name:
+            await message.answer("❌ Название не может быть пустым. Попробуйте снова:")
+            return
+
+        await state.update_data(test_name=new_name)
+
+        user_data = await state.get_data()
+        course_name = user_data.get("course_name", "")
+        subject_name = user_data.get("subject_name", "")
+        lesson_name = user_data.get("lesson_name", "")
+
+        info_text = (
+            f"Курс: {course_name}\n"
+            f"Предмет: {subject_name}\n"
+            f"Урок: {lesson_name}\n"
+            f"🏷 Название ДЗ: {new_name}\n\n"
+        )
+
+        from manager.keyboards.homework import get_step_edit_kb
+        await message.answer(
+            info_text + "✅ Название изменено! Хотите изменить еще раз или продолжить?",
+            reply_markup=get_step_edit_kb("test_name", True)
+        )
+        # Возвращаемся к состоянию показа названия с кнопками редактирования
+        await state.set_state(states_group.enter_test_name)
+
+    # Обработчики редактирования текста вопроса
+    @router.callback_query(F.data.startswith("edit_question_text_"))
+    async def handle_edit_question_text(callback: CallbackQuery, state: FSMContext):
+        question_num = int(callback.data.split("_")[-1])
+        await edit_question_text(callback, state, states_group, question_num)
+
+    @router.message(StateFilter(states_group.edit_question_text))
+    async def handle_process_edit_question_text(message: Message, state: FSMContext):
+        new_text = message.text.strip()
+
+        if not new_text:
+            await message.answer("❌ Текст вопроса не может быть пустым. Попробуйте снова:")
+            return
+
+        # Обновляем текущий вопрос
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        current_question["text"] = new_text
+        await state.update_data(current_question=current_question)
+
+        from manager.keyboards.homework import get_step_edit_kb
+        await message.answer(
+            f"📝 Текст вопроса:\n{new_text}\n\n✅ Текст изменен! Хотите изменить еще раз или продолжить?",
+            reply_markup=get_step_edit_kb("question_text", True)
+        )
+        # Возвращаемся к состоянию показа текста с кнопками редактирования
+        await state.set_state(states_group.enter_question_text)
+
+    # Обработчики редактирования вариантов ответов
+    @router.callback_query(F.data.startswith("edit_answer_options_"))
+    async def handle_edit_answer_options(callback: CallbackQuery, state: FSMContext):
+        question_num = int(callback.data.split("_")[-1])
+        await edit_answer_options(callback, state, states_group, question_num)
+
+    @router.message(StateFilter(states_group.edit_answer_options))
+    async def handle_process_edit_answer_options(message: Message, state: FSMContext):
+        # Используем ту же логику парсинга вариантов
+        answer_text = message.text.strip()
+        lines = answer_text.split("\n")
+
+        if len(lines) < 2:
+            await message.answer(
+                "❌ Необходимо ввести минимум 2 варианта ответа.\n\n"
+                "Поддерживаемые форматы:\n"
+                "• A. Первый вариант\n"
+                "• B Второй вариант\n"
+                "• Третий вариант\n\n"
+                "Попробуйте снова:"
+            )
+            return
+
+        # Парсим варианты ответов
+        options = {}
+        cyrillic_to_latin = {
+            'А': 'A', 'В': 'B', 'С': 'C', 'Д': 'D', 'Е': 'E', 'Ф': 'F', 'Г': 'G', 'Х': 'H', 'И': 'I', 'Й': 'J',
+            'а': 'a', 'в': 'b', 'с': 'c', 'д': 'd', 'е': 'e', 'ф': 'f', 'г': 'g', 'х': 'h', 'и': 'i', 'й': 'j'
+        }
+        valid_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
+
+        for line in lines[:10]:
+            line = line.strip()
+            if not line:
+                continue
+
+            if "." in line:
+                parts = line.split(".", 1)
+                if len(parts) == 2:
+                    letter = parts[0].strip().upper()
+                    text = parts[1].strip()
+                else:
+                    continue
+            else:
+                if len(line) > 2 and line[1] == ' ':
+                    letter = line[0].upper()
+                    text = line[2:].strip()
+                else:
+                    used_letters = set(options.keys())
+                    letter = None
+                    for available_letter in valid_letters:
+                        if available_letter not in used_letters:
+                            letter = available_letter
+                            break
+
+                    if letter is None:
+                        continue
+
+                    text = line
+
+            if letter in cyrillic_to_latin:
+                letter = cyrillic_to_latin[letter]
+
+            if letter in valid_letters and text:
+                options[letter] = text
+
+        if len(options) < 2:
+            await message.answer(
+                "❌ Необходимо ввести минимум 2 варианта ответа. Попробуйте снова:"
+            )
+            return
+
+        # Обновляем текущий вопрос
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        current_question["options"] = options
+        await state.update_data(current_question=current_question)
+
+        # Показываем варианты с возможностью редактирования
+        options_text = ""
+        for letter, text in sorted(options.items()):
+            options_text += f"{letter}. {text}\n"
+
+        from manager.keyboards.homework import get_step_edit_kb
+        await message.answer(
+            f"📝 Варианты ответов:\n{options_text}\n✅ Варианты изменены! Хотите изменить еще раз или продолжить?",
+            reply_markup=get_step_edit_kb("answer_options", True)
+        )
+        # Возвращаемся к состоянию показа вариантов с кнопками редактирования
+        await state.set_state(states_group.enter_answer_options)
+
+    # Обработчики редактирования фото
+    @router.callback_query(F.data.startswith("edit_question_photo_"))
+    async def handle_edit_photo(callback: CallbackQuery, state: FSMContext):
+        question_num = int(callback.data.split("_")[-1])
+        await edit_photo(callback, state, states_group, question_num)
+
+    @router.message(StateFilter(states_group.edit_question_photo))
+    async def handle_process_edit_photo(message: Message, state: FSMContext):
+        if not message.photo:
+            await message.answer("❌ Пожалуйста, отправьте фото.")
+            return
+
+        photo = message.photo[-1]
+        file_id = photo.file_id
+
+        # Обновляем текущий вопрос
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        current_question["photo_id"] = file_id
+        await state.update_data(current_question=current_question)
+
+        from manager.keyboards.homework import get_step_edit_kb
+        await message.answer_photo(
+            photo=file_id,
+            caption="📷 Фото изменено! Хотите изменить еще раз или продолжить?",
+            reply_markup=get_step_edit_kb("photo", True)
+        )
+        # Возвращаемся к состоянию показа фото с кнопками редактирования
+        await state.set_state(states_group.add_question_photo)
+
+    # Обработчики управления фото
+    @router.callback_query(F.data == "edit_photo")
+    async def handle_request_new_photo(callback: CallbackQuery, state: FSMContext):
+        # Проверяем, есть ли фото в сообщении
+        if callback.message.photo:
+            # Если есть фото, редактируем подпись
+            await callback.message.edit_caption(
+                caption="📷 Отправьте новое фото:"
+            )
+        else:
+            # Если нет фото, редактируем текст
+            await callback.message.edit_text("📷 Отправьте новое фото:")
+
+        await state.set_state(states_group.edit_question_photo)
+
+    @router.callback_query(F.data == "remove_photo")
+    async def handle_remove_photo(callback: CallbackQuery, state: FSMContext):
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+
+        if "photo_id" in current_question:
+            del current_question["photo_id"]
+            await state.update_data(current_question=current_question)
+
+            # Отправляем новое сообщение без фото
+            from manager.keyboards.homework import get_step_edit_kb
+            await callback.message.answer(
+                "✅ Фото удалено! Хотите добавить фото или продолжить?",
+                reply_markup=get_step_edit_kb("photo", False)
+            )
+            # Удаляем старое сообщение с фото
+            await callback.message.delete()
+        else:
+            await callback.answer("❌ У этого вопроса нет фото")
+
+    @router.callback_query(F.data == "continue_without_edit")
+    async def handle_continue_without_edit(callback: CallbackQuery, state: FSMContext):
+        await show_test_summary_with_edit(callback, state)
+
+    # Обработчик показа сводки с редактированием
+    @router.callback_query(F.data == "edit_summary")
+    async def handle_show_summary_edit(callback: CallbackQuery, state: FSMContext):
+        await show_test_summary_with_edit(callback, state)
+
+    # Обработчики продолжения для каждого шага
+    @router.callback_query(F.data == "continue_test_name")
+    async def handle_continue_test_name(callback: CallbackQuery, state: FSMContext):
+        await callback.message.edit_text("Введите текст первого вопроса:")
+        await state.set_state(states_group.enter_question_text)
+
+    @router.callback_query(F.data == "continue_question_text")
+    async def handle_continue_question_text(callback: CallbackQuery, state: FSMContext):
+        await callback.message.edit_text(
+            "Отправьте фото для этого вопроса (если нужно) или нажмите 'Пропустить':",
+            reply_markup=get_photo_skip_kb()
+        )
+        await state.set_state(states_group.add_question_photo)
+
+    @router.callback_query(F.data == "continue_photo")
+    async def handle_continue_photo(callback: CallbackQuery, state: FSMContext):
+        # Проверяем, есть ли фото в сообщении
+        if callback.message.photo:
+            # Если есть фото, отправляем новое сообщение
+            await callback.message.answer("Введите номер микротемы:")
+        else:
+            # Если нет фото, редактируем текст
+            await callback.message.edit_text("Введите номер микротемы:")
+        await state.set_state(states_group.request_topic)
+
+    @router.callback_query(F.data == "continue_answer_options")
+    async def handle_continue_answer_options(callback: CallbackQuery, state: FSMContext):
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        options = current_question.get("options", {})
+
+        await callback.message.edit_text(
+            "Выберите правильный вариант ответа:",
+            reply_markup=get_correct_answer_kb(options)
+        )
+        await state.set_state(states_group.select_correct_answer)
+
+    @router.callback_query(F.data == "continue_summary")
+    async def handle_continue_summary(callback: CallbackQuery, state: FSMContext):
+        await confirm_test(callback, state)
+
+    # Обработчики редактирования для каждого шага (без фильтра состояния)
+    @router.callback_query(F.data == "edit_test_name")
+    async def handle_edit_test_name_step(callback: CallbackQuery, state: FSMContext):
+        user_data = await state.get_data()
+        current_name = user_data.get("test_name", "")
+
+        await callback.message.edit_text(
+            f"📝 Текущее название ДЗ: {current_name}\n\n"
+            "Введите новое название домашнего задания:"
+        )
+        await state.set_state(states_group.edit_test_name)
+
+    @router.callback_query(F.data == "edit_question_text")
+    async def handle_edit_question_text_step(callback: CallbackQuery, state: FSMContext):
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        current_text = current_question.get("text", "")
+
+        await callback.message.edit_text(
+            f"📝 Текущий текст вопроса:\n\n{current_text}\n\n"
+            "Введите новый текст вопроса:"
+        )
+        await state.set_state(states_group.edit_question_text)
+
+    @router.callback_query(F.data == "edit_photo")
+    async def handle_edit_photo_step(callback: CallbackQuery, state: FSMContext):
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        has_photo = "photo_id" in current_question
+
+        if has_photo:
+            # Если есть фото в сообщении, редактируем подпись
+            if callback.message.photo:
+                await callback.message.edit_caption(
+                    caption="📷 Отправьте новое фото или удалите текущее:",
+                    reply_markup=get_photo_edit_kb()
+                )
+            else:
+                await callback.message.edit_text(
+                    "📷 Отправьте новое фото или удалите текущее:",
+                    reply_markup=get_photo_edit_kb()
+                )
+        else:
+            await callback.message.edit_text("📷 Отправьте фото для вопроса:")
+        await state.set_state(states_group.edit_question_photo)
+
+    @router.callback_query(F.data == "edit_answer_options")
+    async def handle_edit_answer_options_step(callback: CallbackQuery, state: FSMContext):
+        user_data = await state.get_data()
+        current_question = user_data.get("current_question", {})
+        current_options = current_question.get("options", {})
+
+        options_text = ""
+        for letter, text in sorted(current_options.items()):
+            options_text += f"{letter}. {text}\n"
+
+        await callback.message.edit_text(
+            f"📝 Текущие варианты ответов:\n\n{options_text}\n"
+            "Введите новые варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+            "Поддерживаемые форматы:\n"
+            "• A. Первый вариант\n"
+            "• B Второй вариант\n"
+            "• Третий вариант\n"
+            "• Четвертый вариант"
+        )
+        await state.set_state(states_group.edit_answer_options)
 

@@ -27,13 +27,13 @@ def register_test_handlers(router: Router, states_group, role: str):
     async def role_start_adding_questions(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
         await start_adding_questions(message, state)
-        await state.set_state(states_group.enter_question_text)
+        # Не переключаем состояние здесь - это делается в кнопке "Продолжить"
 
     @router.message(states_group.enter_question_text)
     async def role_add_question_photo(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
         await add_question_photo(message, state)
-        await state.set_state(states_group.add_question_photo)
+        # Не переключаем состояние здесь - это делается в кнопке "Продолжить"
 
     @router.callback_query(states_group.add_question_photo, F.data == "skip_photo")
     async def skip_photo(callback: CallbackQuery, state: FSMContext):

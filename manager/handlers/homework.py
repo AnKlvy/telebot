@@ -37,6 +37,18 @@ class AddHomeworkStates(StatesGroup):
     process_photo = State()
     skip_photo = State()
 
+    # Состояния для редактирования
+    edit_course = State()
+    edit_subject = State()
+    edit_lesson = State()
+    edit_test_name = State()
+    edit_question_text = State()
+    edit_question_photo = State()
+    edit_answer_options = State()
+    edit_correct_answer = State()
+    edit_time_limit = State()
+    edit_topic = State()
+
 # Настройка логгера
 logger = logging.getLogger(__name__)
 
@@ -125,6 +137,10 @@ async def select_lesson(callback: CallbackQuery, state: FSMContext):
 
 register_test_handlers(router, AddHomeworkStates, "manager")
 
+# Регистрируем обработчики редактирования
+from common.manager_tests.handlers import register_edit_handlers
+register_edit_handlers(router, AddHomeworkStates)
+
 @router.callback_query(AddHomeworkStates.confirm_test, F.data == "confirm_test")
 async def save_homework(callback: CallbackQuery, state: FSMContext):
     """Сохранение ДЗ в базу данных"""
@@ -144,12 +160,9 @@ async def save_homework(callback: CallbackQuery, state: FSMContext):
 async def edit_homework(callback: CallbackQuery, state: FSMContext):
     """Редактирование ДЗ"""
     logger.info("Вызван обработчик edit_homework")
-    # Возвращаемся к началу процесса
-    await callback.message.edit_text(
-        "Выберите курс для добавления домашнего задания:",
-        reply_markup=get_courses_kb()
-    )
-    await state.set_state(AddHomeworkStates.select_course)
+    # Показываем сводку с возможностью редактирования
+    from common.manager_tests.handlers import show_test_summary_with_edit
+    await show_test_summary_with_edit(callback, state)
 
 @router.callback_query(AddHomeworkStates.confirm_test, F.data == "cancel_test")
 async def cancel_homework(callback: CallbackQuery, state: FSMContext):
