@@ -19,11 +19,22 @@ else
     exit 1
 fi
 
+# Отладочная информация
+echo "🔍 Отладка переменных окружения:"
+echo "   DOMAIN='$DOMAIN'"
+echo "   BOT_TOKEN='${BOT_TOKEN:0:10}...'"
+
 # Проверяем наличие домена
 if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "your-domain.com" ]; then
     echo "❌ Домен не настроен в переменных окружения"
+    echo "📝 Текущее значение DOMAIN: '$DOMAIN'"
     echo "📝 Отредактируйте файл: sudo nano /etc/edu_telebot/env"
-    echo "📝 Установите правильное значение для DOMAIN"
+    echo "📝 Установите правильное значение для DOMAIN (например: DOMAIN=edubot.schoolpro.kz)"
+    echo ""
+    echo "📋 Содержимое файла /etc/edu_telebot/env:"
+    if [ -f "/etc/edu_telebot/env" ]; then
+        grep "DOMAIN" /etc/edu_telebot/env || echo "   DOMAIN не найден в файле"
+    fi
     exit 1
 fi
 
@@ -197,10 +208,22 @@ install_dependencies() {
 install_acme() {
     echo "📦 Устанавливаем acme.sh..."
 
+    # Проверяем что домен задан
+    if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "your-domain.com" ]; then
+        echo "❌ Домен не настроен: '$DOMAIN'"
+        return 1
+    fi
+
+    echo "📧 Используем email: admin@$DOMAIN"
+
     if [ -d "$HOME/.acme.sh" ]; then
         echo "✅ acme.sh уже установлен"
         # Добавляем в PATH для текущей сессии
         export PATH="$HOME/.acme.sh:$PATH"
+
+        # Проверяем и настраиваем Let's Encrypt
+        echo "🔧 Настраиваем Let's Encrypt..."
+        $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt 2>/dev/null || true
         return 0
     fi
 
@@ -216,9 +239,7 @@ install_acme() {
             echo "🔧 Настраиваем Let's Encrypt как сервер по умолчанию..."
             $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
 
-            # Регистрируем аккаунт с правильным email
-            echo "📧 Регистрируем аккаунт Let's Encrypt..."
-            $HOME/.acme.sh/acme.sh --register-account -m admin@$DOMAIN --server letsencrypt
+            echo "✅ acme.sh настроен с Let's Encrypt"
 
             return 0
         else
