@@ -35,7 +35,7 @@ async def show_subjects(callback: CallbackQuery, state: FSMContext):
         reply_markup=await get_subjects_kb()
     )
 
-@router.callback_query(TopicCallback.filter(F.action == TopicActions.VIEW))
+@router.callback_query(StateFilter(ManagerTopicStates.main), TopicCallback.filter(F.action == TopicActions.VIEW))
 async def show_topics(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Показываем список микротем для выбранного предмета"""
     subject_id = int(callback_data.subject)
@@ -60,7 +60,7 @@ async def show_topics(callback: CallbackQuery, callback_data: TopicCallback, sta
         reply_markup=await get_topics_list_kb(subject.name, microtopics)
     )
 
-@router.callback_query(TopicCallback.filter(F.action == TopicActions.ADD))
+@router.callback_query(StateFilter(ManagerTopicStates.topics_list), TopicCallback.filter(F.action == TopicActions.ADD))
 async def start_add_topic(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Начинаем процесс добавления микротемы"""
     subject_id = int(callback_data.subject)
@@ -109,7 +109,7 @@ async def process_topic_name(message: Message, state: FSMContext):
             reply_markup=get_home_kb()
         )
 
-@router.callback_query(TopicCallback.filter(F.action == TopicActions.DELETE))
+@router.callback_query(StateFilter(ManagerTopicStates.topics_list), TopicCallback.filter(F.action == TopicActions.DELETE))
 async def confirm_delete(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Запрашиваем подтверждение удаления микротемы"""
     microtopic_id = int(callback_data.topic)
@@ -136,7 +136,7 @@ async def confirm_delete(callback: CallbackQuery, callback_data: TopicCallback, 
         reply_markup=confirm_delete_topic_kb(str(microtopic.subject_id), str(microtopic_id))
     )
 
-@router.callback_query(TopicCallback.filter(F.action == TopicActions.CONFIRM_DELETE))
+@router.callback_query(StateFilter(ManagerTopicStates.confirm_deletion), TopicCallback.filter(F.action == TopicActions.CONFIRM_DELETE))
 async def delete_topic(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Удаляем микротему после подтверждения"""
     data = await state.get_data()
@@ -163,7 +163,7 @@ async def delete_topic(callback: CallbackQuery, callback_data: TopicCallback, st
             reply_markup=get_manager_main_menu_kb()
         )
 
-@router.callback_query(TopicCallback.filter(F.action == TopicActions.CANCEL))
+@router.callback_query(StateFilter(ManagerTopicStates.confirm_deletion), TopicCallback.filter(F.action == TopicActions.CANCEL))
 async def cancel_delete(callback: CallbackQuery, callback_data: TopicCallback, state: FSMContext):
     """Отменяем удаление микротемы"""
     data = await state.get_data()

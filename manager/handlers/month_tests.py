@@ -15,6 +15,7 @@ from manager.keyboards.month_tests import (
     get_delete_tests_list_kb
 )
 from manager.keyboards.main import get_manager_main_menu_kb
+from common.keyboards import get_home_kb
 
 router = Router()
 
@@ -59,31 +60,31 @@ async def start_create_test(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_courses_for_tests_kb()
     )
 
-@router.callback_query(ManagerMonthTestsStates.select_course, F.data.startswith("course_"))
+@router.callback_query(StateFilter(ManagerMonthTestsStates.select_course), F.data.startswith("course_"))
 async def select_course(callback: CallbackQuery, state: FSMContext):
     """Обрабатываем выбор курса"""
     course_id = int(callback.data.replace("course_", ""))
     course_name = courses_db.get(course_id, "Неизвестный курс")
-    
+
     await state.update_data(course_id=course_id, course_name=course_name)
     await state.set_state(ManagerMonthTestsStates.select_subject)
-    
+
     await callback.message.edit_text(
         text=f"Курс: {course_name}\nВыберите предмет:",
         reply_markup=get_subjects_for_tests_kb(course_id)
     )
 
-@router.callback_query(ManagerMonthTestsStates.select_subject, F.data.startswith("subject_"))
+@router.callback_query(StateFilter(ManagerMonthTestsStates.select_subject), F.data.startswith("subject_"))
 async def select_subject(callback: CallbackQuery, state: FSMContext):
     """Обрабатываем выбор предмета"""
     subject_name = callback.data.replace("subject_", "")
-    
+
     data = await state.get_data()
     course_name = data.get("course_name", "")
-    
+
     await state.update_data(subject_name=subject_name)
     await state.set_state(ManagerMonthTestsStates.enter_month_name)
-    
+
     await callback.message.edit_text(
         text=f"Курс: {course_name}\n"
              f"Предмет: {subject_name}\n\n"
@@ -95,11 +96,11 @@ async def select_subject(callback: CallbackQuery, state: FSMContext):
 async def process_month_name(message: Message, state: FSMContext):
     """Обрабатываем ввод названия месяца"""
     month_name = message.text.strip()
-    
+
     data = await state.get_data()
     course_name = data.get("course_name", "")
     subject_name = data.get("subject_name", "")
-    
+
     await state.update_data(month_name=month_name)
     await state.set_state(ManagerMonthTestsStates.enter_microtopics)
 
@@ -171,7 +172,7 @@ async def process_microtopics(message: Message, state: FSMContext):
         reply_markup=get_confirm_test_creation_kb()
     )
 
-@router.callback_query(F.data == "confirm_create_test")
+@router.callback_query(StateFilter(ManagerMonthTestsStates.confirm_creation), F.data == "confirm_create_test")
 async def confirm_create_test(callback: CallbackQuery, state: FSMContext):
     """Подтверждаем создание теста - привязываем микротемы к предмету"""
     data = await state.get_data()
@@ -211,7 +212,7 @@ async def confirm_create_test(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(ManagerMonthTestsStates.main)
 
-@router.callback_query(F.data == "cancel_create_test")
+@router.callback_query(StateFilter(ManagerMonthTestsStates.confirm_creation), F.data == "cancel_create_test")
 async def cancel_create_test(callback: CallbackQuery, state: FSMContext):
     """Отменяем создание теста"""
     await callback.message.edit_text(
@@ -250,20 +251,20 @@ async def start_delete_test(callback: CallbackQuery, state: FSMContext):
     """Начинаем удаление теста"""
     tests_list = list(created_tests.values())
 
-    await state.set_state(ManagerMonthTestsStates.confirm_deletion)
-
     if not tests_list:
         await callback.message.edit_text(
             text="🗑 Нет тестов для удаления",
             reply_markup=get_month_tests_menu_kb()
         )
+        await state.set_state(ManagerMonthTestsStates.main)
     else:
+        await state.set_state(ManagerMonthTestsStates.confirm_deletion)
         await callback.message.edit_text(
             text="🗑 Выберите тест для удаления:",
             reply_markup=get_delete_tests_list_kb(tests_list)
         )
 
-@router.callback_query(F.data.startswith("delete_test_"))
+@router.callback_query(StateFilter(ManagerMonthTestsStates.confirm_deletion), F.data.startswith("delete_test_"))
 async def confirm_delete_test(callback: CallbackQuery, state: FSMContext):
     """Подтверждение удаления теста"""
     test_id = callback.data.replace("delete_test_", "")
@@ -274,6 +275,7 @@ async def confirm_delete_test(callback: CallbackQuery, state: FSMContext):
             text="❌ Тест не найден",
             reply_markup=get_month_tests_menu_kb()
         )
+        await state.set_state(ManagerMonthTestsStates.main)
         return
 
     numbers_text = ", ".join([str(num) for num in sorted(test["microtopic_numbers"])])
@@ -288,7 +290,7 @@ async def confirm_delete_test(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_confirm_delete_test_kb(test_id)
     )
 
-@router.callback_query(F.data.startswith("confirm_delete_"))
+@router.callback_query(StateFilter(ManagerMonthTestsStates.confirm_deletion), F.data.startswith("confirm_delete_"))
 async def delete_test(callback: CallbackQuery, state: FSMContext):
     """Удаляем тест"""
     test_id = callback.data.replace("confirm_delete_", "")
@@ -308,7 +310,7 @@ async def delete_test(callback: CallbackQuery, state: FSMContext):
 
     await state.set_state(ManagerMonthTestsStates.main)
 
-@router.callback_query(F.data == "cancel_delete")
+@router.callback_query(StateFilter(ManagerMonthTestsStates.confirm_deletion), F.data == "cancel_delete")
 async def cancel_delete(callback: CallbackQuery, state: FSMContext):
     """Отменяем удаление"""
     await callback.message.edit_text(
