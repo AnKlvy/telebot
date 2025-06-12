@@ -205,12 +205,21 @@ install_acme() {
     fi
 
     echo "⬇️ Скачиваем и устанавливаем acme.sh..."
-    # Устанавливаем acme.sh с обработкой ошибок
-    if curl -s https://get.acme.sh | sh -s email=admin@$DOMAIN; then
+    # Устанавливаем acme.sh с Let's Encrypt по умолчанию
+    if curl -s https://get.acme.sh | sh -s email=admin@$DOMAIN --server letsencrypt; then
         if [ -d "$HOME/.acme.sh" ]; then
             echo "✅ acme.sh установлен успешно"
             # Добавляем в PATH
             export PATH="$HOME/.acme.sh:$PATH"
+
+            # Настраиваем Let's Encrypt как сервер по умолчанию
+            echo "🔧 Настраиваем Let's Encrypt как сервер по умолчанию..."
+            $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+
+            # Регистрируем аккаунт с правильным email
+            echo "📧 Регистрируем аккаунт Let's Encrypt..."
+            $HOME/.acme.sh/acme.sh --register-account -m admin@$DOMAIN --server letsencrypt
+
             return 0
         else
             echo "❌ acme.sh скачан, но директория не создана"
@@ -260,9 +269,13 @@ get_ssl_http() {
 
     echo "🌐 Запускаем процесс получения SSL сертификата..."
     echo "📍 Домен: $DOMAIN"
+    echo "🔧 Используем Let's Encrypt сервер..."
+
+    # Устанавливаем Let's Encrypt как сервер по умолчанию
+    $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
 
     # Получаем сертификат с подробным выводом
-    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --debug; then
+    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --standalone --httpport 80 --server letsencrypt --debug; then
         echo "✅ SSL сертификат получен успешно"
 
         # Создаем директорию для сертификатов
@@ -302,8 +315,11 @@ get_ssl_dns() {
     echo "🔐 Получаем SSL сертификат через DNS валидацию..."
     echo "⚠️ Для DNS валидации потребуется ручное добавление TXT записи"
 
+    # Устанавливаем Let's Encrypt как сервер по умолчанию
+    $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+
     # Запускаем процесс получения сертификата
-    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please; then
+    if $HOME/.acme.sh/acme.sh --issue -d $DOMAIN --dns --server letsencrypt --yes-I-know-dns-manual-mode-enough-go-ahead-please; then
         echo "✅ SSL сертификат получен через DNS"
 
         # Копируем сертификаты
