@@ -168,9 +168,19 @@ create_ssl_certs() {
     echo "🔍 Отладка: Проверяем acme.sh в $HOME/.acme.sh/"
     if [ -f "$HOME/.acme.sh/acme.sh" ]; then
         echo "✅ acme.sh найден"
+
+        # Очищаем старые аккаунты с неправильным email
+        echo "🧹 Очищаем кэш старых аккаунтов..."
+        rm -rf $HOME/.acme.sh/ca/
+
         echo "🔍 Выполняем: $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt"
         $HOME/.acme.sh/acme.sh --set-default-ca --server letsencrypt
         echo "🔍 Результат команды set-default-ca: $?"
+
+        # Регистрируем новый аккаунт с правильным email
+        echo "📝 Регистрируем новый аккаунт с правильным email..."
+        $HOME/.acme.sh/acme.sh --register-account --accountemail admin@yandex.ru --server letsencrypt
+        echo "🔍 Результат регистрации аккаунта: $?"
     else
         echo "❌ acme.sh не найден в $HOME/.acme.sh/"
         return 1
