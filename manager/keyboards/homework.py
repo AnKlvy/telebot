@@ -156,12 +156,12 @@ def get_confirm_homework_kb() -> InlineKeyboardMarkup:
                 callback_data="confirm_homework"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="🔄 Изменить", 
-                callback_data="edit_homework"
-            )
-        ],
+        # [
+        #     InlineKeyboardButton(
+        #         text="🔄 Изменить",
+        #         callback_data="edit_homework"
+        #     )
+        # ],
         [
             InlineKeyboardButton(
                 text="❌ Отменить", 

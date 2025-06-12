@@ -85,12 +85,12 @@ def get_confirm_test_kb() -> InlineKeyboardMarkup:
                 callback_data="confirm_test"
             )
         ],
-        [
-            InlineKeyboardButton(
-                text="🔄 Изменить", 
-                callback_data="edit_test"
-            )
-        ],
+        # [
+        #     InlineKeyboardButton(
+        #         text="🔄 Изменить",
+        #         callback_data="edit_test"
+        #     )
+        # ],
         [
             InlineKeyboardButton(
                 text="❌ Отменить", 
