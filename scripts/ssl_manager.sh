@@ -179,7 +179,7 @@ create_ssl_certs() {
 
         # Регистрируем новый аккаунт с правильным email
         echo "📝 Регистрируем новый аккаунт с правильным email..."
-        $HOME/.acme.sh/acme.sh --register-account --accountemail admin@yandex.ru --server letsencrypt
+        $HOME/.acme.sh/acme.sh --register-account --accountemail mkaribzanovs@gmail.com --server letsencrypt
         echo "🔍 Результат регистрации аккаунта: $?"
     else
         echo "❌ acme.sh не найден в $HOME/.acme.sh/"
