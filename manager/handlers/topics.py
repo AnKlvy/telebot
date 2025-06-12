@@ -78,34 +78,79 @@ async def start_add_topic(callback: CallbackQuery, callback_data: TopicCallback,
     await state.update_data(subject_id=subject_id, subject_name=subject.name)
 
     await callback.message.edit_text(
-        text=f"Предмет: {subject.name}\n\nВведите название новой микротемы:",
+        text=f"Предмет: {subject.name}\n\n"
+             f"📝 Введите названия микротем:\n"
+             f"• Одну микротему на строку\n"
+             f"• Можно ввести до 200 микротем за раз\n"
+             f"• Пустые строки будут пропущены\n\n"
+             f"Пример:\n"
+             f"Алканы\n"
+             f"Алкены\n"
+             f"Алкины",
         reply_markup=get_home_kb()
     )
 
 @router.message(StateFilter(ManagerTopicStates.adding_topic))
 async def process_topic_name(message: Message, state: FSMContext):
-    """Обрабатываем ввод названия микротемы"""
+    """Обрабатываем ввод названий микротем (одну или несколько построчно)"""
     data = await state.get_data()
     subject_id = data['subject_id']
     subject_name = data['subject_name']
-    new_topic = message.text.strip()
+
+    # Разбиваем текст на строки и очищаем от пустых
+    lines = [line.strip() for line in message.text.split('\n') if line.strip()]
+
+    if not lines:
+        await message.answer(
+            text="❌ Введите хотя бы одно название микротемы:",
+            reply_markup=get_home_kb()
+        )
+        return
+
+    # Проверяем лимит (примерно 200 строк в пределах 4096 символов)
+    if len(lines) > 200:
+        await message.answer(
+            text=f"❌ Слишком много микротем за раз (максимум 200, введено {len(lines)}).\n"
+                 f"Разделите на несколько сообщений:",
+            reply_markup=get_home_kb()
+        )
+        return
 
     try:
-        # Создаем микротему в базе данных
-        microtopic = await MicrotopicRepository.create(new_topic, subject_id)
+        if len(lines) == 1:
+            # Одна микротема - используем старый метод
+            microtopic = await MicrotopicRepository.create(lines[0], subject_id)
+            created_count = 1
+            result_text = f"✅ Микротема добавлена в предмет {subject_name}:\n{microtopic.number}. {microtopic.name}"
+        else:
+            # Несколько микротем - используем массовое создание
+            created_microtopics = await MicrotopicRepository.create_multiple(lines, subject_id)
+            created_count = len(created_microtopics)
+
+            if created_count == len(lines):
+                result_text = f"✅ Добавлено {created_count} микротем в предмет {subject_name}:\n"
+                for mt in created_microtopics:
+                    result_text += f"{mt.number}. {mt.name}\n"
+            else:
+                skipped = len(lines) - created_count
+                result_text = f"✅ Добавлено {created_count} микротем в предмет {subject_name}:\n"
+                for mt in created_microtopics:
+                    result_text += f"{mt.number}. {mt.name}\n"
+                result_text += f"⚠️ Пропущено пустых строк: {skipped}"
 
         # Получаем обновленный список микротем
         microtopics = await MicrotopicRepository.get_by_subject(subject_id)
 
         await state.set_state(ManagerTopicStates.topics_list)
         await message.answer(
-            text=f"✅ Микротема \"{new_topic}\" добавлена в предмет {subject_name}",
+            text=result_text,
             reply_markup=await get_topics_list_kb(subject_name, microtopics)
         )
+
     except ValueError as e:
-        # Микротема уже существует
+        # Ошибка при создании
         await message.answer(
-            text=f"❌ {str(e)}\n\nВведите другое название:",
+            text=f"❌ {str(e)}\n\nПопробуйте еще раз:",
             reply_markup=get_home_kb()
         )
 
@@ -145,8 +190,8 @@ async def delete_topic(callback: CallbackQuery, callback_data: TopicCallback, st
     subject_id = data['subject_id']
     subject_name = data['subject_name']
 
-    # Удаляем микротему из базы данных
-    success = await MicrotopicRepository.delete(microtopic_id)
+    # Удаляем микротему из базы данных с перенумерацией
+    success = await MicrotopicRepository.delete(microtopic_id, renumber=True)
 
     if success:
         # Получаем обновленный список микротем

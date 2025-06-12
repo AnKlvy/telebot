@@ -22,14 +22,152 @@ from database import (
     LessonRepository,
     HomeworkRepository,
     QuestionRepository,
-    AnswerOptionRepository
+    AnswerOptionRepository,
+    get_db_session
 )
+from database.models import Microtopic, Subject
+from sqlalchemy import text, select
+from sqlalchemy.exc import IntegrityError
+
+
+async def migrate_microtopics():
+    """Миграция микротем: добавление поля number и автоматическая нумерация"""
+    print("🔄 Проверяем необходимость миграции микротем...")
+
+    # Проверяем, есть ли уже поле number
+    async with get_db_session() as session:
+        try:
+            await session.execute(text("SELECT number FROM microtopics LIMIT 1"))
+            print("✅ Поле 'number' уже существует в таблице microtopics")
+            return  # Миграция уже выполнена
+        except Exception:
+            print("📝 Поле 'number' не найдено, начинаем миграцию...")
+
+    # Добавляем поле number в отдельной транзакции
+    async with get_db_session() as session:
+        try:
+            print("📝 Добавляем поле 'number' в таблицу microtopics...")
+            await session.execute(text("ALTER TABLE microtopics ADD COLUMN number INTEGER"))
+            await session.commit()
+            print("✅ Поле 'number' добавлено")
+        except Exception as e:
+            print(f"⚠️ Ошибка при добавлении поля 'number': {e}")
+            await session.rollback()
+            return
+
+    # Выполняем нумерацию в отдельной транзакции
+    async with get_db_session() as session:
+        try:
+            # 3. Получаем все предметы
+            subjects_result = await session.execute(select(Subject))
+            subjects = subjects_result.scalars().all()
+
+            print(f"📊 Найдено предметов для миграции: {len(subjects)}")
+
+            # 4. Для каждого предмета нумеруем микротемы и обрабатываем дубликаты
+            for subject in subjects:
+                print(f"🔢 Обрабатываем предмет: {subject.name}")
+
+                # Получаем микротемы предмета, отсортированные по ID (порядок создания)
+                microtopics_result = await session.execute(
+                    select(Microtopic)
+                    .where(Microtopic.subject_id == subject.id)
+                    .order_by(Microtopic.id)
+                )
+                microtopics = microtopics_result.scalars().all()
+
+                # Обрабатываем дубликаты названий
+                seen_names = {}
+                renamed_count = 0
+
+                for microtopic in microtopics:
+                    original_name = microtopic.name
+
+                    # Если название уже встречалось, добавляем номер
+                    if original_name in seen_names:
+                        seen_names[original_name] += 1
+                        new_name = f"{original_name} ({seen_names[original_name]})"
+                        microtopic.name = new_name
+                        renamed_count += 1
+                        print(f"  🔄 Переименована: '{original_name}' → '{new_name}'")
+                    else:
+                        seen_names[original_name] = 1
+
+                # Присваиваем номера
+                for i, microtopic in enumerate(microtopics, 1):
+                    if microtopic.number is None:  # Только если номер еще не присвоен
+                        microtopic.number = i
+                        print(f"  📌 Микротема '{microtopic.name}' → номер {i}")
+
+                await session.commit()
+
+                if renamed_count > 0:
+                    print(f"🔄 Переименовано дубликатов: {renamed_count}")
+                print(f"✅ Обработано микротем для предмета '{subject.name}': {len(microtopics)}")
+
+            print("🎉 Нумерация микротем завершена успешно!")
+
+        except Exception as e:
+            print(f"❌ Ошибка при нумерации микротем: {e}")
+            await session.rollback()
+            raise
+
+    # Обновляем ограничения в отдельной транзакции
+    async with get_db_session() as session:
+        try:
+            # 5. Удаляем старое ограничение уникальности (если существует)
+            try:
+                await session.execute(text("ALTER TABLE microtopics DROP CONSTRAINT unique_microtopic_per_subject"))
+                await session.commit()
+                print("🗑️ Удалено старое ограничение уникальности")
+            except Exception:
+                print("ℹ️ Старое ограничение уникальности не найдено")
+
+            # 6. Добавляем новое ограничение уникальности по номеру
+            try:
+                await session.execute(text(
+                    "ALTER TABLE microtopics ADD CONSTRAINT unique_microtopic_number_per_subject "
+                    "UNIQUE (number, subject_id)"
+                ))
+                await session.commit()
+                print("✅ Добавлено новое ограничение уникальности по номеру")
+            except IntegrityError:
+                print("ℹ️ Ограничение уникальности по номеру уже существует")
+
+            # 7. Добавляем ограничение уникальности по названию
+            try:
+                await session.execute(text(
+                    "ALTER TABLE microtopics ADD CONSTRAINT unique_microtopic_name_per_subject "
+                    "UNIQUE (name, subject_id)"
+                ))
+                await session.commit()
+                print("✅ Добавлено ограничение уникальности по названию")
+            except IntegrityError:
+                print("ℹ️ Ограничение уникальности по названию уже существует")
+
+            # 8. Делаем поле number обязательным
+            try:
+                await session.execute(text("ALTER TABLE microtopics ALTER COLUMN number SET NOT NULL"))
+                await session.commit()
+                print("✅ Поле 'number' сделано обязательным")
+            except Exception as e:
+                print(f"⚠️ Не удалось сделать поле 'number' обязательным: {e}")
+
+            print("🎉 Миграция микротем завершена успешно!")
+
+        except Exception as e:
+            print(f"❌ Ошибка при обновлении ограничений: {e}")
+            await session.rollback()
+            raise
 
 
 async def add_initial_data():
     """Добавить начальные данные"""
     print("🚀 Инициализация базы данных...")
     await init_database()
+
+    # Выполняем миграцию микротем
+    await migrate_microtopics()
     
     print("📚 Добавление курсов...")
     # Получаем существующие курсы

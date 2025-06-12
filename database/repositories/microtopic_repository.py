@@ -2,7 +2,7 @@
 Репозиторий для работы с микротемами
 """
 from typing import List, Optional
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from ..models import Microtopic, Subject
@@ -19,7 +19,7 @@ class MicrotopicRepository:
             result = await session.execute(
                 select(Microtopic)
                 .options(selectinload(Microtopic.subject))
-                .order_by(Microtopic.subject_id, Microtopic.name)
+                .order_by(Microtopic.subject_id, Microtopic.number)
             )
             return list(result.scalars().all())
 
@@ -42,24 +42,36 @@ class MicrotopicRepository:
                 select(Microtopic)
                 .options(selectinload(Microtopic.subject))
                 .where(Microtopic.subject_id == subject_id)
-                .order_by(Microtopic.name)
+                .order_by(Microtopic.number)
             )
             return list(result.scalars().all())
 
     @staticmethod
-    async def create(name: str, subject_id: int) -> Microtopic:
-        """Создать новую микротему"""
+    async def get_next_number_for_subject(subject_id: int) -> int:
+        """Получить следующий номер для микротемы в рамках предмета"""
         async with get_db_session() as session:
-            # Проверяем, существует ли уже такая микротема для данного предмета
-            existing = await session.execute(
-                select(Microtopic).where(
-                    Microtopic.name == name,
-                    Microtopic.subject_id == subject_id
-                )
+            result = await session.execute(
+                select(func.max(Microtopic.number))
+                .where(Microtopic.subject_id == subject_id)
             )
-            if existing.scalar_one_or_none():
-                raise ValueError(f"Микротема '{name}' уже существует для данного предмета")
+            max_number = result.scalar()
+            return (max_number or 0) + 1
 
+    @staticmethod
+    async def get_by_number(subject_id: int, number: int) -> Optional[Microtopic]:
+        """Получить микротему по номеру в рамках предмета"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Microtopic)
+                .options(selectinload(Microtopic.subject))
+                .where(Microtopic.subject_id == subject_id, Microtopic.number == number)
+            )
+            return result.scalar_one_or_none()
+
+    @staticmethod
+    async def create(name: str, subject_id: int) -> Microtopic:
+        """Создать новую микротему с автоматическим присвоением номера"""
+        async with get_db_session() as session:
             # Проверяем, существует ли предмет
             subject_exists = await session.execute(
                 select(Subject).where(Subject.id == subject_id)
@@ -67,11 +79,94 @@ class MicrotopicRepository:
             if not subject_exists.scalar_one_or_none():
                 raise ValueError(f"Предмет с ID {subject_id} не найден")
 
-            microtopic = Microtopic(name=name, subject_id=subject_id)
+            # Проверяем уникальность названия в рамках предмета
+            existing_name = await session.execute(
+                select(Microtopic).where(
+                    Microtopic.name == name,
+                    Microtopic.subject_id == subject_id
+                )
+            )
+            if existing_name.scalar_one_or_none():
+                raise ValueError(f"Микротема с названием '{name}' уже существует для данного предмета")
+
+            # Получаем следующий номер для данного предмета в той же сессии
+            result = await session.execute(
+                select(func.max(Microtopic.number))
+                .where(Microtopic.subject_id == subject_id)
+            )
+            max_number = result.scalar()
+            next_number = (max_number or 0) + 1
+
+            microtopic = Microtopic(name=name, subject_id=subject_id, number=next_number)
             session.add(microtopic)
             await session.commit()
             await session.refresh(microtopic)
             return microtopic
+
+    @staticmethod
+    async def create_multiple(names: List[str], subject_id: int) -> List[Microtopic]:
+        """Создать несколько микротем одновременно с автоматическим присвоением номеров"""
+        async with get_db_session() as session:
+            # Проверяем, существует ли предмет
+            subject_exists = await session.execute(
+                select(Subject).where(Subject.id == subject_id)
+            )
+            if not subject_exists.scalar_one_or_none():
+                raise ValueError(f"Предмет с ID {subject_id} не найден")
+
+            # Очищаем и проверяем уникальность названий
+            clean_names = []
+            for name in names:
+                if name.strip():
+                    clean_name = name.strip()
+
+                    # Проверяем уникальность названия в рамках предмета
+                    existing_name = await session.execute(
+                        select(Microtopic).where(
+                            Microtopic.name == clean_name,
+                            Microtopic.subject_id == subject_id
+                        )
+                    )
+                    if existing_name.scalar_one_or_none():
+                        raise ValueError(f"Микротема с названием '{clean_name}' уже существует для данного предмета")
+
+                    # Проверяем дубликаты в текущем списке
+                    if clean_name in clean_names:
+                        raise ValueError(f"Дублирующееся название в списке: '{clean_name}'")
+
+                    clean_names.append(clean_name)
+
+            if not clean_names:
+                raise ValueError("Не найдено ни одного валидного названия микротемы")
+
+            # Получаем следующий номер для данного предмета в той же сессии
+            result = await session.execute(
+                select(func.max(Microtopic.number))
+                .where(Microtopic.subject_id == subject_id)
+            )
+            max_number = result.scalar()
+            next_number = (max_number or 0) + 1
+
+            # Создаем микротемы
+            microtopics = []
+            current_number = next_number
+            for name in clean_names:
+                microtopic = Microtopic(
+                    name=name,
+                    subject_id=subject_id,
+                    number=current_number
+                )
+                session.add(microtopic)
+                microtopics.append(microtopic)
+                current_number += 1
+
+            await session.commit()
+
+            # Обновляем объекты для получения ID
+            for microtopic in microtopics:
+                await session.refresh(microtopic)
+
+            return microtopics
 
     @staticmethod
     async def update(microtopic_id: int, name: str = None) -> bool:
@@ -80,30 +175,58 @@ class MicrotopicRepository:
             microtopic = await session.get(Microtopic, microtopic_id)
             if not microtopic:
                 return False
-            
+
             if name is not None:
-                # Проверяем уникальность нового названия для данного предмета
-                existing = await session.execute(
-                    select(Microtopic).where(
-                        Microtopic.name == name,
-                        Microtopic.subject_id == microtopic.subject_id,
-                        Microtopic.id != microtopic_id
-                    )
-                )
-                if existing.scalar_one_or_none():
-                    raise ValueError(f"Микротема '{name}' уже существует для данного предмета")
-                
                 microtopic.name = name
-                
+
             await session.commit()
             return True
 
     @staticmethod
-    async def delete(microtopic_id: int) -> bool:
-        """Удалить микротему"""
+    async def renumber_subject_microtopics(subject_id: int) -> int:
+        """Перенумеровать микротемы предмета по порядку (1, 2, 3...)"""
         async with get_db_session() as session:
+            # Получаем все микротемы предмета, отсортированные по текущему номеру
+            microtopics_result = await session.execute(
+                select(Microtopic)
+                .where(Microtopic.subject_id == subject_id)
+                .order_by(Microtopic.number)
+            )
+            microtopics = microtopics_result.scalars().all()
+
+            # Перенумеровываем
+            updated_count = 0
+            for i, microtopic in enumerate(microtopics, 1):
+                if microtopic.number != i:
+                    microtopic.number = i
+                    updated_count += 1
+
+            await session.commit()
+            return updated_count
+
+    @staticmethod
+    async def delete(microtopic_id: int, renumber: bool = True) -> bool:
+        """Удалить микротему с опциональной перенумерацией"""
+        async with get_db_session() as session:
+            # Сначала получаем информацию о микротеме для перенумерации
+            microtopic_result = await session.execute(
+                select(Microtopic).where(Microtopic.id == microtopic_id)
+            )
+            microtopic = microtopic_result.scalar_one_or_none()
+
+            if not microtopic:
+                return False
+
+            subject_id = microtopic.subject_id
+
+            # Удаляем микротему
             result = await session.execute(delete(Microtopic).where(Microtopic.id == microtopic_id))
             await session.commit()
+
+            # Перенумеровываем, если требуется
+            if renumber and result.rowcount > 0:
+                await MicrotopicRepository.renumber_subject_microtopics(subject_id)
+
             return result.rowcount > 0
 
     @staticmethod
@@ -115,12 +238,12 @@ class MicrotopicRepository:
             return result.rowcount
 
     @staticmethod
-    async def exists(name: str, subject_id: int) -> bool:
-        """Проверить, существует ли микротема с таким именем для данного предмета"""
+    async def exists_by_number(subject_id: int, number: int) -> bool:
+        """Проверить, существует ли микротема с таким номером для данного предмета"""
         async with get_db_session() as session:
             result = await session.execute(
                 select(Microtopic).where(
-                    Microtopic.name == name,
+                    Microtopic.number == number,
                     Microtopic.subject_id == subject_id
                 )
             )

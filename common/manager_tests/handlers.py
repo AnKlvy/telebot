@@ -146,9 +146,9 @@ async def process_topic(message: Message, state: FSMContext, states_group):
     try:
         topic_number = int(message.text.strip())
 
-        # Проверяем диапазон номера микротемы
-        if topic_number < 1 or topic_number > 50:
-            await message.answer("❌ Номер микротемы должен быть от 1 до 50. Попробуйте еще раз:")
+        # Проверяем диапазон номера микротемы (убираем ограничение в 50)
+        if topic_number < 1:
+            await message.answer("❌ Номер микротемы должен быть больше 0. Попробуйте еще раз:")
             return
 
         # Получаем данные о предмете для проверки микротемы
@@ -170,16 +170,15 @@ async def process_topic(message: Message, state: FSMContext, states_group):
 
         microtopics = await MicrotopicRepository.get_by_subject(subject_id)
 
-        # Ищем микротему по номеру (предполагаем, что номер в названии)
-        microtopic_id = None
-        microtopic_name = None
+        # Ищем микротему по номеру в поле number
+        microtopic = await MicrotopicRepository.get_by_number(subject_id, topic_number)
 
-        for microtopic in microtopics:
-            # Проверяем, содержит ли название микротемы номер
-            if str(topic_number) in microtopic.name or microtopic.name.startswith(f"{topic_number}.") or microtopic.name.startswith(f"Микротема {topic_number}"):
-                microtopic_id = microtopic.id
-                microtopic_name = microtopic.name
-                break
+        if microtopic:
+            microtopic_id = microtopic.id
+            microtopic_name = microtopic.name
+        else:
+            microtopic_id = None
+            microtopic_name = None
 
         # Если микротема не найдена, требуем ввести заново
         if not microtopic_id:
@@ -190,17 +189,7 @@ async def process_topic(message: Message, state: FSMContext, states_group):
             if microtopics:
                 available_topics = "\n📋 Доступные микротемы:\n"
                 for mt in microtopics[:10]:  # Показываем первые 10
-                    # Пытаемся извлечь номер из названия
-                    topic_num = "?"
-                    if mt.name.startswith(f"{topic_number}."):
-                        topic_num = str(topic_number)
-                    elif any(char.isdigit() for char in mt.name):
-                        # Ищем первую цифру в названии
-                        for char in mt.name:
-                            if char.isdigit():
-                                topic_num = char
-                                break
-                    available_topics += f"   {topic_num}. {mt.name}\n"
+                    available_topics += f"   {mt.number}. {mt.name}\n"
 
                 if len(microtopics) > 10:
                     available_topics += f"   ... и еще {len(microtopics) - 10} микротем\n"
@@ -239,7 +228,7 @@ async def process_topic(message: Message, state: FSMContext, states_group):
             await state.set_state(states_group.enter_answer_options)
 
     except ValueError:
-        await message.answer("❌ Пожалуйста, введите корректное число для номера микротемы (от 1 до 50):")
+        await message.answer("❌ Пожалуйста, введите корректное число для номера микротемы:")
     except Exception as e:
         logger.error(f"Ошибка при обработке микротемы: {e}")
         await message.answer("❌ Произошла ошибка при обработке микротемы. Попробуйте еще раз:")
@@ -248,7 +237,7 @@ async def process_topic(message: Message, state: FSMContext, states_group):
 async def handle_microtopic_retry(callback: CallbackQuery, state: FSMContext):
     """Обработка повторного ввода номера микротемы"""
     await callback.message.edit_text(
-        "Введите номер микротемы (от 1 до 50):"
+        "Введите номер микротемы:"
     )
     await callback.answer()
 
@@ -299,14 +288,14 @@ async def process_new_microtopic_name(message: Message, state: FSMContext):
         # Импортируем репозиторий
         from database import MicrotopicRepository
 
-        # Создаем новую микротему
+        # Создаем новую микротему (номер присваивается автоматически)
         new_microtopic = await MicrotopicRepository.create(
-            name=f"{topic_number}. {microtopic_name}",
+            name=microtopic_name,
             subject_id=subject_id
         )
 
         await message.answer(
-            f"✅ Микротема создана: {new_microtopic.name}\n\n"
+            f"✅ Микротема создана: {new_microtopic.number}. {new_microtopic.name}\n\n"
             "Теперь введите номер микротемы снова:"
         )
 
