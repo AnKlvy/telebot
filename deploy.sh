@@ -258,7 +258,7 @@ install_acme() {
     fi
 
     # Устанавливаем acme.sh
-    curl https://get.acme.sh | sh -s email=admin@localhost
+    curl https://get.acme.sh | sh -s email=admin@edubot.schoolpro.kz
 
     if [ -d "$HOME/.acme.sh" ]; then
         echo "✅ acme.sh установлен успешно"
