@@ -37,11 +37,29 @@ async def on_startup(bot: Bot) -> None:
     
     if WEBHOOK_MODE:
         # Устанавливаем webhook
+        logging.info(f"🔗 Начинаем установку webhook...")
+        logging.info(f"🌐 WEBHOOK_URL: {WEBHOOK_URL}")
+        logging.info(f"🔧 WEBHOOK_MODE: {WEBHOOK_MODE}")
+
+        # Проверяем DNS перед установкой webhook
+        import socket
         try:
+            domain = WEBHOOK_URL.replace('https://', '').replace('http://', '').split('/')[0]
+            logging.info(f"🔍 Проверяем DNS для домена: {domain}")
+            ip = socket.gethostbyname(domain)
+            logging.info(f"✅ DNS резолвинг успешен: {domain} -> {ip}")
+        except Exception as dns_error:
+            logging.error(f"❌ DNS ошибка для {domain}: {dns_error}")
+            logging.error("🔧 Проверьте настройки DNS в docker-compose.yml")
+
+        try:
+            logging.info(f"📡 Отправляем запрос на установку webhook: {WEBHOOK_URL}")
             await bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
-            logging.info(f"✅ Webhook установлен: {WEBHOOK_URL}")
+            logging.info(f"✅ Webhook установлен успешно: {WEBHOOK_URL}")
         except Exception as e:
             logging.error(f"❌ Ошибка установки webhook: {e}")
+            logging.error(f"🔧 URL: {WEBHOOK_URL}")
+            logging.error(f"🔧 Тип ошибки: {type(e).__name__}")
             raise
     else:
         # Удаляем webhook для polling режима
