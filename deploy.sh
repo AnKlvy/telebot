@@ -625,10 +625,10 @@ case $REPLY in
         BUILD_OPTION=""
         ;;
     2)
-        echo "🗑️ Полная пересборка - удаляем все образы..."
-        $DOCKER_COMPOSE_CMD down --rmi all --volumes --remove-orphans
-        echo "🧹 Очищаем Docker кеш..."
-        $DOCKER_CMD system prune -f
+        echo "🗑️ Полная пересборка - удаляем ТОЛЬКО образы этого проекта..."
+        $DOCKER_COMPOSE_CMD down --rmi local --volumes --remove-orphans
+        echo "🧹 Очищаем ТОЛЬКО build cache этого проекта..."
+        $DOCKER_CMD builder prune -f
         BUILD_OPTION="--no-cache"
         ;;
     3)
