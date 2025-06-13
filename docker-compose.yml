@@ -22,6 +22,8 @@ services:
   nginx:
     image: nginx:alpine
     container_name: telebot_nginx
+    env_file:
+      - /etc/edu_telebot/env
     # Продакшен порты - не конфликтуют с основным nginx
     ports:
       - "80:80"   # HTTP доступ через :8080
@@ -30,11 +32,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf.template:ro
       - ./nginx/ssl:/etc/ssl:ro
       - ./logs/nginx:/var/log/nginx
-    environment:
-      - DOMAIN=${DOMAIN:-localhost}
     command: /bin/sh -c "envsubst '$$DOMAIN' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
-    env_file:
-      - /etc/edu_telebot/env
     depends_on:
       - bot
     restart: unless-stopped
