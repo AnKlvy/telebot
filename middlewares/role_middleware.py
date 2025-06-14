@@ -2,18 +2,27 @@ from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.sql.expression import text
+import asyncio
+import time
+import logging
+from utils.redis_manager import RedisManager
+from utils.config import REDIS_ENABLED
 
 # Глобальный кэш ролей (общий для всех экземпляров middleware)
 _global_role_cache = {}
 _global_cache_updated = False
 _database_available = None  # None = не проверено, True = доступна, False = недоступна
+_cache_lock = asyncio.Lock()  # Блокировка для безопасного обновления кэша
+_last_cache_update = 0  # Время последнего обновления кэша
+CACHE_TTL = 300  # Время жизни кэша в секундах (5 минут)
+REDIS_CACHE_KEY = "user_roles_cache"
 
 class RoleMiddleware(BaseMiddleware):
-    """Middleware для определения роли пользователя"""
+    """Middleware для определения роли пользователя с Redis кэшированием"""
 
     def __init__(self):
         # Используем глобальный кэш
-        pass
+        self.redis_manager = RedisManager() if REDIS_ENABLED else None
 
     async def _check_database_availability(self):
         """Проверить доступность базы данных"""
@@ -31,62 +40,119 @@ class RoleMiddleware(BaseMiddleware):
             _database_available = False
             return False
 
-    async def _update_role_cache(self):
-        """Обновить кэш ролей из базы данных"""
-        global _global_role_cache, _global_cache_updated, _database_available
+    async def _load_from_redis(self):
+        """Загрузить кэш ролей из Redis"""
+        global _global_role_cache, _global_cache_updated, _last_cache_update
 
-        # Проверяем доступность БД, если еще не проверяли
-        if _database_available is None:
-            if not await self._check_database_availability():
-                return
-
-        # Если БД недоступна, не пытаемся обновить кэш
-        if _database_available is False:
-            return
+        if not self.redis_manager or not self.redis_manager.connected:
+            return False
 
         try:
-            from database import get_db_session, User
-            from sqlalchemy import select
-
-            async with get_db_session() as session:
-                # Получаем всех пользователей
-                result = await session.execute(select(User))
-                all_users = result.scalars().all()
-
-                # Группируем по ролям
-                _global_role_cache = {
-                    'admin': [],
-                    'manager': [],
-                    'curator': [],
-                    'teacher': [],
-                    'student': []
-                }
-
-                for user in all_users:
-                    if user.role in _global_role_cache:
-                        _global_role_cache[user.role].append(user.telegram_id)
-
-                # Устанавливаем флаг только при успешном обновлении
+            import json
+            cached_data = await self.redis_manager.get(REDIS_CACHE_KEY)
+            if cached_data:
+                cache_info = json.loads(cached_data)
+                _global_role_cache = cache_info['roles']
                 _global_cache_updated = True
-
-                print(f"🔄 Кэш ролей обновлен:")
-                for role, ids in _global_role_cache.items():
-                    if ids:  # Показываем только непустые роли
-                        print(f"  {role}: {ids}")
-
+                _last_cache_update = cache_info['timestamp']
+                logging.info(f"✅ Роли загружены из Redis кэша ({len(sum(_global_role_cache.values(), []))} пользователей)")
+                return True
         except Exception as e:
-            print(f"❌ Ошибка обновления кэша ролей: {e}")
-            # Помечаем БД как недоступную
-            _database_available = False
-            # НЕ устанавливаем флаг при ошибке, чтобы попробовать снова позже
-            # Инициализируем пустой кэш при ошибке
-            _global_role_cache = {
-                'admin': [],
-                'manager': [],
-                'curator': [],
-                'teacher': [],
-                'student': []
+            logging.error(f"❌ Ошибка загрузки из Redis: {e}")
+
+        return False
+
+    async def _save_to_redis(self, roles_cache: dict):
+        """Сохранить кэш ролей в Redis"""
+        if not self.redis_manager or not self.redis_manager.connected:
+            return False
+
+        try:
+            import json
+            cache_data = {
+                'roles': roles_cache,
+                'timestamp': time.time()
             }
+            await self.redis_manager.set(REDIS_CACHE_KEY, json.dumps(cache_data), CACHE_TTL)
+            return True
+        except Exception as e:
+            logging.error(f"❌ Ошибка сохранения в Redis: {e}")
+            return False
+
+    async def _update_role_cache(self):
+        """Обновить кэш ролей из базы данных с Redis кэшированием"""
+        global _global_role_cache, _global_cache_updated, _database_available, _last_cache_update
+
+        current_time = time.time()
+
+        # Сначала пробуем загрузить из Redis
+        if await self._load_from_redis():
+            # Проверяем, не устарел ли кэш
+            if (current_time - _last_cache_update) < CACHE_TTL:
+                return  # Кэш актуален
+
+        # Используем блокировку для предотвращения одновременных обновлений
+        async with _cache_lock:
+            # Двойная проверка после получения блокировки
+            if _global_cache_updated and (current_time - _last_cache_update) < CACHE_TTL:
+                return
+
+            # Проверяем доступность БД
+            if _database_available is None:
+                if not await self._check_database_availability():
+                    return
+
+            if _database_available is False:
+                return
+
+            try:
+                from database import get_db_session, User
+                from sqlalchemy import select
+
+                async with get_db_session() as session:
+                    # Оптимизированный запрос - только нужные поля
+                    result = await session.execute(
+                        select(User.telegram_id, User.role).where(User.role.in_([
+                            'admin', 'manager', 'curator', 'teacher', 'student'
+                        ]))
+                    )
+                    users_data = result.all()
+
+                    # Группируем по ролям
+                    new_cache = {
+                        'admin': [],
+                        'manager': [],
+                        'curator': [],
+                        'teacher': [],
+                        'student': []
+                    }
+
+                    for telegram_id, role in users_data:
+                        if role in new_cache:
+                            new_cache[role].append(telegram_id)
+
+                    # Атомарное обновление кэша
+                    _global_role_cache = new_cache
+                    _global_cache_updated = True
+                    _last_cache_update = current_time
+
+                    # Сохраняем в Redis
+                    await self._save_to_redis(new_cache)
+
+                    logging.info(f"🔄 Кэш ролей обновлен из БД ({len(users_data)} пользователей)")
+
+            except Exception as e:
+                logging.error(f"❌ Ошибка обновления кэша ролей: {e}")
+                _database_available = False
+                # Инициализируем пустой кэш при ошибке
+                if not _global_role_cache:
+                    _global_role_cache = {
+                        'admin': [],
+                        'manager': [],
+                        'curator': [],
+                        'teacher': [],
+                        'student': []
+                    }
 
     async def __call__(
         self,
@@ -98,9 +164,10 @@ class RoleMiddleware(BaseMiddleware):
 
         user_id = event.from_user.id
 
-        # Обновляем кэш при первом запуске (только если БД доступна)
+        # Асинхронное обновление кэша (не блокируем запрос)
         if not _global_cache_updated and _database_available is not False:
-            await self._update_role_cache()
+            # Запускаем обновление в фоне, не ждем результата
+            asyncio.create_task(self._update_role_cache())
 
         # Определяем роль по ID из кэша
         role = "student"  # По умолчанию
@@ -109,19 +176,20 @@ class RoleMiddleware(BaseMiddleware):
         if (_database_available is False or
             not _global_role_cache or
             all(not users for users in _global_role_cache.values())):
-            # Хардкод для админа (замените на ваш ID)
+            # Хардкод для админа
             if user_id in [955518340, 5205775566]:  # Андрей Климов
                 role = "admin"
             else:
                 role = "student"
         else:
-            # Ищем роль в кэше
+            # Быстрый поиск роли в кэше
             for role_name, user_ids in _global_role_cache.items():
                 if user_id in user_ids:
                     role = role_name
                     break
 
-        print(f"🔍 MIDDLEWARE: User ID: {user_id} -> Role: {role} (DB: {_database_available})")
+        # Убираем синхронный print, заменяем на async logging только для отладки
+        # logging.debug(f"MIDDLEWARE: User {user_id} -> Role: {role}")
 
         # Добавляем роль в данные события
         data["user_role"] = role
@@ -133,19 +201,26 @@ class RoleMiddleware(BaseMiddleware):
 
 async def force_update_role_cache():
     """Принудительно обновить кэш ролей (для использования при добавлении новых пользователей)"""
-    global _global_role_cache, _global_cache_updated
+    global _global_role_cache, _global_cache_updated, _last_cache_update
 
     try:
         from database import get_db_session, User
         from sqlalchemy import select
 
+        # Создаем временный экземпляр для доступа к Redis методам
+        temp_middleware = RoleMiddleware()
+
         async with get_db_session() as session:
-            # Получаем всех пользователей
-            result = await session.execute(select(User))
-            all_users = result.scalars().all()
+            # Оптимизированный запрос - только нужные поля
+            result = await session.execute(
+                select(User.telegram_id, User.role).where(User.role.in_([
+                    'admin', 'manager', 'curator', 'teacher', 'student'
+                ]))
+            )
+            users_data = result.all()
 
             # Группируем по ролям
-            _global_role_cache = {
+            new_cache = {
                 'admin': [],
                 'manager': [],
                 'curator': [],
@@ -153,17 +228,22 @@ async def force_update_role_cache():
                 'student': []
             }
 
-            for user in all_users:
-                if user.role in _global_role_cache:
-                    _global_role_cache[user.role].append(user.telegram_id)
+            for telegram_id, role in users_data:
+                if role in new_cache:
+                    new_cache[role].append(telegram_id)
 
-            print(f"🔄 Кэш ролей принудительно обновлен:")
-            for role, ids in _global_role_cache.items():
-                if ids:  # Показываем только непустые роли
-                    print(f"  {role}: {ids}")
+            # Атомарное обновление кэша
+            _global_role_cache = new_cache
+            _global_cache_updated = True
+            _last_cache_update = time.time()
+
+            # Сохраняем в Redis
+            await temp_middleware._save_to_redis(new_cache)
+
+            logging.info(f"🔄 Кэш ролей принудительно обновлен ({len(users_data)} пользователей)")
 
     except Exception as e:
-        print(f"❌ Ошибка принудительного обновления кэша ролей: {e}")
+        logging.error(f"❌ Ошибка принудительного обновления кэша ролей: {e}")
         # Инициализируем пустой кэш при ошибке
         _global_role_cache = {
             'admin': [],
@@ -172,3 +252,20 @@ async def force_update_role_cache():
             'teacher': [],
             'student': []
         }
+
+async def clear_role_cache():
+    """Очистить кэш ролей (и в Redis тоже)"""
+    global _global_role_cache, _global_cache_updated
+
+    _global_role_cache = {}
+    _global_cache_updated = False
+
+    # Очищаем Redis
+    if REDIS_ENABLED:
+        try:
+            redis_manager = RedisManager()
+            if redis_manager.connected:
+                await redis_manager.delete(REDIS_CACHE_KEY)
+                logging.info("🗑️ Кэш ролей очищен из Redis")
+        except Exception as e:
+            logging.error(f"❌ Ошибка очистки Redis кэша: {e}")
