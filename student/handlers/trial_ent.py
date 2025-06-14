@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+import logging
 from ..keyboards.trial_ent import (
     get_trial_ent_start_kb,
     get_required_subjects_kb,
@@ -30,6 +31,8 @@ class TrialEntStates(StatesGroup):
 @router.callback_query(F.data == "trial_ent")
 async def show_trial_ent_menu(callback: CallbackQuery, state: FSMContext):
     """Показать меню пробного ЕНТ"""
+    # НЕ очищаем состояние здесь, чтобы сохранить результаты для аналитики
+
     await callback.message.edit_text(
         "Это симуляция ЕНТ: 130 баллов (за исключением грамотности чтения).\n"
         "Для начала выбери обязательные и профильные предметы",
@@ -40,6 +43,9 @@ async def show_trial_ent_menu(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TrialEntStates.main, F.data == "start_trial_ent")
 async def choose_required_subjects(callback: CallbackQuery, state: FSMContext):
     """Выбор обязательных предметов"""
+    # Очищаем все данные предыдущего теста при начале нового
+    await state.clear()
+
     await callback.message.edit_text(
         "Обязательные предметы:",
         reply_markup=get_required_subjects_kb()
@@ -150,10 +156,7 @@ async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
             all_questions.append(question)
             current_question_num += 1
     
-    # Создаем клавиатуру один раз
-    answers_keyboard = get_test_answers_kb()
-    
-    # Сохраняем информацию для последующего использования
+    # Сохраняем информацию для последующего использования (без клавиатуры)
     await state.update_data(
         test_started=True,
         total_questions=total_questions,
@@ -167,8 +170,7 @@ async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
         },
         correct_answers={subject: 0 for subject in all_subjects},
         all_subjects=all_subjects,
-        all_questions=all_questions,  # Сохраняем все вопросы
-        answers_keyboard=answers_keyboard  # Сохраняем клавиатуру
+        all_questions=all_questions  # Сохраняем все вопросы
     )
     
     # Показываем первый вопрос
@@ -194,7 +196,8 @@ async def show_question(callback: CallbackQuery, state: FSMContext, question_num
     user_data = await state.get_data()
     all_questions = user_data.get("all_questions", [])
     total_questions = user_data.get("total_questions", 0)
-    answers_keyboard = user_data.get("answers_keyboard", get_test_answers_kb())
+    # Создаем клавиатуру каждый раз заново (не сохраняем в состоянии)
+    answers_keyboard = get_test_answers_kb()
     
     if question_number > len(all_questions):
         # Если вопросы закончились, завершаем тест
@@ -281,18 +284,8 @@ async def end_trial_ent_early(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(lambda c: c.data == "confirm_end_test" and c.message.chat.id)
 async def confirm_end_test(callback: CallbackQuery, state: FSMContext):
     """Подтверждение завершения теста"""
-    # Получаем данные о тесте
-    data = await state.get_data()
-    
-    # Здесь можно добавить логику сохранения результатов
-    
-    # Показываем результаты теста
-    await callback.message.edit_text(
-        "Тест завершен досрочно.\n"
-        "Ваши результаты сохранены.",
-        reply_markup=get_after_trial_ent_kb()
-    )
-    await state.set_state(TrialEntStates.results)
+    # Вызываем finish_trial_ent для сохранения результатов и показа итогов
+    await finish_trial_ent(callback, state)
 
 @router.callback_query(lambda c: c.data == "continue_test" and c.message.chat.id)
 async def continue_test(callback: CallbackQuery, state: FSMContext):
@@ -368,26 +361,27 @@ async def show_subjects(callback: CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     required_subjects = user_data.get("required_subjects", [])
     profile_subjects = user_data.get("profile_subjects", [])
-    
+
     # Сохраняем текущее состояние, чтобы знать, куда возвращаться
     current_state = await state.get_state()
     await state.update_data(previous_analytics_state=current_state)
-    
+
     # Проверяем, есть ли результаты теста
     test_results = user_data.get("test_results", {})
-    
-    if not test_results and (not required_subjects or not profile_subjects):
-        # Если нет результатов и не выбраны предметы (пользователь не проходил тест)
+
+    # Проверяем, что есть завершенные результаты теста (не просто выбранные предметы)
+    if not test_results or "total_correct" not in test_results:
+        # Если нет завершенных результатов теста
         await callback.message.edit_text(
             "Для просмотра аналитики необходимо сначала пройти тест.",
             reply_markup=get_trial_ent_start_kb()
         )
         await state.set_state(TrialEntStates.main)
         return
-    
+
     # Формируем список всех предметов, по которым проходил тест
     all_subjects = required_subjects + profile_subjects
-    
+
     await callback.message.edit_text(
         "Выбери предмет",
         reply_markup=get_analytics_subjects_kb(all_subjects)
@@ -464,6 +458,8 @@ async def show_subject_analytics(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(TrialEntStates.results, F.data == "retry_trial_ent")
 async def retry_trial_ent(callback: CallbackQuery, state: FSMContext):
     """Пройти пробный ЕНТ еще раз"""
+    # Очищаем все данные предыдущего теста
+    await state.clear()
     await show_trial_ent_menu(callback, state)
 
 @router.callback_query(F.data == "back_to_trial_ent_results")
