@@ -2,6 +2,8 @@
 Управление жизненным циклом бота (startup/shutdown)
 """
 import logging
+import time
+from datetime import datetime, timedelta
 from aiogram import Bot
 from aiogram.types import BotCommand
 from database import init_database, close_database
@@ -99,7 +101,40 @@ async def on_shutdown(bot: Bot) -> None:
             logging.error(f"❌ Ошибка удаления webhook: {e}")
 
 
+# Глобальные переменные для отслеживания health check логов
+_last_health_log_time = 0
+_health_log_interval = 30 * 60  # 30 минут в секундах
+
 async def health_check(request):
-    """Healthcheck эндпоинт"""
+    """Healthcheck эндпоинт с умным логированием"""
     from aiohttp import web
-    return web.Response(text="OK")
+    global _last_health_log_time
+
+    current_time = time.time()
+    should_log = False
+    status_code = 200
+    response_text = "OK"
+
+    try:
+        # Проверяем состояние базы данных
+        from database import get_session
+        async with get_session() as session:
+            # Простой запрос для проверки соединения
+            await session.execute("SELECT 1")
+
+        # Всё в порядке - логируем раз в 30 минут
+        if current_time - _last_health_log_time >= _health_log_interval:
+            should_log = True
+            _last_health_log_time = current_time
+
+    except Exception as e:
+        # Проблемы с БД - всегда логируем
+        should_log = True
+        status_code = 503
+        response_text = f"Database Error: {str(e)}"
+        logging.error(f"❌ Health check failed: {e}")
+
+    if should_log and status_code == 200:
+        logging.info(f"✅ Health check OK (следующий лог через 30 минут)")
+
+    return web.Response(text=response_text, status=status_code)

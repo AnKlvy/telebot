@@ -60,7 +60,23 @@ def setup_logging():
     error_handler.setFormatter(logging.Formatter(log_format, datefmt=date_format))
     logger.addHandler(error_handler)
     
+    # Настраиваем фильтр для aiohttp.access логов
+    class HealthCheckFilter(logging.Filter):
+        """Фильтр для скрытия успешных health check запросов"""
+        def filter(self, record):
+            # Скрываем только успешные GET /health запросы (200 статус)
+            if hasattr(record, 'getMessage'):
+                message = record.getMessage()
+                if '/health' in message and ' 200 ' in message and 'GET' in message:
+                    return False
+            return True
+
+    # Применяем фильтр к aiohttp.access логгеру
+    aiohttp_logger = logging.getLogger('aiohttp.access')
+    aiohttp_logger.addFilter(HealthCheckFilter())
+
     # Логируем старт
     logging.info("🚀 Система логирования настроена")
     logging.info(f"📁 Логи сохраняются в: logs/bot_{today}.log")
-    logging.info(f"❌ Ошибки сохраняются в: logs/errors_{today}.log")
+    logging.info(f"📁 Ошибки сохраняются в: logs/errors_{today}.log")
+    logging.info("🔇 Health check логи фильтруются (раз в 30 минут)")
