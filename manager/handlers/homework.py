@@ -7,6 +7,7 @@ import os
 
 from common.keyboards import get_main_menu_back_button, get_home_and_back_kb
 from common.manager_tests.register_handlers import register_test_handlers
+from common.utils import check_if_id_in_callback_data
 from ..keyboards.homework import (
     get_courses_kb, get_subjects_kb, get_lessons_kb,
     get_time_limit_kb, get_correct_answer_kb, get_add_question_kb,
@@ -98,7 +99,7 @@ async def select_subject(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик select_subject")
 
     try:
-        course_id = int(callback.data.replace("course_", ""))
+        course_id = int(await check_if_id_in_callback_data("course_", callback, state, "course" ))
         course = await CourseRepository.get_by_id(course_id)
 
         if not course:
@@ -129,7 +130,7 @@ async def select_lesson(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик select_lesson")
 
     try:
-        subject_id = int(callback.data.replace("subject_", ""))
+        subject_id = int(await check_if_id_in_callback_data("subject_", callback, state, "subject" ))
         subject = await SubjectRepository.get_by_id(subject_id)
 
         if not subject:
@@ -165,7 +166,7 @@ async def select_homework_lesson(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик select_homework_lesson")
 
     try:
-        lesson_id = int(callback.data.replace("lesson_", ""))
+        lesson_id = int(await check_if_id_in_callback_data("lesson_", callback, state, "lesson" ))
         lesson = await LessonRepository.get_by_id(lesson_id)
 
         if not lesson:
@@ -332,8 +333,8 @@ async def select_subject_for_delete(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик select_subject_for_delete")
 
     try:
-        course_id = int(callback.data.replace("course_", ""))
-        course = await CourseRepository.get_by_id(course_id)
+        course_id = await check_if_id_in_callback_data("course_", callback, state, "subject")
+        course = await CourseRepository.get_by_id(int(course_id))
 
         if not course:
             await callback.message.edit_text(
@@ -346,7 +347,7 @@ async def select_subject_for_delete(callback: CallbackQuery, state: FSMContext):
 
         await callback.message.edit_text(
             f"Курс: {course.name}\n\nВыберите предмет:",
-            reply_markup=await get_subjects_kb(course_id)
+            reply_markup=await get_subjects_kb(int(course_id))
         )
     except Exception as e:
         logger.error(f"Ошибка при выборе курса для удаления: {e}")
@@ -361,8 +362,8 @@ async def select_lesson_for_delete(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик select_lesson_for_delete")
 
     try:
-        subject_id = int(callback.data.replace("subject_", ""))
-        subject = await SubjectRepository.get_by_id(subject_id)
+        subject_id = await check_if_id_in_callback_data("subject_", callback, state, "subject")
+        subject = await SubjectRepository.get_by_id(int(subject_id))
 
         if not subject:
             await callback.message.edit_text(
@@ -380,7 +381,7 @@ async def select_lesson_for_delete(callback: CallbackQuery, state: FSMContext):
             f"Курс: {course_name}\n"
             f"Предмет: {subject.name}\n\n"
             "Выберите урок:",
-            reply_markup=await get_lessons_kb(subject_id)
+            reply_markup=await get_lessons_kb(int(subject_id))
         )
     except Exception as e:
         logger.error(f"Ошибка при выборе предмета для удаления: {e}")
@@ -395,8 +396,8 @@ async def show_homeworks_to_delete(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик show_homeworks_to_delete")
 
     try:
-        lesson_id = int(callback.data.replace("lesson_", ""))
-        lesson = await LessonRepository.get_by_id(lesson_id)
+        lesson_id = await check_if_id_in_callback_data("lesson_", callback, state, "lesson")
+        lesson = await LessonRepository.get_by_id(int(lesson_id))
 
         if not lesson:
             await callback.message.edit_text(
@@ -416,7 +417,7 @@ async def show_homeworks_to_delete(callback: CallbackQuery, state: FSMContext):
             f"Предмет: {subject_name}\n"
             f"Урок: {lesson.name}\n\n"
             "Выберите домашнее задание для удаления:",
-            reply_markup=await get_homeworks_list_kb(lesson_id)
+            reply_markup=await get_homeworks_list_kb(int(lesson_id))
         )
         await state.set_state(AddHomeworkStates.select_test_to_delete)
     except Exception as e:
@@ -432,7 +433,7 @@ async def confirm_delete_homework(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик confirm_delete_homework")
 
     try:
-        homework_id = int(callback.data.replace("delete_hw_", ""))
+        homework_id = int(await check_if_id_in_callback_data("delete_hw_", callback, state, "homework"))
         homework = await HomeworkRepository.get_by_id(homework_id)
 
         if not homework:
