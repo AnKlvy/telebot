@@ -117,10 +117,11 @@ async def health_check(request):
 
     try:
         # Проверяем состояние базы данных
-        from database import get_session
-        async with get_session() as session:
+        from database import get_db_session
+        async with get_db_session() as session:
             # Простой запрос для проверки соединения
-            await session.execute("SELECT 1")
+            from sqlalchemy import text
+            await session.execute(text("SELECT 1"))
 
         # Всё в порядке - логируем раз в 30 минут
         if current_time - _last_health_log_time >= _health_log_interval:
