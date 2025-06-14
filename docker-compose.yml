@@ -19,6 +19,25 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: telebot_redis
+    env_file:
+      - /etc/edu_telebot/env
+    volumes:
+      - redis_data:/data
+    # ports:
+    #   - "6379:6379"  # Закрыт для безопасности, доступ только внутри сети
+    restart: unless-stopped
+    networks:
+      - telebot_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
   nginx:
     image: nginx:alpine
     container_name: telebot_nginx
@@ -47,6 +66,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - telebot_network
@@ -67,6 +88,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   telebot_network:

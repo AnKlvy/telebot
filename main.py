@@ -11,9 +11,11 @@ from aiogram.filters import CommandStart, Command
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
-from utils.config import TOKEN, WEBHOOK_MODE, WEBHOOK_PATH, WEB_SERVER_HOST, WEB_SERVER_PORT
+from utils.config import TOKEN, WEBHOOK_MODE, WEBHOOK_PATH, WEB_SERVER_HOST, WEB_SERVER_PORT, REDIS_ENABLED
 from utils.logging_config import setup_logging
 from utils.lifecycle import on_startup, on_shutdown, health_check
+from utils.redis_manager import RedisManager
+from utils.redis_storage import RedisStorage
 from common.handlers import router as common_router
 from common.register_handlers_and_transitions import register_handlers
 from manager.handlers.main import show_manager_main_menu
@@ -44,7 +46,19 @@ async def start_command(message, user_role: str):
 async def main() -> None:
     """Главная функция запуска бота"""
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher()
+
+    # Инициализируем хранилище состояний
+    storage = None
+    if REDIS_ENABLED:
+        redis_manager = RedisManager()
+        await redis_manager.connect()
+        if redis_manager.connected:
+            storage = RedisStorage(redis_manager)
+            logging.info("✅ Redis Storage инициализирован")
+        else:
+            logging.warning("⚠️ Redis недоступен, используется MemoryStorage")
+
+    dp = Dispatcher(storage=storage)
 
     # Регистрируем startup и shutdown хуки
     async def startup_wrapper():

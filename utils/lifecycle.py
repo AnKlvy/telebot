@@ -5,7 +5,8 @@ import logging
 from aiogram import Bot
 from aiogram.types import BotCommand
 from database import init_database, close_database
-from utils.config import WEBHOOK_MODE, WEBHOOK_URL
+from utils.config import WEBHOOK_MODE, WEBHOOK_URL, REDIS_ENABLED
+from utils.redis_manager import RedisManager
 
 
 async def on_startup(bot: Bot) -> None:
@@ -18,7 +19,19 @@ async def on_startup(bot: Bot) -> None:
         logging.error(f"❌ Ошибка инициализации базы данных: {e}")
         logging.warning("⚠️ Продолжаем работу без базы данных")
         # Не прерываем запуск бота
-    
+
+    # Инициализируем Redis если включен
+    if REDIS_ENABLED:
+        try:
+            redis_manager = RedisManager()
+            await redis_manager.connect()
+            if redis_manager.connected:
+                logging.info("✅ Redis подключен успешно")
+            else:
+                logging.warning("⚠️ Redis недоступен")
+        except Exception as e:
+            logging.error(f"❌ Ошибка подключения к Redis: {e}")
+
     # Устанавливаем команды бота
     commands = [
         BotCommand(command="start", description="Запустить бота"),

@@ -19,6 +19,13 @@ WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 WEB_SERVER_HOST = getenv("WEB_SERVER_HOST", "0.0.0.0")
 WEB_SERVER_PORT = int(getenv("WEB_SERVER_PORT", "8000"))
 
+# Redis настройки
+REDIS_ENABLED = getenv("REDIS_ENABLED", "false").lower() == "true"
+REDIS_HOST = getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(getenv("REDIS_DB", "0"))
+REDIS_PASSWORD = getenv("REDIS_PASSWORD", None)
+
 # Проверка обязательных переменных
 if not TOKEN:
     raise ValueError("BOT_TOKEN не установлен в переменных окружения")

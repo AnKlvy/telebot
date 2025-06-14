@@ -27,6 +27,13 @@ POSTGRES_PASSWORD=your_secure_password_here
 
 # DATABASE_URL формируется автоматически в коде из переменных выше
 
+# Настройки Redis
+REDIS_ENABLED=true
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=
+
 # Настройки окружения
 ENVIRONMENT=production
 

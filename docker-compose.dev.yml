@@ -13,6 +13,69 @@ services:
     ports:
       - "5432:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-telebot_user} -d ${POSTGRES_DB:-telebot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: telebot_redis_dev
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data_dev:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+
+  bot:
+    build: .
+    container_name: telebot_app_dev
+    environment:
+      # Telegram Bot
+      BOT_TOKEN: ${BOT_TOKEN}
+
+      # Database
+      POSTGRES_DB: ${POSTGRES_DB:-telebot}
+      POSTGRES_USER: ${POSTGRES_USER:-telebot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_password}
+
+      # Redis
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+
+      # Webhook (отключен для разработки)
+      WEBHOOK_MODE: ${WEBHOOK_MODE:-false}
+      WEBHOOK_HOST: ${WEBHOOK_HOST:-http://localhost:8000}
+      WEBHOOK_PATH: ${WEBHOOK_PATH:-/webhook}
+      WEB_SERVER_HOST: 0.0.0.0
+      WEB_SERVER_PORT: 8000
+
+      # Development
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+      - .:/app  # Монтируем код для разработки
+    restart: unless-stopped
 
 volumes:
   postgres_data_dev:
+  redis_data_dev:
