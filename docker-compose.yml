@@ -24,21 +24,21 @@ services:
     container_name: telebot_redis
     env_file:
       - /etc/edu_telebot/env
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
+      - ./redis/redis.conf.template:/etc/redis/redis.conf.template:ro
+      - ./redis/init-redis.sh:/usr/local/bin/init-redis.sh:ro
     # ports:
     #   - "6379:6379"  # Закрыт для безопасности, доступ только внутри сети
     restart: unless-stopped
     networks:
       - telebot_network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "sh", "-c", "redis-cli -a \"$$REDIS_PASSWORD\" ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes --requirepass $${REDIS_PASSWORD}
+    command: sh /usr/local/bin/init-redis.sh
 
   nginx:
     image: nginx:alpine
