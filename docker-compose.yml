@@ -26,8 +26,6 @@ services:
       - /etc/edu_telebot/env
     volumes:
       - redis_data:/data
-      - ./redis/redis.conf.template:/etc/redis/redis.conf.template:ro
-      - ./redis/init-redis.sh:/usr/local/bin/init-redis.sh:ro
     # ports:
     #   - "6379:6379"  # Закрыт для безопасности, доступ только внутри сети
     restart: unless-stopped
@@ -38,7 +36,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: sh /usr/local/bin/init-redis.sh
+    command: redis-server --appendonly yes --requirepass $${REDIS_PASSWORD}
 
   nginx:
     image: nginx:alpine
