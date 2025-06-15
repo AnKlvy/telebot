@@ -100,52 +100,7 @@ class QuestionRepository(BaseQuestionRepository):
         """Получить следующий порядковый номер для вопроса в ДЗ"""
         return await super().get_next_order_number(homework_id)
 
-    @staticmethod
-    async def create(homework_id: int, text: str, subject_id: int, microtopic_number: Optional[int] = None,
-                    photo_path: Optional[str] = None, time_limit: int = 30) -> Question:
-        """Создать новый вопрос"""
-        async with get_db_session() as session:
-            # Проверяем существование домашнего задания
-            homework_exists = await session.execute(
-                select(Homework).where(Homework.id == homework_id)
-            )
-            if not homework_exists.scalar_one_or_none():
-                raise ValueError(f"Домашнее задание с ID {homework_id} не найдено")
 
-            # Проверяем существование предмета
-            subject_exists = await session.execute(
-                select(Subject).where(Subject.id == subject_id)
-            )
-            if not subject_exists.scalar_one_or_none():
-                raise ValueError(f"Предмет с ID {subject_id} не найден")
-
-            # Проверяем существование микротемы (если указана)
-            if microtopic_number:
-                microtopic_exists = await session.execute(
-                    select(Microtopic).where(
-                        Microtopic.subject_id == subject_id,
-                        Microtopic.number == microtopic_number
-                    )
-                )
-                if not microtopic_exists.scalar_one_or_none():
-                    raise ValueError(f"Микротема с номером {microtopic_number} не найдена для предмета с ID {subject_id}")
-
-            # Получаем следующий порядковый номер
-            order_number = await QuestionRepository.get_next_order_number(homework_id)
-
-            question = Question(
-                homework_id=homework_id,
-                text=text,
-                photo_path=photo_path,
-                subject_id=subject_id,
-                microtopic_number=microtopic_number,
-                time_limit=time_limit,
-                order_number=order_number
-            )
-            session.add(question)
-            await session.commit()
-            await session.refresh(question)
-            return question
 
     @staticmethod
     async def update(question_id: int, **kwargs) -> Optional[Question]:

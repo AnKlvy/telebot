@@ -826,8 +826,9 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                 created_homeworks_count += 1
 
                 # Создаем вопросы
+                question_repo = QuestionRepository()
                 for question_data in hw_data["questions"]:
-                    question = await QuestionRepository.create(
+                    question = await question_repo.create(
                         homework_id=homework.id,
                         text=question_data["text"],
                         subject_id=subject.id,
