@@ -178,17 +178,13 @@ class Homework(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
-    course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
     subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
     lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
-    created_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     # Связи
-    course = relationship("Course", backref="homeworks")
     subject = relationship("Subject", backref="homeworks")
     lesson = relationship("Lesson", backref="homeworks")
-    creator = relationship("User", backref="created_homeworks")
     questions = relationship("Question", back_populates="homework", cascade="all, delete-orphan")
 
     # Уникальность: одно название ДЗ на урок
@@ -205,15 +201,26 @@ class Question(Base):
     homework_id = Column(Integer, ForeignKey('homeworks.id', ondelete='CASCADE'), nullable=False)
     text = Column(Text, nullable=False)
     photo_path = Column(String(500), nullable=True)  # file_id фото от Telegram или путь к файлу
-    microtopic_id = Column(Integer, ForeignKey('microtopics.id', ondelete='SET NULL'), nullable=True)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    microtopic_number = Column(Integer, nullable=True)  # Номер микротемы в рамках предмета
     time_limit = Column(Integer, nullable=False, default=30)  # Время в секундах
     order_number = Column(Integer, nullable=False, default=1)  # Порядок вопроса в ДЗ
     created_at = Column(DateTime, server_default=func.now())
 
     # Связи
     homework = relationship("Homework", back_populates="questions")
-    microtopic = relationship("Microtopic", backref="questions")
+    subject = relationship("Subject", backref="questions")
     answer_options = relationship("AnswerOption", back_populates="question", cascade="all, delete-orphan")
+
+    async def get_microtopic(self):
+        """Асинхронное получение микротемы по subject_id и microtopic_number"""
+        if self.subject_id and self.microtopic_number:
+            from database.repositories.microtopic_repository import MicrotopicRepository
+            microtopics = await MicrotopicRepository.get_by_subject(self.subject_id)
+            for microtopic in microtopics:
+                if microtopic.number == self.microtopic_number:
+                    return microtopic
+        return None
 
     # Уникальность: один порядковый номер на ДЗ
     __table_args__ = (

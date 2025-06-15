@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select, delete, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from ..models import Question, Homework, Microtopic
+from ..models import Question, Homework, Microtopic, Subject
 from ..database import get_db_session
 
 
@@ -20,7 +20,7 @@ class QuestionRepository:
                 select(Question)
                 .options(
                     selectinload(Question.homework),
-                    selectinload(Question.microtopic),
+                    selectinload(Question.subject),
                     selectinload(Question.answer_options)
                 )
                 .order_by(Question.homework_id, Question.order_number)
@@ -35,7 +35,7 @@ class QuestionRepository:
                 select(Question)
                 .options(
                     selectinload(Question.homework),
-                    selectinload(Question.microtopic),
+                    selectinload(Question.subject),
                     selectinload(Question.answer_options)
                 )
                 .where(Question.id == question_id)
@@ -50,7 +50,7 @@ class QuestionRepository:
                 select(Question)
                 .options(
                     selectinload(Question.homework),
-                    selectinload(Question.microtopic),
+                    selectinload(Question.subject),
                     selectinload(Question.answer_options)
                 )
                 .where(Question.homework_id == homework_id)
@@ -70,7 +70,7 @@ class QuestionRepository:
             return (max_order or 0) + 1
 
     @staticmethod
-    async def create(homework_id: int, text: str, microtopic_id: Optional[int] = None, 
+    async def create(homework_id: int, text: str, subject_id: int, microtopic_number: Optional[int] = None,
                     photo_path: Optional[str] = None, time_limit: int = 30) -> Question:
         """Создать новый вопрос"""
         async with get_db_session() as session:
@@ -81,13 +81,23 @@ class QuestionRepository:
             if not homework_exists.scalar_one_or_none():
                 raise ValueError(f"Домашнее задание с ID {homework_id} не найдено")
 
+            # Проверяем существование предмета
+            subject_exists = await session.execute(
+                select(Subject).where(Subject.id == subject_id)
+            )
+            if not subject_exists.scalar_one_or_none():
+                raise ValueError(f"Предмет с ID {subject_id} не найден")
+
             # Проверяем существование микротемы (если указана)
-            if microtopic_id:
+            if microtopic_number:
                 microtopic_exists = await session.execute(
-                    select(Microtopic).where(Microtopic.id == microtopic_id)
+                    select(Microtopic).where(
+                        Microtopic.subject_id == subject_id,
+                        Microtopic.number == microtopic_number
+                    )
                 )
                 if not microtopic_exists.scalar_one_or_none():
-                    raise ValueError(f"Микротема с ID {microtopic_id} не найдена")
+                    raise ValueError(f"Микротема с номером {microtopic_number} не найдена для предмета с ID {subject_id}")
 
             # Получаем следующий порядковый номер
             order_number = await QuestionRepository.get_next_order_number(homework_id)
@@ -96,7 +106,8 @@ class QuestionRepository:
                 homework_id=homework_id,
                 text=text,
                 photo_path=photo_path,
-                microtopic_id=microtopic_id,
+                subject_id=subject_id,
+                microtopic_number=microtopic_number,
                 time_limit=time_limit,
                 order_number=order_number
             )
@@ -114,12 +125,15 @@ class QuestionRepository:
                 return None
 
             # Проверяем существование микротемы при изменении
-            if 'microtopic_id' in kwargs and kwargs['microtopic_id']:
+            if 'microtopic_number' in kwargs and kwargs['microtopic_number'] and 'subject_id' in kwargs:
                 microtopic_exists = await session.execute(
-                    select(Microtopic).where(Microtopic.id == kwargs['microtopic_id'])
+                    select(Microtopic).where(
+                        Microtopic.subject_id == kwargs['subject_id'],
+                        Microtopic.number == kwargs['microtopic_number']
+                    )
                 )
                 if not microtopic_exists.scalar_one_or_none():
-                    raise ValueError(f"Микротема с ID {kwargs['microtopic_id']} не найдена")
+                    raise ValueError(f"Микротема с номером {kwargs['microtopic_number']} не найдена для предмета с ID {kwargs['subject_id']}")
 
             for key, value in kwargs.items():
                 if hasattr(question, key):

@@ -712,6 +712,7 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Какая общая формула алканов?",
                         "time_limit": 30,
+                        "microtopic_number": 1,  # Первая микротема по химии
                         "answers": [
                             {"text": "CnH2n+2", "is_correct": True},
                             {"text": "CnH2n", "is_correct": False},
@@ -722,6 +723,7 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Какой тип гибридизации у атомов углерода в алканах?",
                         "time_limit": 45,
+                        "microtopic_number": 1,  # Первая микротема по химии
                         "answers": [
                             {"text": "sp3", "is_correct": True},
                             {"text": "sp2", "is_correct": False},
@@ -739,6 +741,7 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Какой тип данных используется для хранения текста в Python?",
                         "time_limit": 30,
+                        "microtopic_number": 1,  # Первая микротема по Python
                         "answers": [
                             {"text": "str", "is_correct": True},
                             {"text": "text", "is_correct": False},
@@ -749,6 +752,7 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Как создать список в Python?",
                         "time_limit": 30,
+                        "microtopic_number": 1,  # Первая микротема по Python
                         "answers": [
                             {"text": "[]", "is_correct": True},
                             {"text": "{}", "is_correct": False},
@@ -766,6 +770,7 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Чему равен корень из 16?",
                         "time_limit": 30,
+                        "microtopic_number": 1,  # Первая микротема по математике
                         "answers": [
                             {"text": "4", "is_correct": True},
                             {"text": "8", "is_correct": False},
@@ -806,10 +811,8 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                 # Создаем домашнее задание
                 homework = await HomeworkRepository.create(
                     name=hw_data["name"],
-                    course_id=hw_data["course"].id,
                     subject_id=subject.id,
-                    lesson_id=lesson.id,
-                    created_by=manager_user.id
+                    lesson_id=lesson.id
                 )
 
                 print(f"   ✅ Создано ДЗ '{homework.name}' (ID: {homework.id})")
@@ -820,6 +823,8 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     question = await QuestionRepository.create(
                         homework_id=homework.id,
                         text=question_data["text"],
+                        subject_id=subject.id,
+                        microtopic_number=question_data.get("microtopic_number"),
                         time_limit=question_data["time_limit"]
                     )
 

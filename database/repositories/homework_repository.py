@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from ..models import Homework, User, Course, Subject, Lesson
+from ..models import Homework, Subject, Lesson
 from ..database import get_db_session
 
 
@@ -19,10 +19,8 @@ class HomeworkRepository:
             result = await session.execute(
                 select(Homework)
                 .options(
-                    selectinload(Homework.course),
                     selectinload(Homework.subject),
                     selectinload(Homework.lesson),
-                    selectinload(Homework.creator),
                     selectinload(Homework.questions)
                 )
             )
@@ -35,10 +33,8 @@ class HomeworkRepository:
             result = await session.execute(
                 select(Homework)
                 .options(
-                    selectinload(Homework.course),
                     selectinload(Homework.subject),
                     selectinload(Homework.lesson),
-                    selectinload(Homework.creator),
                     selectinload(Homework.questions)
                 )
                 .where(Homework.id == homework_id)
@@ -52,10 +48,8 @@ class HomeworkRepository:
             result = await session.execute(
                 select(Homework)
                 .options(
-                    selectinload(Homework.course),
                     selectinload(Homework.subject),
-                    selectinload(Homework.lesson),
-                    selectinload(Homework.creator)
+                    selectinload(Homework.lesson)
                 )
                 .where(Homework.lesson_id == lesson_id)
                 .order_by(Homework.created_at.desc())
@@ -63,19 +57,16 @@ class HomeworkRepository:
             return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_course_subject_lesson(course_id: int, subject_id: int, lesson_id: int) -> List[Homework]:
-        """Получить домашние задания по курсу, предмету и уроку"""
+    async def get_by_subject_lesson(subject_id: int, lesson_id: int) -> List[Homework]:
+        """Получить домашние задания по предмету и уроку"""
         async with get_db_session() as session:
             result = await session.execute(
                 select(Homework)
                 .options(
-                    selectinload(Homework.course),
                     selectinload(Homework.subject),
-                    selectinload(Homework.lesson),
-                    selectinload(Homework.creator)
+                    selectinload(Homework.lesson)
                 )
                 .where(
-                    Homework.course_id == course_id,
                     Homework.subject_id == subject_id,
                     Homework.lesson_id == lesson_id
                 )
@@ -84,24 +75,7 @@ class HomeworkRepository:
             return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_manager(manager_user_id: int) -> List[Homework]:
-        """Получить все домашние задания, созданные менеджером"""
-        async with get_db_session() as session:
-            result = await session.execute(
-                select(Homework)
-                .options(
-                    selectinload(Homework.course),
-                    selectinload(Homework.subject),
-                    selectinload(Homework.lesson),
-                    selectinload(Homework.creator)
-                )
-                .where(Homework.created_by == manager_user_id)
-                .order_by(Homework.created_at.desc())
-            )
-            return list(result.scalars().all())
-
-    @staticmethod
-    async def create(name: str, course_id: int, subject_id: int, lesson_id: int, created_by: int) -> Homework:
+    async def create(name: str, subject_id: int, lesson_id: int) -> Homework:
         """Создать новое домашнее задание"""
         async with get_db_session() as session:
             # Проверяем уникальность названия в рамках урока
@@ -115,10 +89,6 @@ class HomeworkRepository:
                 raise ValueError(f"Домашнее задание с названием '{name}' уже существует в этом уроке")
 
             # Проверяем существование связанных сущностей
-            course_exists = await session.execute(select(Course).where(Course.id == course_id))
-            if not course_exists.scalar_one_or_none():
-                raise ValueError(f"Курс с ID {course_id} не найден")
-
             subject_exists = await session.execute(select(Subject).where(Subject.id == subject_id))
             if not subject_exists.scalar_one_or_none():
                 raise ValueError(f"Предмет с ID {subject_id} не найден")
@@ -127,16 +97,10 @@ class HomeworkRepository:
             if not lesson_exists.scalar_one_or_none():
                 raise ValueError(f"Урок с ID {lesson_id} не найден")
 
-            user_exists = await session.execute(select(User).where(User.id == created_by))
-            if not user_exists.scalar_one_or_none():
-                raise ValueError(f"Пользователь с ID {created_by} не найден")
-
             homework = Homework(
                 name=name,
-                course_id=course_id,
                 subject_id=subject_id,
-                lesson_id=lesson_id,
-                created_by=created_by
+                lesson_id=lesson_id
             )
             session.add(homework)
             await session.commit()

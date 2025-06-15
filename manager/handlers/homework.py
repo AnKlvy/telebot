@@ -16,7 +16,7 @@ from ..keyboards.homework import (
 from .main import show_manager_main_menu
 from database import (
     CourseRepository, SubjectRepository, LessonRepository, HomeworkRepository,
-    QuestionRepository, AnswerOptionRepository, UserRepository, MicrotopicRepository
+    QuestionRepository, AnswerOptionRepository, MicrotopicRepository
 )
 
 from aiogram.fsm.state import State, StatesGroup
@@ -211,27 +211,15 @@ async def save_homework(callback: CallbackQuery, state: FSMContext):
     try:
         # Получаем данные из состояния
         test_name = user_data.get("test_name")
-        course_id = user_data.get("course_id")
         subject_id = user_data.get("subject_id")
         lesson_id = user_data.get("lesson_id")
         questions = user_data.get("questions", [])
 
-        # Получаем ID пользователя (менеджера)
-        user = await UserRepository.get_by_telegram_id(callback.from_user.id)
-        if not user:
-            await callback.message.edit_text(
-                "❌ Ошибка: пользователь не найден.",
-                reply_markup=await get_courses_kb()
-            )
-            return
-
         # Создаем домашнее задание
         homework = await HomeworkRepository.create(
             name=test_name,
-            course_id=course_id,
             subject_id=subject_id,
-            lesson_id=lesson_id,
-            created_by=user.id
+            lesson_id=lesson_id
         )
 
         # Создаем вопросы и варианты ответов
@@ -239,15 +227,16 @@ async def save_homework(callback: CallbackQuery, state: FSMContext):
             # Получаем photo_path из photo_id (file_id от Telegram)
             photo_path = question_data.get("photo_id")  # Используем photo_id как photo_path
 
-            # Получаем microtopic_id (может быть None)
-            microtopic_id = question_data.get("microtopic_id")
+            # Получаем microtopic_number (может быть None)
+            microtopic_number = question_data.get("topic_number")
 
             # Создаем вопрос
             question = await QuestionRepository.create(
                 homework_id=homework.id,
                 text=question_data.get("text", ""),
                 photo_path=photo_path,
-                microtopic_id=microtopic_id,
+                subject_id=subject_id,
+                microtopic_number=microtopic_number,
                 time_limit=question_data.get("time_limit", 30)
             )
 
