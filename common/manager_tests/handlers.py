@@ -1081,7 +1081,8 @@ def register_edit_handlers(router, states_group):
             target_state = AddHomeworkStates.enter_question_text
             logger.info("❌ ОБЫЧНЫЙ ТЕСТ - переходим к AddHomeworkStates.enter_question_text")
 
-        await callback.message.edit_text("Введите текст первого вопроса:")
+        await callback.message.edit_text("Введите текст первого вопроса:",
+                                         reply_markup=get_home_kb())
         await state.set_state(target_state)
 
     @router.callback_query(F.data == "continue_question_text")
@@ -1119,26 +1120,11 @@ def register_edit_handlers(router, states_group):
             # Для бонусных тестов пропускаем выбор микротемы
             if callback.message.photo:
                 # Если есть фото, отправляем новое сообщение
-                await callback.message.answer(
-                    "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
-                    "Поддерживаемые форматы:\n"
-                    "• A. Первый вариант\n"
-                    "• B Второй вариант\n"
-                    "• Третий вариант\n"
-                    "• Четвертый вариант\n\n"
-                    "Минимум 2 варианта, максимум 10 вариантов."
-                )
+                await enter_answer_options(callback)
             else:
                 # Если нет фото, редактируем текст
-                await callback.message.edit_text(
-                    "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
-                    "Поддерживаемые форматы:\n"
-                    "• A. Первый вариант\n"
-                    "• B Второй вариант\n"
-                    "• Третий вариант\n"
-                    "• Четвертый вариант\n\n"
-                    "Минимум 2 варианта, максимум 10 вариантов."
-                )
+                await enter_answer_options(callback)
+
             # Определяем правильную группу состояний
             if "BonusTestStates" in current_state:
                 from manager.handlers.bonus_test import BonusTestStates
@@ -1248,6 +1234,23 @@ def register_edit_handlers(router, states_group):
         for letter, text in sorted(current_options.items()):
             options_text += f"{letter}. {text}\n"
 
+        await enter_answer_options(callback, True, options_text)
+        await state.set_state(states_group.edit_answer_options)
+
+
+async def enter_answer_options(callback, repeat=False, options_text=""):
+    if not repeat:
+        await callback.message.edit_text(
+            "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+            "Поддерживаемые форматы:\n"
+            "• A. Первый вариант\n"
+            "• B Второй вариант\n"
+            "• Третий вариант\n"
+            "• Четвертый вариант\n\n"
+            "Минимум 2 варианта, максимум 10 вариантов.",
+            reply_markup=get_home_kb()
+        )
+    else:
         await callback.message.edit_text(
             f"📝 Текущие варианты ответов:\n\n{options_text}\n"
             "Введите новые варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
@@ -1255,7 +1258,6 @@ def register_edit_handlers(router, states_group):
             "• A. Первый вариант\n"
             "• B Второй вариант\n"
             "• Третий вариант\n"
-            "• Четвертый вариант"
+            "• Четвертый вариант",
+            reply_markup=get_home_kb()
         )
-        await state.set_state(states_group.edit_answer_options)
-

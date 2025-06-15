@@ -6,10 +6,9 @@ from aiogram.fsm.context import FSMContext
 from .handlers import (
     enter_test_name, start_adding_questions, add_question_photo, process_question_photo, request_topic,
     select_correct_answer, save_question, save_question_with_time, add_more_question,
-    finish_adding_questions, process_topic, confirm_test
+    finish_adding_questions, process_topic, enter_answer_options
 )
 import inspect
-
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -65,23 +64,13 @@ def register_test_handlers(router: Router, states_group, role: str):
         if role == "bonus_test":
             logging.info("✅ БОНУСНЫЙ ТЕСТ ОБНАРУЖЕН - пропускаем микротему")
             # Для бонусных тестов пропускаем выбор микротемы
-            await callback.message.edit_text(
-                "📷 Фото пропущено (вопрос без изображения)\n\n"
-                "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
-                "Поддерживаемые форматы:\n"
-                "• A. Первый вариант\n"
-                "• B Второй вариант\n"
-                "• Третий вариант\n"
-                "• Четвертый вариант\n\n"
-                "Минимум 2 варианта, максимум 10 вариантов."
-            )
+            await enter_answer_options(callback)
             await state.set_state(states_group.enter_answer_options)
         else:
             logging.info("❌ ОБЫЧНЫЙ ТЕСТ - запрашиваем микротему")
             # Для обычных тестов запрашиваем микротему
             await state.set_state(states_group.request_topic)
             await request_topic(callback.message, state)
-
 
     @router.message(states_group.add_question_photo, F.photo)
     async def role_process_question_photo(message: Message, state: FSMContext):

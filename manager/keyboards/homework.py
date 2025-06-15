@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from common.keyboards import get_main_menu_back_button, get_universal_back_button
+from common.keyboards import get_main_menu_back_button, get_universal_back_button, back_to_main_button
 from typing import List, Any
 from database import CourseRepository, SubjectRepository, LessonRepository, HomeworkRepository
 
@@ -331,8 +331,7 @@ def get_step_edit_kb(step: str, has_data: bool = True) -> InlineKeyboardMarkup:
         )
     ])
 
-    buttons.extend(get_main_menu_back_button())
-
+    buttons.append(back_to_main_button())
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_question_edit_kb(question_num: int) -> InlineKeyboardMarkup:
