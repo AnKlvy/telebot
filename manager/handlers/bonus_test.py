@@ -79,16 +79,18 @@ async def show_bonus_test_management(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(BonusTestStates.main, F.data == "add_bonus_test")
 async def start_add_bonus_test(callback: CallbackQuery, state: FSMContext):
     """Начало добавления бонусного теста - переход в общий модуль"""
-    logger.info("Вызван обработчик start_add_bonus_test")
-    
+    logger.info("🚀 СТАРТ: Начинаем создание бонусного теста")
+
     # Сразу переходим к добавлению названия теста в общем модуле
     await callback.message.edit_text(
         "Введите название бонусного теста:",
         reply_markup=get_home_kb()
     )
     await state.set_state(BonusTestStates.enter_test_name)
+    logger.info(f"🔄 СОСТОЯНИЕ: Установлено состояние {BonusTestStates.enter_test_name}")
 
 # Регистрируем общие обработчики тестов
+logger.info("🔧 РЕГИСТРАЦИЯ: Регистрируем обработчики для бонусных тестов с role='bonus_test'")
 register_test_handlers(router, BonusTestStates, "bonus_test")
 
 @router.callback_query(BonusTestStates.confirm_test, F.data == "confirm_test")

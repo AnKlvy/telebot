@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO)
 
 def register_test_handlers(router: Router, states_group, role: str):
     """Регистрация обработчиков тестов"""
+    logging.info(f"🔧 РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ: role={role}, states_group={states_group.__name__}")
 
     @router.callback_query(states_group.select_lesson, F.data.startswith("lesson_"))
     async def role_enter_test_name(callback: CallbackQuery, state: FSMContext):
@@ -25,12 +26,29 @@ def register_test_handlers(router: Router, states_group, role: str):
 
     @router.message(states_group.enter_test_name)
     async def role_start_adding_questions(message: Message, state: FSMContext):
+        # Проверяем, что мы в правильном состоянии для данной группы
+        current_state = await state.get_state()
+        expected_state = f"{states_group.__name__}:enter_test_name"
+
+        logging.info(f"🔍 ПРОВЕРКА СОСТОЯНИЯ: current={current_state}, expected={expected_state}")
+
+        if current_state != expected_state:
+            logging.info(f"❌ СОСТОЯНИЕ НЕ СОВПАДАЕТ - пропускаем обработчик")
+            return
+
         await log(inspect.currentframe().f_code.co_name, role, state)
         await start_adding_questions(message, state)
         # Не переключаем состояние здесь - это делается в кнопке "Продолжить"
 
     @router.message(states_group.enter_question_text)
     async def role_add_question_photo(message: Message, state: FSMContext):
+        # Проверяем, что мы в правильном состоянии для данной группы
+        current_state = await state.get_state()
+        expected_state = f"{states_group.__name__}:enter_question_text"
+
+        if current_state != expected_state:
+            return
+
         await log(inspect.currentframe().f_code.co_name, role, state)
         await add_question_photo(message, state)
         # Не переключаем состояние здесь - это делается в кнопке "Продолжить"
@@ -38,18 +56,63 @@ def register_test_handlers(router: Router, states_group, role: str):
     @router.callback_query(states_group.add_question_photo, F.data == "skip_photo")
     async def skip_photo(callback: CallbackQuery, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
-        await state.set_state(states_group.request_topic)
-        await request_topic(callback.message, state)
+
+        # Логируем информацию для отладки
+        current_state = await state.get_state()
+        logging.info(f"🔍 ОТЛАДКА skip_photo: role={role}, current_state={current_state}")
+
+        # Проверяем, является ли тест бонусным
+        if role == "bonus_test":
+            logging.info("✅ БОНУСНЫЙ ТЕСТ ОБНАРУЖЕН - пропускаем микротему")
+            # Для бонусных тестов пропускаем выбор микротемы
+            await callback.message.edit_text(
+                "📷 Фото пропущено (вопрос без изображения)\n\n"
+                "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+                "Поддерживаемые форматы:\n"
+                "• A. Первый вариант\n"
+                "• B Второй вариант\n"
+                "• Третий вариант\n"
+                "• Четвертый вариант\n\n"
+                "Минимум 2 варианта, максимум 10 вариантов."
+            )
+            await state.set_state(states_group.enter_answer_options)
+        else:
+            logging.info("❌ ОБЫЧНЫЙ ТЕСТ - запрашиваем микротему")
+            # Для обычных тестов запрашиваем микротему
+            await state.set_state(states_group.request_topic)
+            await request_topic(callback.message, state)
 
 
     @router.message(states_group.add_question_photo, F.photo)
     async def role_process_question_photo(message: Message, state: FSMContext):
         await log(inspect.currentframe().f_code.co_name, role, state)
-        await state.set_state(states_group.request_topic)
+
+        # Логируем информацию для отладки
+        current_state = await state.get_state()
+        logging.info(f"🔍 ОТЛАДКА process_question_photo: role={role}, current_state={current_state}")
+
+        # Обрабатываем фото
         await process_question_photo(message, state)
+
+        # Проверяем, является ли тест бонусным
+        if role == "bonus_test":
+            logging.info("✅ БОНУСНЫЙ ТЕСТ ОБНАРУЖЕН - пропускаем микротему после фото")
+            # Для бонусных тестов пропускаем выбор микротемы
+            await state.set_state(states_group.enter_answer_options)
+        else:
+            logging.info("❌ ОБЫЧНЫЙ ТЕСТ - запрашиваем микротему после фото")
+            # Для обычных тестов переходим к выбору микротемы
+            await state.set_state(states_group.request_topic)
 
     @router.message(states_group.request_topic)
     async def role_process_topic(message: Message, state: FSMContext):
+        # Проверяем, что мы в правильном состоянии для данной группы
+        current_state = await state.get_state()
+        expected_state = f"{states_group.__name__}:request_topic"
+
+        if current_state != expected_state:
+            return
+
         await log(inspect.currentframe().f_code.co_name, role, state)
         await process_topic(message, state, states_group)
 
@@ -59,6 +122,13 @@ def register_test_handlers(router: Router, states_group, role: str):
 
     @router.message(states_group.enter_answer_options)
     async def role_select_correct_answer(message: Message, state: FSMContext):
+        # Проверяем, что мы в правильном состоянии для данной группы
+        current_state = await state.get_state()
+        expected_state = f"{states_group.__name__}:enter_answer_options"
+
+        if current_state != expected_state:
+            return
+
         await log(inspect.currentframe().f_code.co_name, role, state)
         await select_correct_answer(message, state, states_group)
 

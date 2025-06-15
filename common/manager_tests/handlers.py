@@ -125,13 +125,27 @@ async def process_question_photo(message: Message, state: FSMContext):
 
     await state.update_data(current_question=current_question)
 
+    # Получаем текущее состояние для определения типа теста
+    current_state = await state.get_state()
+    is_bonus_test = "BonusTestStates" in current_state if current_state else False
+
     # Показываем фото с возможностью редактирования
     from manager.keyboards.homework import get_step_edit_kb
-    await message.answer_photo(
-        photo=file_id,
-        caption="📷 Фото добавлено! Хотите изменить фото или продолжить?",
-        reply_markup=get_step_edit_kb("photo", True)
-    )
+
+    if is_bonus_test:
+        # Для бонусных тестов показываем сообщение о переходе к вариантам ответов
+        await message.answer_photo(
+            photo=file_id,
+            caption="📷 Фото добавлено! Хотите изменить фото или продолжить к вводу вариантов ответов?",
+            reply_markup=get_step_edit_kb("photo", True)
+        )
+    else:
+        # Для обычных тестов показываем сообщение о переходе к выбору микротемы
+        await message.answer_photo(
+            photo=file_id,
+            caption="📷 Фото добавлено! Хотите изменить фото или продолжить?",
+            reply_markup=get_step_edit_kb("photo", True)
+        )
 
 
 async def request_topic(message: Message, state: FSMContext):
@@ -492,6 +506,10 @@ async def confirm_test(callback: CallbackQuery, state: FSMContext):
     test_name = user_data.get("test_name", "")
     questions = user_data.get("questions", [])
 
+    # Получаем текущее состояние для определения типа теста
+    current_state = await state.get_state()
+    is_bonus_test = "BonusTestStates" in current_state if current_state else False
+
     # Формируем информацию о времени для каждого вопроса
     questions_info = ""
     for i, question in enumerate(questions, 1):
@@ -506,17 +524,26 @@ async def confirm_test(callback: CallbackQuery, state: FSMContext):
 
         questions_info += f"Вопрос {i}: {time_text}\n"
 
-    # Формируем текст для подтверждения
-    confirmation_text = (
-        f"📋 ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ДЗ\n\n"
-        f"📚 Курс: {course_name}\n"
-        f"📖 Предмет: {subject_name}\n"
-        f"📝 Урок: {lesson_name}\n"
-        f"🏷 Название ДЗ: {test_name}\n"
-        f"❓ Количество вопросов: {len(questions)}\n\n"
-        f"⏱ Время на ответ:\n{questions_info}\n"
-        "Подтвердите создание домашнего задания:"
-    )
+    # Формируем текст для подтверждения в зависимости от типа теста
+    if is_bonus_test:
+        confirmation_text = (
+            f"🧪 ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР БОНУСНОГО ТЕСТА\n\n"
+            f"🏷 Название теста: {test_name}\n"
+            f"❓ Количество вопросов: {len(questions)}\n\n"
+            f"⏱ Время на ответ:\n{questions_info}\n"
+            "Подтвердите создание бонусного теста:"
+        )
+    else:
+        confirmation_text = (
+            f"📋 ПРЕДВАРИТЕЛЬНЫЙ ПРОСМОТР ДЗ\n\n"
+            f"📚 Курс: {course_name}\n"
+            f"📖 Предмет: {subject_name}\n"
+            f"📝 Урок: {lesson_name}\n"
+            f"🏷 Название ДЗ: {test_name}\n"
+            f"❓ Количество вопросов: {len(questions)}\n\n"
+            f"⏱ Время на ответ:\n{questions_info}\n"
+            "Подтвердите создание домашнего задания:"
+        )
 
     await callback.message.edit_text(
         confirmation_text,
@@ -1041,27 +1068,103 @@ def register_edit_handlers(router, states_group):
     # Обработчики продолжения для каждого шага
     @router.callback_query(F.data == "continue_test_name")
     async def handle_continue_test_name(callback: CallbackQuery, state: FSMContext):
+        # Получаем текущее состояние для определения правильной группы состояний
+        current_state = await state.get_state()
+        logger.info(f"🔍 ОТЛАДКА continue_test_name: current_state={current_state}")
+
+        if "BonusTestStates" in current_state:
+            from manager.handlers.bonus_test import BonusTestStates
+            target_state = BonusTestStates.enter_question_text
+            logger.info("✅ БОНУСНЫЙ ТЕСТ - переходим к BonusTestStates.enter_question_text")
+        else:
+            from manager.handlers.homework import AddHomeworkStates
+            target_state = AddHomeworkStates.enter_question_text
+            logger.info("❌ ОБЫЧНЫЙ ТЕСТ - переходим к AddHomeworkStates.enter_question_text")
+
         await callback.message.edit_text("Введите текст первого вопроса:")
-        await state.set_state(states_group.enter_question_text)
+        await state.set_state(target_state)
 
     @router.callback_query(F.data == "continue_question_text")
     async def handle_continue_question_text(callback: CallbackQuery, state: FSMContext):
+        # Получаем текущее состояние для определения правильной группы состояний
+        current_state = await state.get_state()
+
+        if "BonusTestStates" in current_state:
+            from manager.handlers.bonus_test import BonusTestStates
+            target_state = BonusTestStates.add_question_photo
+        else:
+            from manager.handlers.homework import AddHomeworkStates
+            target_state = AddHomeworkStates.add_question_photo
+
         await callback.message.edit_text(
             "Отправьте фото для этого вопроса (если нужно) или нажмите 'Пропустить':",
             reply_markup=get_photo_skip_kb()
         )
-        await state.set_state(states_group.add_question_photo)
+        await state.set_state(target_state)
 
     @router.callback_query(F.data == "continue_photo")
     async def handle_continue_photo(callback: CallbackQuery, state: FSMContext):
-        # Проверяем, есть ли фото в сообщении
-        if callback.message.photo:
-            # Если есть фото, отправляем новое сообщение
-            await callback.message.answer("Введите номер микротемы:")
+        # Получаем текущее состояние для определения типа теста
+        current_state = await state.get_state()
+
+        # Логируем информацию для отладки
+        logger.info(f"🔍 ОТЛАДКА continue_photo: current_state={current_state}")
+
+        # Проверяем, является ли это бонусным тестом по состоянию
+        is_bonus_test = "BonusTestStates" in current_state if current_state else False
+        logger.info(f"🔍 ОТЛАДКА continue_photo: is_bonus_test={is_bonus_test}")
+
+        if is_bonus_test:
+            logger.info("✅ БОНУСНЫЙ ТЕСТ ОБНАРУЖЕН в continue_photo - пропускаем микротему")
+            # Для бонусных тестов пропускаем выбор микротемы
+            if callback.message.photo:
+                # Если есть фото, отправляем новое сообщение
+                await callback.message.answer(
+                    "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+                    "Поддерживаемые форматы:\n"
+                    "• A. Первый вариант\n"
+                    "• B Второй вариант\n"
+                    "• Третий вариант\n"
+                    "• Четвертый вариант\n\n"
+                    "Минимум 2 варианта, максимум 10 вариантов."
+                )
+            else:
+                # Если нет фото, редактируем текст
+                await callback.message.edit_text(
+                    "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
+                    "Поддерживаемые форматы:\n"
+                    "• A. Первый вариант\n"
+                    "• B Второй вариант\n"
+                    "• Третий вариант\n"
+                    "• Четвертый вариант\n\n"
+                    "Минимум 2 варианта, максимум 10 вариантов."
+                )
+            # Определяем правильную группу состояний
+            if "BonusTestStates" in current_state:
+                from manager.handlers.bonus_test import BonusTestStates
+                target_state = BonusTestStates.enter_answer_options
+            else:
+                from manager.handlers.homework import AddHomeworkStates
+                target_state = AddHomeworkStates.enter_answer_options
+            await state.set_state(target_state)
         else:
-            # Если нет фото, редактируем текст
-            await callback.message.edit_text("Введите номер микротемы:")
-        await state.set_state(states_group.request_topic)
+            logger.info("❌ ОБЫЧНЫЙ ТЕСТ в continue_photo - запрашиваем микротему")
+            # Для обычных тестов запрашиваем микротему
+            if callback.message.photo:
+                # Если есть фото, отправляем новое сообщение
+                await callback.message.answer("Введите номер микротемы:")
+            else:
+                # Если нет фото, редактируем текст
+                await callback.message.edit_text("Введите номер микротемы:")
+
+            # Определяем правильную группу состояний для request_topic
+            if "BonusTestStates" in current_state:
+                from manager.handlers.bonus_test import BonusTestStates
+                target_state = BonusTestStates.request_topic
+            else:
+                from manager.handlers.homework import AddHomeworkStates
+                target_state = AddHomeworkStates.request_topic
+            await state.set_state(target_state)
 
     @router.callback_query(F.data == "continue_answer_options")
     async def handle_continue_answer_options(callback: CallbackQuery, state: FSMContext):
@@ -1069,11 +1172,21 @@ def register_edit_handlers(router, states_group):
         current_question = user_data.get("current_question", {})
         options = current_question.get("options", {})
 
+        # Получаем текущее состояние для определения правильной группы состояний
+        current_state = await state.get_state()
+
+        if "BonusTestStates" in current_state:
+            from manager.handlers.bonus_test import BonusTestStates
+            target_state = BonusTestStates.select_correct_answer
+        else:
+            from manager.handlers.homework import AddHomeworkStates
+            target_state = AddHomeworkStates.select_correct_answer
+
         await callback.message.edit_text(
             "Выберите правильный вариант ответа:",
             reply_markup=get_correct_answer_kb(options)
         )
-        await state.set_state(states_group.select_correct_answer)
+        await state.set_state(target_state)
 
     @router.callback_query(F.data == "continue_summary")
     async def handle_continue_summary(callback: CallbackQuery, state: FSMContext):
