@@ -82,26 +82,26 @@ async def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
 async def get_groups_by_curator_kb(curator_id: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы конкретного куратора для аналитики"""
     try:
-        # Получаем куратора и его группу
-        curator = await CuratorRepository.get_by_id(int(curator_id))
+        # Получаем все группы куратора через новый метод
+        groups = await CuratorRepository.get_curator_groups(int(curator_id))
 
-        if not curator or not curator.group:
-            # Если у куратора нет группы, показываем все группы
+        if not groups:
+            # Если у куратора нет групп, показываем все группы
             return await get_groups_for_analytics_kb("manager")
 
-        # Показываем только группу этого куратора
+        # Показываем все группы этого куратора
         buttons = []
-        group = curator.group
-        group_name = f"{group.name} ({group.subject.name})" if group.subject else group.name
-        buttons.append([
-            InlineKeyboardButton(
-                text=group_name,
-                callback_data=f"analytics_group_{group.id}"
-            )
-        ])
+        for group in groups:
+            group_name = f"{group.name} ({group.subject.name})" if group.subject else group.name
+            buttons.append([
+                InlineKeyboardButton(
+                    text=group_name,
+                    callback_data=f"analytics_group_{group.id}"
+                )
+            ])
 
     except Exception as e:
-        print(f"Ошибка при получении группы куратора: {e}")
+        print(f"Ошибка при получении групп куратора: {e}")
         # В случае ошибки показываем все группы
         return await get_groups_for_analytics_kb("manager")
 

@@ -157,57 +157,98 @@ def get_student_topics_stats(student_id: str) -> Dict:
     
     return student_data.get(student_id, {"name": "Неизвестный ученик", "topics": {}})
 
-def get_group_stats(group_id: str) -> Dict:
+async def get_group_stats(group_id: str) -> Dict:
     """
     Получить статистику по группе
-    
+
     Args:
         group_id: ID группы
-        
+
     Returns:
         Dict: Словарь с данными о группе и статистике
     """
-    # В реальном приложении здесь будет запрос к базе данных
-    group_data = {
-        "group1": {
-            "name": "Интенсив. География",
-            "subject": "Химия",
-            "homework_completion": 75,
-            "topics": {
-                "Алканы": 82,
-                "Изомерия": 37,
-                "Кислоты": 66
-            },
-            "rating": [
-                {"name": "Аружан", "points": 870},
-                {"name": "Диана", "points": 800},
-                {"name": "Мадияр", "points": 780}
-            ]
-        },
-        "group2": {
-            "name": "Интенсив. Математика",
-            "subject": "Химия",
-            "homework_completion": 80,
-            "topics": {
-                "Алканы": 78,
-                "Изомерия": 42,
-                "Кислоты": 70
-            },
-            "rating": [
-                {"name": "Арман", "points": 850},
-                {"name": "Алия", "points": 820},
-                {"name": "Диас", "points": 790}
-            ]
+    try:
+        from database.repositories import GroupRepository, StudentRepository
+
+        # Получаем группу
+        group = await GroupRepository.get_by_id(int(group_id))
+        if not group:
+            return {
+                "name": "Неизвестная группа",
+                "subject": "Неизвестный предмет",
+                "homework_completion": 0,
+                "topics": {},
+                "rating": []
+            }
+
+        # Получаем студентов группы
+        students = await StudentRepository.get_by_group(int(group_id))
+
+        # Вычисляем статистику
+        student_ratings = []
+        topics_stats = {}
+        total_homework_percentage = 0
+
+        for student in students:
+            # Получаем общую статистику студента
+            student_stats = await StudentRepository.get_general_stats(student.id)
+
+            # Вычисляем средний процент выполнения ДЗ для студента
+            # Используем unique_completed (уникальные выполненные) / total_attempted (всего доступных)
+            if student_stats.get('total_attempted', 0) > 0:
+                student_homework_percentage = (student_stats.get('unique_completed', 0) / student_stats.get('total_attempted', 1)) * 100
+            else:
+                student_homework_percentage = 0
+            total_homework_percentage += student_homework_percentage
+
+            # Добавляем в рейтинг
+            student_ratings.append({
+                "name": student.user.name,
+                "points": student_stats.get('total_points', 0)
+            })
+
+            # Получаем статистику по микротемам для предмета группы
+            if group.subject:
+                microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, group.subject.id)
+                for microtopic_number, stats in microtopic_stats.items():
+                    if microtopic_number not in topics_stats:
+                        topics_stats[microtopic_number] = []
+                    topics_stats[microtopic_number].append(stats['percentage'])
+
+        # Вычисляем средние значения
+        avg_homework_completion = round(total_homework_percentage / len(students), 1) if students else 0
+
+        # Получаем названия микротем
+        from database.repositories import MicrotopicRepository
+        avg_topics = {}
+        if group.subject:
+            microtopics = await MicrotopicRepository.get_by_subject(group.subject.id)
+            microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+            for microtopic_number, percentages in topics_stats.items():
+                microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+                avg_topics[microtopic_name] = round(sum(percentages) / len(percentages), 1) if percentages else 0
+
+        # Сортируем рейтинг по баллам
+        student_ratings.sort(key=lambda x: x["points"], reverse=True)
+
+        return {
+            "name": group.name,
+            "subject": group.subject.name if group.subject else "Неизвестный предмет",
+            "homework_completion": avg_homework_completion,
+            "topics": avg_topics,
+            "rating": student_ratings[:10]  # Топ 10 студентов
         }
-    }
-    
-    return group_data.get(group_id, {
-        "name": "Неизвестная группа",
-        "subject": "Неизвестный предмет",
-        "homework_completion": 0,
-        "topics": {},
-        "rating": []
-    })
+
+    except Exception as e:
+        print(f"Ошибка при получении статистики группы: {e}")
+        return {
+            "name": "Ошибка загрузки",
+            "subject": "Ошибка загрузки",
+            "homework_completion": 0,
+            "topics": {},
+            "rating": []
+        }
 
 def format_student_topics_stats(student_data: Dict) -> str:
     """
@@ -250,21 +291,25 @@ def format_student_topics_stats(student_data: Dict) -> str:
 def format_group_stats(group_data: Dict) -> str:
     """
     Форматировать статистику по группе в текстовый вид
-    
+
     Args:
         group_data: Данные группы
-        
+
     Returns:
         str: Отформатированный текст со статистикой
     """
     # Формируем текст с результатами
-    result_text = f"📗 {group_data['subject']}\n"
-    result_text += f"📊 Средний % выполнения ДЗ: {group_data['homework_completion']}%\n"
-    result_text += "📈 Средний % понимания по микротемам:\n"
-    
-    # Добавляем информацию о каждой теме
-    for topic, percentage in group_data["topics"].items():
-        result_text += f"• {topic} — {percentage}%\n"
+    result_text = f"👥 Группа: {group_data['name']}\n"
+    result_text += f"📗 Предмет: {group_data['subject']}\n"
+    result_text += f"📊 Средний % выполнения ДЗ: {group_data['homework_completion']}%\n\n"
+
+    # Добавляем информацию о микротемах
+    if group_data["topics"]:
+        result_text += "📈 Средний % понимания по микротемам:\n"
+        for topic, percentage in group_data["topics"].items():
+            result_text += f"• {topic} — {percentage}%\n"
+    else:
+        result_text += "📈 Статистика по микротемам пока недоступна\n"
     
     # Добавляем рейтинг по баллам
     if group_data["rating"]:
@@ -620,7 +665,7 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
     group_id = await check_if_id_in_callback_data("analytics_group_", callback, state, "group")
 
     # Получаем данные о группе из общего компонента
-    group_data = get_group_stats(group_id)
+    group_data = await get_group_stats(group_id)
 
     # Форматируем статистику в текст
     result_text = format_group_stats(group_data)

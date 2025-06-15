@@ -566,30 +566,85 @@ async def add_initial_data():
             existing_user = await UserRepository.get_by_telegram_id(curator_data["telegram_id"])
             if existing_user:
                 print(f"   ⚠️  Пользователь с Telegram ID {curator_data['telegram_id']} уже существует")
-                continue
-
-            # Создаем пользователя
-            user = await UserRepository.create(
-                telegram_id=curator_data["telegram_id"],
-                name=curator_data["name"],
-                role='curator'
-            )
+                # Проверяем, есть ли у него профиль куратора
+                existing_curator = await CuratorRepository.get_by_user_id(existing_user.id)
+                if existing_curator:
+                    print(f"   ⚠️  Профиль куратора уже существует для пользователя {existing_user.name}")
+                    continue
+                else:
+                    user = existing_user
+                    print(f"   🔄 Создаем профиль куратора для существующего пользователя {user.name}")
+            else:
+                # Создаем пользователя
+                user = await UserRepository.create(
+                    telegram_id=curator_data["telegram_id"],
+                    name=curator_data["name"],
+                    role='curator'
+                )
+                print(f"   ✅ Создан пользователь: {user.name}")
 
             # Создаем профиль куратора
             curator = await CuratorRepository.create(
                 user_id=user.id,
                 course_id=course.id,
-                subject_id=subject.id,
-                group_id=target_group.id
+                subject_id=subject.id
             )
 
-            print(f"   ✅ Создан куратор '{curator_data['name']}' для группы '{target_group.name}' ({curator_data['subject_name']})")
+            # Добавляем куратора в группу через M2M связь
+            success = await CuratorRepository.add_curator_to_group(curator.id, target_group.id)
+            if success:
+                print(f"   ✅ Создан куратор '{curator_data['name']}' для группы '{target_group.name}' ({curator_data['subject_name']})")
+            else:
+                print(f"   ⚠️ Куратор '{curator_data['name']}' создан, но не удалось привязать к группе '{target_group.name}'")
+
             created_curators_count += 1
 
         except Exception as e:
             print(f"   ❌ Ошибка при создании куратора '{curator_data['name']}': {e}")
 
     print(f"📊 Создано кураторов: {created_curators_count}")
+
+    # Добавляем дополнительные группы для демонстрации Many-to-Many связи
+    print("🔗 Добавление дополнительных групп для кураторов...")
+    try:
+        # Максат Байкадамов - добавляем МАТ-2 и МАТ-3
+        curators = await CuratorRepository.get_all()
+        math_curator = next((c for c in curators if c.user.telegram_id == 1268264380), None)
+        if math_curator:
+            math_subject = created_subjects.get("Математика")
+            if math_subject:
+                groups = await GroupRepository.get_by_subject(math_subject.id)
+                for group_name in ["МАТ-2", "МАТ-3"]:
+                    group = next((g for g in groups if g.name == group_name), None)
+                    if group:
+                        await CuratorRepository.add_curator_to_group(math_curator.id, group.id)
+                        print(f"   ✅ {math_curator.user.name} -> {group_name}")
+
+        # Куратор Химии - добавляем ХИМ-2
+        chem_curator = next((c for c in curators if c.user.telegram_id == 444444444), None)
+        if chem_curator:
+            chem_subject = created_subjects.get("Химия")
+            if chem_subject:
+                groups = await GroupRepository.get_by_subject(chem_subject.id)
+                group = next((g for g in groups if g.name == "ХИМ-2"), None)
+                if group:
+                    await CuratorRepository.add_curator_to_group(chem_curator.id, group.id)
+                    print(f"   ✅ {chem_curator.user.name} -> ХИМ-2")
+
+        # Куратор Python - добавляем PY-2 и PY-3
+        py_curator = next((c for c in curators if c.user.telegram_id == 555555555), None)
+        if py_curator:
+            py_subject = created_subjects.get("Python")
+            if py_subject:
+                groups = await GroupRepository.get_by_subject(py_subject.id)
+                for group_name in ["PY-2", "PY-3"]:
+                    group = next((g for g in groups if g.name == group_name), None)
+                    if group:
+                        await CuratorRepository.add_curator_to_group(py_curator.id, group.id)
+                        print(f"   ✅ {py_curator.user.name} -> {group_name}")
+
+    except Exception as e:
+        print(f"   ⚠️ Ошибка: {e}")
 
     print("👨‍🏫 Добавление тестовых преподавателей...")
     # Создаем тестовых преподавателей
@@ -847,6 +902,7 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
 
         # Создаем ДЗ для разных предметов
         homework_data = [
+            # Химия - 4 ДЗ
             {
                 "name": "Базовое ДЗ по алканам",
                 "subject_name": "Химия",
@@ -855,27 +911,71 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Какая общая формула алканов?",
                         "time_limit": 30,
-                        "microtopic_number": 1,  # Первая микротема по химии
+                        "microtopic_number": 1,
                         "answers": [
                             {"text": "CnH2n+2", "is_correct": True},
                             {"text": "CnH2n", "is_correct": False},
                             {"text": "CnH2n-2", "is_correct": False},
                             {"text": "CnHn", "is_correct": False}
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                "name": "Алкены и алкины",
+                "subject_name": "Химия",
+                "course": course_ent,
+                "questions": [
                     {
-                        "text": "Какой тип гибридизации у атомов углерода в алканах?",
-                        "time_limit": 45,
-                        "microtopic_number": 1,  # Первая микротема по химии
+                        "text": "Какая общая формула алкенов?",
+                        "time_limit": 30,
+                        "microtopic_number": 2,
                         "answers": [
-                            {"text": "sp3", "is_correct": True},
-                            {"text": "sp2", "is_correct": False},
-                            {"text": "sp", "is_correct": False},
-                            {"text": "sp3d", "is_correct": False}
+                            {"text": "CnH2n", "is_correct": True},
+                            {"text": "CnH2n+2", "is_correct": False},
+                            {"text": "CnH2n-2", "is_correct": False},
+                            {"text": "CnHn", "is_correct": False}
                         ]
                     }
                 ]
             },
+            {
+                "name": "Ароматические соединения",
+                "subject_name": "Химия",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Какое соединение является простейшим ароматическим?",
+                        "time_limit": 30,
+                        "microtopic_number": 3,
+                        "answers": [
+                            {"text": "Бензол", "is_correct": True},
+                            {"text": "Толуол", "is_correct": False},
+                            {"text": "Фенол", "is_correct": False},
+                            {"text": "Анилин", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Кислоты и основания",
+                "subject_name": "Химия",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Что показывает pH раствора?",
+                        "time_limit": 30,
+                        "microtopic_number": 4,
+                        "answers": [
+                            {"text": "Кислотность", "is_correct": True},
+                            {"text": "Температуру", "is_correct": False},
+                            {"text": "Плотность", "is_correct": False},
+                            {"text": "Давление", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            # Python - 4 ДЗ
             {
                 "name": "Основы Python",
                 "subject_name": "Python",
@@ -884,27 +984,71 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Какой тип данных используется для хранения текста в Python?",
                         "time_limit": 30,
-                        "microtopic_number": 1,  # Первая микротема по Python
+                        "microtopic_number": 1,
                         "answers": [
                             {"text": "str", "is_correct": True},
                             {"text": "text", "is_correct": False},
                             {"text": "string", "is_correct": False},
                             {"text": "char", "is_correct": False}
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                "name": "Циклы и условия",
+                "subject_name": "Python",
+                "course": course_it,
+                "questions": [
                     {
-                        "text": "Как создать список в Python?",
+                        "text": "Какой оператор используется для цикла в Python?",
                         "time_limit": 30,
-                        "microtopic_number": 1,  # Первая микротема по Python
+                        "microtopic_number": 2,
                         "answers": [
-                            {"text": "[]", "is_correct": True},
-                            {"text": "{}", "is_correct": False},
-                            {"text": "()", "is_correct": False},
-                            {"text": "<>", "is_correct": False}
+                            {"text": "for", "is_correct": True},
+                            {"text": "loop", "is_correct": False},
+                            {"text": "repeat", "is_correct": False},
+                            {"text": "cycle", "is_correct": False}
                         ]
                     }
                 ]
             },
+            {
+                "name": "Функции",
+                "subject_name": "Python",
+                "course": course_it,
+                "questions": [
+                    {
+                        "text": "Как объявить функцию в Python?",
+                        "time_limit": 30,
+                        "microtopic_number": 3,
+                        "answers": [
+                            {"text": "def", "is_correct": True},
+                            {"text": "function", "is_correct": False},
+                            {"text": "func", "is_correct": False},
+                            {"text": "define", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "ООП в Python",
+                "subject_name": "Python",
+                "course": course_it,
+                "questions": [
+                    {
+                        "text": "Как создать класс в Python?",
+                        "time_limit": 30,
+                        "microtopic_number": 4,
+                        "answers": [
+                            {"text": "class", "is_correct": True},
+                            {"text": "object", "is_correct": False},
+                            {"text": "struct", "is_correct": False},
+                            {"text": "type", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            # Математика - 4 ДЗ
             {
                 "name": "Основы математики",
                 "subject_name": "Математика",
@@ -913,12 +1057,66 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     {
                         "text": "Чему равен корень из 16?",
                         "time_limit": 30,
-                        "microtopic_number": 1,  # Первая микротема по математике
+                        "microtopic_number": 1,
                         "answers": [
                             {"text": "4", "is_correct": True},
                             {"text": "8", "is_correct": False},
                             {"text": "2", "is_correct": False},
                             {"text": "16", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Алгебра",
+                "subject_name": "Математика",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Чему равно x в уравнении 2x + 4 = 10?",
+                        "time_limit": 30,
+                        "microtopic_number": 2,
+                        "answers": [
+                            {"text": "3", "is_correct": True},
+                            {"text": "2", "is_correct": False},
+                            {"text": "4", "is_correct": False},
+                            {"text": "5", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Геометрия",
+                "subject_name": "Математика",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Сколько градусов в треугольнике?",
+                        "time_limit": 30,
+                        "microtopic_number": 3,
+                        "answers": [
+                            {"text": "180", "is_correct": True},
+                            {"text": "90", "is_correct": False},
+                            {"text": "360", "is_correct": False},
+                            {"text": "270", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Тригонометрия",
+                "subject_name": "Математика",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Чему равен sin(90°)?",
+                        "time_limit": 30,
+                        "microtopic_number": 4,
+                        "answers": [
+                            {"text": "1", "is_correct": True},
+                            {"text": "0", "is_correct": False},
+                            {"text": "0.5", "is_correct": False},
+                            {"text": "-1", "is_correct": False}
                         ]
                     }
                 ]
@@ -1307,8 +1505,23 @@ async def add_test_homework_results():
         for student in students:
             print(f"📊 Создаем результаты для студента '{student.user.name}':")
 
-            # Каждый студент проходит несколько ДЗ
-            student_homeworks = homeworks[:3]  # Берем первые 3 ДЗ для каждого студента
+            # Получаем ДЗ только по предмету группы студента
+            if not student.group or not student.group.subject:
+                print(f"   ⚠️  У студента {student.user.name} нет группы или предмета")
+                continue
+
+            subject_homeworks = [hw for hw in homeworks if hw.subject_id == student.group.subject_id]
+            if not subject_homeworks:
+                print(f"   ⚠️  Нет ДЗ по предмету {student.group.subject.name}")
+                continue
+
+            # Разное количество ДЗ для разных студентов (от 1 до всех доступных)
+            import random
+            max_homeworks = len(subject_homeworks)
+            num_homeworks = random.randint(1, max_homeworks)  # От 1 до всех ДЗ
+            student_homeworks = random.sample(subject_homeworks, num_homeworks)  # Случайные ДЗ
+
+            print(f"   📚 Выполняет {num_homeworks} из {max_homeworks} ДЗ по предмету {student.group.subject.name}")
 
             for homework in student_homeworks:
                 try:

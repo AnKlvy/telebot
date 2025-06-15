@@ -22,7 +22,7 @@ class CuratorRepository:
                     selectinload(Curator.user),
                     selectinload(Curator.course),
                     selectinload(Curator.subject),
-                    selectinload(Curator.group).selectinload(Group.subject)
+                    selectinload(Curator.groups).selectinload(Group.subject)
                 )
             )
             return list(result.scalars().all())
@@ -37,7 +37,7 @@ class CuratorRepository:
                     selectinload(Curator.user),
                     selectinload(Curator.course),
                     selectinload(Curator.subject),
-                    selectinload(Curator.group).selectinload(Group.subject)
+                    selectinload(Curator.groups).selectinload(Group.subject)
                 )
                 .where(Curator.id == curator_id)
             )
@@ -53,7 +53,7 @@ class CuratorRepository:
                     selectinload(Curator.user),
                     selectinload(Curator.course),
                     selectinload(Curator.subject),
-                    selectinload(Curator.group).selectinload(Group.subject)
+                    selectinload(Curator.groups).selectinload(Group.subject)
                 )
                 .where(Curator.user_id == user_id)
             )
@@ -69,9 +69,10 @@ class CuratorRepository:
                     selectinload(Curator.user),
                     selectinload(Curator.course),
                     selectinload(Curator.subject),
-                    selectinload(Curator.group).selectinload(Group.subject)
+                    selectinload(Curator.groups).selectinload(Group.subject)
                 )
-                .where(Curator.group_id == group_id)
+                .join(Curator.groups)
+                .where(Group.id == group_id)
             )
             return list(result.scalars().all())
 
@@ -83,28 +84,22 @@ class CuratorRepository:
                 selectinload(Curator.user),
                 selectinload(Curator.course),
                 selectinload(Curator.subject),
-                selectinload(Curator.group).selectinload(Group.subject)
+                selectinload(Curator.groups).selectinload(Group.subject)
             )
-            
+
             if group_id:
-                query = query.where(Curator.group_id == group_id)
+                # Используем join для поиска по группе через M2M связь
+                query = query.join(Curator.groups).where(Group.id == group_id)
             elif subject_id:
                 query = query.where(Curator.subject_id == subject_id)
-                
+
             result = await session.execute(query)
             return list(result.scalars().all())
 
     @staticmethod
-    async def create(user_id: int, course_id: int = None, subject_id: int = None, group_id: int = None) -> Curator:
+    async def create(user_id: int, course_id: int = None, subject_id: int = None) -> Curator:
         """Создать профиль куратора"""
         async with get_db_session() as session:
-            # Проверяем, существует ли уже профиль куратора для этого пользователя
-            existing = await session.execute(
-                select(Curator).where(Curator.user_id == user_id)
-            )
-            if existing.scalar_one_or_none():
-                raise ValueError(f"Профиль куратора для пользователя {user_id} уже существует")
-
             # Проверяем, существует ли пользователь
             user_exists = await session.execute(
                 select(User).where(User.id == user_id)
@@ -115,8 +110,7 @@ class CuratorRepository:
             curator = Curator(
                 user_id=user_id,
                 course_id=course_id,
-                subject_id=subject_id,
-                group_id=group_id
+                subject_id=subject_id
             )
             session.add(curator)
             await session.commit()
@@ -124,20 +118,18 @@ class CuratorRepository:
             return curator
 
     @staticmethod
-    async def update(curator_id: int, course_id: int = None, subject_id: int = None, group_id: int = None) -> bool:
+    async def update(curator_id: int, course_id: int = None, subject_id: int = None) -> bool:
         """Обновить информацию о кураторе"""
         async with get_db_session() as session:
             curator = await session.get(Curator, curator_id)
             if not curator:
                 return False
-            
+
             if course_id is not None:
                 curator.course_id = course_id
             if subject_id is not None:
                 curator.subject_id = subject_id
-            if group_id is not None:
-                curator.group_id = group_id
-                
+
             await session.commit()
             return True
 
@@ -156,3 +148,71 @@ class CuratorRepository:
             result = await session.execute(delete(Curator).where(Curator.user_id == user_id))
             await session.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def get_curator_groups(curator_id: int) -> List[Group]:
+        """Получить все группы куратора"""
+        async with get_db_session() as session:
+            # Получаем куратора с его группами
+            curator_result = await session.execute(
+                select(Curator)
+                .options(selectinload(Curator.groups).selectinload(Group.subject))
+                .where(Curator.id == curator_id)
+            )
+            curator = curator_result.scalar_one_or_none()
+
+            if not curator:
+                return []
+
+            # Возвращаем все группы куратора
+            return list(curator.groups)
+
+    @staticmethod
+    async def add_curator_to_group(curator_id: int, group_id: int) -> bool:
+        """Добавить куратора в группу"""
+        async with get_db_session() as session:
+            # Получаем куратора с загруженными группами
+            result = await session.execute(
+                select(Curator)
+                .options(selectinload(Curator.groups))
+                .where(Curator.id == curator_id)
+            )
+            curator = result.scalar_one_or_none()
+
+            # Получаем группу
+            group = await session.get(Group, group_id)
+
+            if not curator or not group:
+                return False
+
+            # Добавляем группу к куратору, если её там нет
+            if group not in curator.groups:
+                curator.groups.append(group)
+                await session.commit()
+
+            return True
+
+    @staticmethod
+    async def remove_curator_from_group(curator_id: int, group_id: int) -> bool:
+        """Удалить куратора из группы"""
+        async with get_db_session() as session:
+            # Получаем куратора с загруженными группами
+            result = await session.execute(
+                select(Curator)
+                .options(selectinload(Curator.groups))
+                .where(Curator.id == curator_id)
+            )
+            curator = result.scalar_one_or_none()
+
+            # Получаем группу
+            group = await session.get(Group, group_id)
+
+            if not curator or not group:
+                return False
+
+            # Удаляем группу у куратора, если она там есть
+            if group in curator.groups:
+                curator.groups.remove(group)
+                await session.commit()
+
+            return True

@@ -71,16 +71,26 @@ async def select_student_for_analytics(callback: CallbackQuery, state: FSMContex
 async def select_group_for_group_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
     Базовый обработчик для выбора группы для статистики по группе
-    
+
     Args:
         callback: Объект CallbackQuery
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    groups_kb = await get_groups_for_analytics_kb(role)
+    # Получаем ID выбранного куратора из состояния
+    data = await state.get_data()
+    curator_id = data.get('selected_curator')
+
+    if curator_id and role == "manager":
+        # Если выбран куратор, показываем его группы
+        keyboard = await get_groups_by_curator_kb(curator_id)
+    else:
+        # Иначе показываем все группы
+        keyboard = await get_groups_for_analytics_kb(role)
+
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики:",
-        reply_markup=groups_kb
+        reply_markup=keyboard
     )
     # Удаляем установку состояния
 

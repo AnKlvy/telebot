@@ -97,10 +97,48 @@ class HomeworkResultRepository:
     async def get_student_stats(student_id: int) -> dict:
         """Получить общую статистику студента"""
         async with get_db_session() as session:
-            # Общее количество выполненных ДЗ (включая повторные)
+            # Получаем студента и его группу
+            from ..models import Student, Homework
+            student_result = await session.execute(
+                select(Student)
+                .options(selectinload(Student.group))
+                .where(Student.id == student_id)
+            )
+            student = student_result.scalar_one_or_none()
+
+            if not student or not student.group:
+                return {
+                    'total_completed': 0,
+                    'total_attempted': 0,
+                    'total_points': 0
+                }
+
+            # Общее количество доступных ДЗ для предмета группы студента
+            total_available_result = await session.execute(
+                select(func.count(Homework.id))
+                .where(Homework.subject_id == student.group.subject_id)
+            )
+            total_available = total_available_result.scalar() or 0
+
+            # Количество уникальных выполненных ДЗ по предмету группы студента (без повторов)
+            unique_completed_result = await session.execute(
+                select(func.count(func.distinct(HomeworkResult.homework_id)))
+                .join(Homework, HomeworkResult.homework_id == Homework.id)
+                .where(
+                    HomeworkResult.student_id == student_id,
+                    Homework.subject_id == student.group.subject_id
+                )
+            )
+            unique_completed = unique_completed_result.scalar() or 0
+
+            # Общее количество выполненных ДЗ по предмету группы (включая повторные)
             total_completed_result = await session.execute(
                 select(func.count(HomeworkResult.id))
-                .where(HomeworkResult.student_id == student_id)
+                .join(Homework, HomeworkResult.homework_id == Homework.id)
+                .where(
+                    HomeworkResult.student_id == student_id,
+                    Homework.subject_id == student.group.subject_id
+                )
             )
             total_completed = total_completed_result.scalar() or 0
 
@@ -113,6 +151,8 @@ class HomeworkResultRepository:
 
             return {
                 'total_completed': total_completed,
+                'total_attempted': total_available,  # Всего доступных ДЗ
+                'unique_completed': unique_completed,  # Уникальных выполненных
                 'total_points': total_points
             }
 

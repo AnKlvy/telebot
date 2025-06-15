@@ -23,18 +23,24 @@ async def get_curators_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора куратора"""
     # Получаем реальных кураторов из базы данных
     try:
-        curators = await CuratorRepository.get_all()
+        all_curators = await CuratorRepository.get_all()
     except Exception as e:
         print(f"Ошибка при получении кураторов: {e}")
-        curators = []
+        all_curators = []
+
+    # Группируем кураторов по user_id, чтобы избежать дублирования
+    unique_curators = {}
+    for curator in all_curators:
+        user_id = curator.user_id
+        if user_id not in unique_curators:
+            unique_curators[user_id] = curator
 
     buttons = []
-    for curator in curators:
-        # Показываем имя куратора с предметом и группой
+    for curator in unique_curators.values():
+        # Показываем только имя куратора без групп
+        # Куратор не привязан к одной группе, группы отображаются отдельно
         curator_info = f"{curator.user.name}"
-        if curator.subject and curator.group:
-            curator_info += f" ({curator.subject.name}, {curator.group.name})"
-        elif curator.subject:
+        if curator.subject:
             curator_info += f" ({curator.subject.name})"
 
         buttons.append([
