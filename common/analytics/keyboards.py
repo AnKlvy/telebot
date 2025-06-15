@@ -146,6 +146,21 @@ def get_back_to_student_analytics_kb(student_id: int, subject_id: int) -> Inline
     ])
 
 
+def get_general_microtopics_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для просмотра общей статистики по микротемам"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📈 % понимания по микротемам",
+            callback_data="general_microtopics_detailed"
+        )],
+        [InlineKeyboardButton(
+            text="🟢🔴 Сильные и слабые темы",
+            callback_data="general_microtopics_summary"
+        )],
+        *get_main_menu_back_button()
+    ])
+
+
 async def get_subjects_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета для аналитики"""
     try:
@@ -199,6 +214,28 @@ def get_subject_microtopics_kb(subject_id: int) -> InlineKeyboardMarkup:
 
 def get_back_to_subject_analytics_kb(subject_id: int) -> InlineKeyboardMarkup:
     """Клавиатура возврата к статистике предмета"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *get_main_menu_back_button()
+    ])
+
+
+def get_general_microtopics_kb() -> InlineKeyboardMarkup:
+    """Клавиатура для просмотра общей статистики по микротемам"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📈 % понимания по микротемам",
+            callback_data="general_microtopics_detailed"
+        )],
+        [InlineKeyboardButton(
+            text="🟢🔴 Сильные и слабые темы",
+            callback_data="general_microtopics_summary"
+        )],
+        *get_main_menu_back_button()
+    ])
+
+
+def get_back_to_general_analytics_kb() -> InlineKeyboardMarkup:
+    """Клавиатура возврата к общей статистике"""
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button()
     ])

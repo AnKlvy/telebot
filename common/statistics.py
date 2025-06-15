@@ -390,6 +390,167 @@ async def get_student_strong_weak_summary(student_id: int, subject_id: int) -> s
     return f"📌 {student.user.name}\n{summary_data['text']}"
 
 
+async def get_general_microtopics_detailed() -> str:
+    """
+    Получить детальную статистику по микротемам для всех предметов
+
+    Returns:
+        str: Отформатированный текст с детальной статистикой
+    """
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
+
+        # Получаем все предметы
+        all_subjects = await SubjectRepository.get_all()
+        if not all_subjects:
+            return "❌ Предметы не найдены"
+
+        result_text = "📊 Общая статистика по микротемам\n📈 Средний % понимания по всем предметам:\n\n"
+
+        has_data = False
+
+        for subject in all_subjects:
+            # Получаем группы предмета
+            groups = await GroupRepository.get_by_subject(subject.id)
+            if not groups:
+                continue
+
+            # Получаем микротемы предмета
+            microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+            if not microtopics:
+                continue
+
+            # Собираем статистику по всем микротемам предмета
+            microtopic_stats = {}
+
+            for group in groups:
+                students = await StudentRepository.get_by_group(group.id)
+
+                for student in students:
+                    student_microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, subject.id)
+
+                    for microtopic_number, stats in student_microtopic_stats.items():
+                        if microtopic_number not in microtopic_stats:
+                            microtopic_stats[microtopic_number] = []
+                        microtopic_stats[microtopic_number].append(stats['percentage'])
+
+            if microtopic_stats:
+                has_data = True
+                result_text += f"📚 {subject.name}:\n"
+
+                # Создаем словарь названий микротем
+                microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+                # Сортируем по номеру микротемы
+                for microtopic_number in sorted(microtopic_stats.keys()):
+                    percentages = microtopic_stats[microtopic_number]
+                    avg_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0
+                    microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+
+                    # Определяем статус
+                    status = "✅" if avg_percentage >= 80 else "❌" if avg_percentage <= 40 else "⚠️"
+                    result_text += f"  • {microtopic_name} — {avg_percentage}% {status}\n"
+
+                result_text += "\n"
+
+        if not has_data:
+            return "📊 Общая статистика по микротемам\n❌ Пока не выполнено ни одного задания по микротемам"
+
+        return result_text.rstrip()
+
+    except Exception as e:
+        print(f"Ошибка при получении общей детальной статистики: {e}")
+        return "❌ Ошибка при получении статистики"
+
+
+async def get_general_microtopics_summary() -> str:
+    """
+    Получить сводку по сильным и слабым темам для всех предметов
+
+    Returns:
+        str: Отформатированный текст со сводкой
+    """
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
+
+        # Получаем все предметы
+        all_subjects = await SubjectRepository.get_all()
+        if not all_subjects:
+            return "❌ Предметы не найдены"
+
+        result_text = "📊 Общая сводка по микротемам\n"
+
+        all_strong_topics = []
+        all_weak_topics = []
+        has_data = False
+
+        for subject in all_subjects:
+            # Получаем группы предмета
+            groups = await GroupRepository.get_by_subject(subject.id)
+            if not groups:
+                continue
+
+            # Получаем микротемы предмета
+            microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+            if not microtopics:
+                continue
+
+            # Собираем статистику по всем микротемам предмета
+            microtopic_stats = {}
+
+            for group in groups:
+                students = await StudentRepository.get_by_group(group.id)
+
+                for student in students:
+                    student_microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, subject.id)
+
+                    for microtopic_number, stats in student_microtopic_stats.items():
+                        if microtopic_number not in microtopic_stats:
+                            microtopic_stats[microtopic_number] = []
+                        microtopic_stats[microtopic_number].append(stats['percentage'])
+
+            if microtopic_stats:
+                has_data = True
+                # Создаем словарь названий микротем
+                microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+                # Вычисляем средние значения и определяем сильные/слабые темы
+                for microtopic_number, percentages in microtopic_stats.items():
+                    avg_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0
+                    microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+                    topic_with_subject = f"{microtopic_name} ({subject.name})"
+
+                    if avg_percentage >= 80:
+                        all_strong_topics.append(topic_with_subject)
+                    elif avg_percentage <= 40:
+                        all_weak_topics.append(topic_with_subject)
+
+        if not has_data:
+            return "📊 Общая сводка по микротемам\n❌ Пока не выполнено ни одного задания для анализа"
+
+        # Формируем результат
+        if all_strong_topics:
+            result_text += "\n🟢 Сильные темы (≥80%):\n"
+            for topic in all_strong_topics:
+                result_text += f"• {topic}\n"
+
+        if all_weak_topics:
+            if all_strong_topics:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in all_weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not all_strong_topics and not all_weak_topics:
+            result_text += "\n⚠️ Все темы находятся в среднем диапазоне (41-79%)"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка при получении общей сводки: {e}")
+        return "❌ Ошибка при получении сводки"
+
+
 async def get_subject_microtopics_detailed(subject_id: int) -> str:
     """
     Получить детальную статистику по микротемам для предмета
@@ -543,6 +704,167 @@ async def get_subject_microtopics_summary(subject_id: int) -> str:
 
     except Exception as e:
         print(f"Ошибка при получении сводки по предмету: {e}")
+        return "❌ Ошибка при получении сводки"
+
+
+async def get_general_microtopics_detailed() -> str:
+    """
+    Получить детальную статистику по микротемам для всех предметов
+
+    Returns:
+        str: Отформатированный текст с детальной статистикой
+    """
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
+
+        # Получаем все предметы
+        all_subjects = await SubjectRepository.get_all()
+        if not all_subjects:
+            return "❌ Предметы не найдены"
+
+        result_text = "📊 Общая статистика по микротемам\n📈 Средний % понимания по всем предметам:\n\n"
+
+        has_data = False
+
+        for subject in all_subjects:
+            # Получаем группы предмета
+            groups = await GroupRepository.get_by_subject(subject.id)
+            if not groups:
+                continue
+
+            # Получаем микротемы предмета
+            microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+            if not microtopics:
+                continue
+
+            # Собираем статистику по всем микротемам предмета
+            microtopic_stats = {}
+
+            for group in groups:
+                students = await StudentRepository.get_by_group(group.id)
+
+                for student in students:
+                    student_microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, subject.id)
+
+                    for microtopic_number, stats in student_microtopic_stats.items():
+                        if microtopic_number not in microtopic_stats:
+                            microtopic_stats[microtopic_number] = []
+                        microtopic_stats[microtopic_number].append(stats['percentage'])
+
+            if microtopic_stats:
+                has_data = True
+                result_text += f"📚 {subject.name}:\n"
+
+                # Создаем словарь названий микротем
+                microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+                # Сортируем по номеру микротемы
+                for microtopic_number in sorted(microtopic_stats.keys()):
+                    percentages = microtopic_stats[microtopic_number]
+                    avg_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0
+                    microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+
+                    # Определяем статус
+                    status = "✅" if avg_percentage >= 80 else "❌" if avg_percentage <= 40 else "⚠️"
+                    result_text += f"  • {microtopic_name} — {avg_percentage}% {status}\n"
+
+                result_text += "\n"
+
+        if not has_data:
+            return "📊 Общая статистика по микротемам\n❌ Пока не выполнено ни одного задания по микротемам"
+
+        return result_text.rstrip()
+
+    except Exception as e:
+        print(f"Ошибка при получении общей детальной статистики: {e}")
+        return "❌ Ошибка при получении статистики"
+
+
+async def get_general_microtopics_summary() -> str:
+    """
+    Получить сводку по сильным и слабым темам для всех предметов
+
+    Returns:
+        str: Отформатированный текст со сводкой
+    """
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
+
+        # Получаем все предметы
+        all_subjects = await SubjectRepository.get_all()
+        if not all_subjects:
+            return "❌ Предметы не найдены"
+
+        result_text = "📊 Общая сводка по микротемам\n"
+
+        all_strong_topics = []
+        all_weak_topics = []
+        has_data = False
+
+        for subject in all_subjects:
+            # Получаем группы предмета
+            groups = await GroupRepository.get_by_subject(subject.id)
+            if not groups:
+                continue
+
+            # Получаем микротемы предмета
+            microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+            if not microtopics:
+                continue
+
+            # Собираем статистику по всем микротемам предмета
+            microtopic_stats = {}
+
+            for group in groups:
+                students = await StudentRepository.get_by_group(group.id)
+
+                for student in students:
+                    student_microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, subject.id)
+
+                    for microtopic_number, stats in student_microtopic_stats.items():
+                        if microtopic_number not in microtopic_stats:
+                            microtopic_stats[microtopic_number] = []
+                        microtopic_stats[microtopic_number].append(stats['percentage'])
+
+            if microtopic_stats:
+                has_data = True
+                # Создаем словарь названий микротем
+                microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+                # Вычисляем средние значения и определяем сильные/слабые темы
+                for microtopic_number, percentages in microtopic_stats.items():
+                    avg_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0
+                    microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+                    topic_with_subject = f"{microtopic_name} ({subject.name})"
+
+                    if avg_percentage >= 80:
+                        all_strong_topics.append(topic_with_subject)
+                    elif avg_percentage <= 40:
+                        all_weak_topics.append(topic_with_subject)
+
+        if not has_data:
+            return "📊 Общая сводка по микротемам\n❌ Пока не выполнено ни одного задания для анализа"
+
+        # Формируем результат
+        if all_strong_topics:
+            result_text += "\n🟢 Сильные темы (≥80%):\n"
+            for topic in all_strong_topics:
+                result_text += f"• {topic}\n"
+
+        if all_weak_topics:
+            if all_strong_topics:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in all_weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not all_strong_topics and not all_weak_topics:
+            result_text += "\n⚠️ Все темы находятся в среднем диапазоне (41-79%)"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка при получении общей сводки: {e}")
         return "❌ Ошибка при получении сводки"
 
 

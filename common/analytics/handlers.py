@@ -5,7 +5,8 @@ from .keyboards import (
     get_students_for_analytics_kb, get_groups_by_curator_kb,
     get_back_to_student_analytics_kb, get_subjects_for_analytics_kb,
     get_back_to_analytics_kb, get_subject_microtopics_kb,
-    get_back_to_subject_analytics_kb
+    get_back_to_subject_analytics_kb, get_general_microtopics_kb,
+    get_back_to_general_analytics_kb
 )
 from common.utils import check_if_id_in_callback_data
 from common.statistics import (
@@ -15,7 +16,11 @@ from common.statistics import (
     get_subject_stats,
     format_subject_stats,
     get_subject_microtopics_detailed,
-    get_subject_microtopics_summary
+    get_subject_microtopics_summary,
+    get_general_stats,
+    format_general_stats,
+    get_general_microtopics_detailed,
+    get_general_microtopics_summary
 )
 
 

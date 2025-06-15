@@ -13,7 +13,7 @@ from ..keyboards.analytics import (
 from common.analytics.keyboards import get_back_to_analytics_kb
 from common.statistics import (
     get_subject_stats, format_subject_stats, get_general_stats, format_general_stats, show_student_analytics,
-    show_group_analytics
+    show_group_analytics, get_general_microtopics_detailed, get_general_microtopics_summary
 )
 from common.utils import check_if_id_in_callback_data
 import logging
@@ -168,12 +168,35 @@ async def manager_show_general_analytics(callback: CallbackQuery, state: FSMCont
     # Получаем общие данные из общего компонента (теперь асинхронно)
     general_data = await get_general_stats()
 
-    # Форматируем статистику в текст
-    result_text = format_general_stats(general_data)
+    # Формируем базовую информацию
+    result_text = "📊 Общая статистика\n\n"
+
+    # Добавляем общую информацию
+    result_text += f"👥 Всего учеников: {general_data['total_students']}\n"
+    if general_data['total_students'] > 0:
+        result_text += f"👤 Активных учеников: {general_data['active_students']} ({general_data['active_students']/general_data['total_students']*100:.1f}%)\n"
+    else:
+        result_text += f"👤 Активных учеников: {general_data['active_students']}\n"
+    result_text += f"👨‍👩‍👧‍👦 Всего групп: {general_data['total_groups']}\n\n"
+
+    # Добавляем топ предметов по баллам
+    if general_data['subjects']:
+        result_text += "📚 Топ предметов по средним баллам:\n"
+        # Сортируем предметы по средним баллам
+        sorted_subjects = sorted(general_data['subjects'], key=lambda x: x['average_score'], reverse=True)
+        for i, subject in enumerate(sorted_subjects[:5], 1):  # Топ 5
+            result_text += f"{i}. {subject['name']} — {subject['average_score']} баллов\n"
+    else:
+        result_text += "📚 Данные по предметам отсутствуют\n"
+
+    result_text += "\nВыберите, что хотите посмотреть:"
+
+    # Импортируем клавиатуру
+    from common.analytics.keyboards import get_general_microtopics_kb
 
     await callback.message.edit_text(
         result_text,
-        reply_markup=get_back_to_analytics_kb()
+        reply_markup=get_general_microtopics_kb()
     )
     await state.set_state(ManagerAnalyticsStates.general_stats)
 
@@ -189,3 +212,28 @@ async def manager_show_subject_microtopics_summary(callback: CallbackQuery, stat
     """Показать сводку по сильным и слабым темам предмета"""
     logger.info("Вызван обработчик manager_show_subject_microtopics_summary")
     await show_subject_microtopics_summary(callback, state)
+
+# Обработчики для общей статистики по микротемам
+@router.callback_query(F.data == "general_microtopics_detailed")
+async def manager_show_general_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную общую статистику по микротемам"""
+    logger.info("Вызван обработчик manager_show_general_microtopics_detailed")
+    result_text = await get_general_microtopics_detailed()
+
+    from common.analytics.keyboards import get_back_to_analytics_kb
+    await callback.message.edit_text(
+        result_text,
+        reply_markup=get_back_to_analytics_kb()
+    )
+
+@router.callback_query(F.data == "general_microtopics_summary")
+async def manager_show_general_microtopics_summary(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным и слабым темам для всех предметов"""
+    logger.info("Вызван обработчик manager_show_general_microtopics_summary")
+    result_text = await get_general_microtopics_summary()
+
+    from common.analytics.keyboards import get_back_to_analytics_kb
+    await callback.message.edit_text(
+        result_text,
+        reply_markup=get_back_to_analytics_kb()
+    )
