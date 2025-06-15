@@ -215,7 +215,18 @@ async def save_homework(callback: CallbackQuery, state: FSMContext):
         lesson_id = user_data.get("lesson_id")
         questions = user_data.get("questions", [])
 
-        # Создаем домашнее задание
+        # Проверяем, является ли это бонусным тестом
+        current_state = await state.get_state()
+        is_bonus_test = "BonusTest" in current_state if current_state else False
+
+        if is_bonus_test:
+            # Для бонусных тестов используем специальный обработчик
+            logger.info("🎯 Обнаружен бонусный тест - перенаправляем в bonus_test.py")
+            from manager.handlers.bonus_test import save_bonus_test
+            await save_bonus_test(callback, state)
+            return
+
+        # Создаем домашнее задание (только для обычных ДЗ)
         homework = await HomeworkRepository.create(
             name=test_name,
             subject_id=subject_id,

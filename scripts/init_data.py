@@ -23,6 +23,9 @@ from database import (
     HomeworkRepository,
     QuestionRepository,
     AnswerOptionRepository,
+    BonusTestRepository,
+    BonusQuestionRepository,
+    BonusAnswerOptionRepository,
     get_db_session
 )
 from database.models import Microtopic, Subject
@@ -682,6 +685,10 @@ async def add_initial_data():
     # Создаем тестовые домашние задания
     await add_test_homework_data(created_subjects, course_ent, course_it)
 
+    print("🧪 Добавление тестовых бонусных тестов...")
+    # Создаем тестовые бонусные тесты
+    await add_test_bonus_tests()
+
     print("🎉 Начальные данные добавлены!")
 
 
@@ -847,6 +854,188 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
 
     except Exception as e:
         print(f"❌ Ошибка при добавлении тестовых данных ДЗ: {e}")
+
+
+async def add_test_bonus_tests():
+    """Добавление тестовых бонусных тестов"""
+    try:
+        # Данные для тестовых бонусных тестов
+        bonus_tests_data = [
+            {
+                "name": "Тест по алканам",
+                "price": 100,
+                "questions": [
+                    {
+                        "text": "Какое из следующих соединений является изомером бутана?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "Пропан", "is_correct": False},
+                            {"text": "2-метилпропан", "is_correct": True},
+                            {"text": "Пентан", "is_correct": False},
+                            {"text": "Этан", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Какой тип изомерии характерен для алканов?",
+                        "time_limit": 45,
+                        "answers": [
+                            {"text": "Геометрическая", "is_correct": False},
+                            {"text": "Структурная", "is_correct": True},
+                            {"text": "Оптическая", "is_correct": False},
+                            {"text": "Таутомерия", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Какая реакция характерна для алканов?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "Присоединение", "is_correct": False},
+                            {"text": "Замещение", "is_correct": True},
+                            {"text": "Полимеризация", "is_correct": False},
+                            {"text": "Конденсация", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Основы программирования",
+                "price": 150,
+                "questions": [
+                    {
+                        "text": "Что такое переменная в программировании?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "Именованная область памяти", "is_correct": True},
+                            {"text": "Функция", "is_correct": False},
+                            {"text": "Класс", "is_correct": False},
+                            {"text": "Модуль", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Какой из языков является интерпретируемым?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "C++", "is_correct": False},
+                            {"text": "Java", "is_correct": False},
+                            {"text": "Python", "is_correct": True},
+                            {"text": "C#", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Математические основы",
+                "price": 75,
+                "questions": [
+                    {
+                        "text": "Чему равно значение π (пи) с точностью до двух знаков?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "3.14", "is_correct": True},
+                            {"text": "3.15", "is_correct": False},
+                            {"text": "3.13", "is_correct": False},
+                            {"text": "3.16", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Какая формула используется для вычисления площади круга?",
+                        "time_limit": 45,
+                        "answers": [
+                            {"text": "πr²", "is_correct": True},
+                            {"text": "2πr", "is_correct": False},
+                            {"text": "πd", "is_correct": False},
+                            {"text": "r²", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Сколько градусов в прямом угле?",
+                        "time_limit": 20,
+                        "answers": [
+                            {"text": "90°", "is_correct": True},
+                            {"text": "180°", "is_correct": False},
+                            {"text": "45°", "is_correct": False},
+                            {"text": "360°", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Физика: Механика",
+                "price": 120,
+                "questions": [
+                    {
+                        "text": "Какая единица измерения силы в СИ?",
+                        "time_limit": 30,
+                        "answers": [
+                            {"text": "Ньютон", "is_correct": True},
+                            {"text": "Джоуль", "is_correct": False},
+                            {"text": "Ватт", "is_correct": False},
+                            {"text": "Паскаль", "is_correct": False}
+                        ]
+                    },
+                    {
+                        "text": "Что описывает второй закон Ньютона?",
+                        "time_limit": 45,
+                        "answers": [
+                            {"text": "F = ma", "is_correct": True},
+                            {"text": "E = mc²", "is_correct": False},
+                            {"text": "P = mv", "is_correct": False},
+                            {"text": "W = Fs", "is_correct": False}
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        created_bonus_tests_count = 0
+        created_bonus_questions_count = 0
+        created_bonus_answers_count = 0
+
+        for test_data in bonus_tests_data:
+            try:
+                # Проверяем, существует ли уже такой бонусный тест
+                existing_test = await BonusTestRepository.exists_by_name(test_data["name"])
+                if existing_test:
+                    print(f"   ⚠️  Бонусный тест '{test_data['name']}' уже существует")
+                    continue
+
+                # Создаем бонусный тест
+                bonus_test = await BonusTestRepository.create(
+                    name=test_data["name"],
+                    price=test_data["price"]
+                )
+
+                print(f"   ✅ Создан бонусный тест '{bonus_test.name}' (ID: {bonus_test.id}, цена: {bonus_test.price} монет)")
+                created_bonus_tests_count += 1
+
+                # Создаем вопросы для бонусного теста
+                for question_data in test_data["questions"]:
+                    bonus_question_repo = BonusQuestionRepository()
+                    question = await bonus_question_repo.create(
+                        bonus_test_id=bonus_test.id,
+                        text=question_data["text"],
+                        time_limit=question_data["time_limit"]
+                    )
+
+                    created_bonus_questions_count += 1
+
+                    # Создаем варианты ответов
+                    await BonusAnswerOptionRepository.create_multiple(
+                        question.id,
+                        question_data["answers"]
+                    )
+
+                    created_bonus_answers_count += len(question_data["answers"])
+
+            except Exception as e:
+                print(f"   ❌ Ошибка при создании бонусного теста '{test_data['name']}': {e}")
+
+        print(f"📊 Создано бонусных тестов: {created_bonus_tests_count}")
+        print(f"📊 Создано бонусных вопросов: {created_bonus_questions_count}")
+        print(f"📊 Создано бонусных вариантов ответов: {created_bonus_answers_count}")
+
+    except Exception as e:
+        print(f"❌ Ошибка при добавлении тестовых бонусных тестов: {e}")
 
 
 if __name__ == "__main__":

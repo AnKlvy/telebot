@@ -246,3 +246,58 @@ class AnswerOption(Base):
     __table_args__ = (
         UniqueConstraint('question_id', 'order_number', name='unique_answer_order_per_question'),
     )
+
+
+# Модель бонусного теста
+class BonusTest(Base):
+    __tablename__ = 'bonus_tests'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    price = Column(Integer, nullable=False, default=0)  # Цена в монетах
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    questions = relationship("BonusQuestion", back_populates="bonus_test", cascade="all, delete-orphan")
+
+
+# Модель вопроса бонусного теста
+class BonusQuestion(Base):
+    __tablename__ = 'bonus_questions'
+
+    id = Column(Integer, primary_key=True)
+    bonus_test_id = Column(Integer, ForeignKey('bonus_tests.id', ondelete='CASCADE'), nullable=False)
+    text = Column(Text, nullable=False)
+    photo_path = Column(String(500), nullable=True)  # file_id фото от Telegram или путь к файлу
+    time_limit = Column(Integer, nullable=False, default=30)  # Время в секундах
+    order_number = Column(Integer, nullable=False, default=1)  # Порядок вопроса в тесте
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    bonus_test = relationship("BonusTest", back_populates="questions")
+    answer_options = relationship("BonusAnswerOption", back_populates="bonus_question", cascade="all, delete-orphan")
+
+    # Уникальность: один порядковый номер на бонусный тест
+    __table_args__ = (
+        UniqueConstraint('bonus_test_id', 'order_number', name='unique_bonus_question_order_per_test'),
+    )
+
+
+# Модель варианта ответа для бонусного теста
+class BonusAnswerOption(Base):
+    __tablename__ = 'bonus_answer_options'
+
+    id = Column(Integer, primary_key=True)
+    bonus_question_id = Column(Integer, ForeignKey('bonus_questions.id', ondelete='CASCADE'), nullable=False)
+    text = Column(Text, nullable=False)
+    is_correct = Column(Boolean, nullable=False, default=False)
+    order_number = Column(Integer, nullable=False, default=1)  # Порядок варианта (A, B, C, D...)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    bonus_question = relationship("BonusQuestion", back_populates="answer_options")
+
+    # Уникальность: один порядковый номер на бонусный вопрос
+    __table_args__ = (
+        UniqueConstraint('bonus_question_id', 'order_number', name='unique_bonus_answer_order_per_question'),
+    )

@@ -286,7 +286,7 @@ def get_photo_edit_kb() -> InlineKeyboardMarkup:
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_step_edit_kb(step: str, has_data: bool = True) -> InlineKeyboardMarkup:
+def get_step_edit_kb(step: str, has_data: bool = True, is_bonus_test: bool = False) -> InlineKeyboardMarkup:
     """Универсальная клавиатура для редактирования на каждом шаге"""
     buttons = []
 
@@ -305,7 +305,7 @@ def get_step_edit_kb(step: str, has_data: bool = True) -> InlineKeyboardMarkup:
     continue_texts = {
         "test_name": "➡️ Добавить вопросы",
         "question_text": "📷 Добавить фото",
-        "photo": "🏷 Выбрать микротему",
+        "photo": "📝 Ввести варианты ответов" if is_bonus_test else "🏷 Выбрать микротему",
         "answer_options": "✅ Выбрать правильный ответ",
         "correct_answer": "⏱ Установить время",
         "time_limit": "💾 Сохранить вопрос",

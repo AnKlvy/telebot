@@ -8,6 +8,7 @@ from .keyboards import (
 )
 from manager.keyboards.homework import get_photo_edit_kb
 from common.keyboards import get_home_and_back_kb, get_home_kb
+from ..utils import check_if_id_in_callback_data
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
@@ -137,14 +138,14 @@ async def process_question_photo(message: Message, state: FSMContext):
         await message.answer_photo(
             photo=file_id,
             caption="📷 Фото добавлено! Хотите изменить фото или продолжить к вводу вариантов ответов?",
-            reply_markup=get_step_edit_kb("photo", True)
+            reply_markup=get_step_edit_kb("photo", True, is_bonus_test=True)
         )
     else:
         # Для обычных тестов показываем сообщение о переходе к выбору микротемы
         await message.answer_photo(
             photo=file_id,
             caption="📷 Фото добавлено! Хотите изменить фото или продолжить?",
-            reply_markup=get_step_edit_kb("photo", True)
+            reply_markup=get_step_edit_kb("photo", True, is_bonus_test=False)
         )
 
 
@@ -456,7 +457,7 @@ async def save_question(callback: CallbackQuery, state: FSMContext):
 async def save_question_with_time(callback: CallbackQuery, state: FSMContext):
     """Сохранение вопроса с временем и переход к следующему"""
     logger.info("Вызван обработчик save_question_with_time")
-    time_limit = int(callback.data.replace("time_", ""))
+    time_limit = int(await check_if_id_in_callback_data("time_", callback, state, "time"))
 
     user_data = await state.get_data()
     current_question = user_data.get("current_question", {})
@@ -1013,10 +1014,16 @@ def register_edit_handlers(router, states_group):
         await state.update_data(current_question=current_question)
 
         from manager.keyboards.homework import get_step_edit_kb
+
+        # Определяем тип теста
+        user_data = await state.get_data()
+        current_state = await state.get_state()
+        is_bonus_test = "BonusTestStates" in current_state if current_state else False
+
         await message.answer_photo(
             photo=file_id,
             caption="📷 Фото изменено! Хотите изменить еще раз или продолжить?",
-            reply_markup=get_step_edit_kb("photo", True)
+            reply_markup=get_step_edit_kb("photo", True, is_bonus_test=is_bonus_test)
         )
         # Возвращаемся к состоянию показа фото с кнопками редактирования
         await state.set_state(states_group.add_question_photo)
@@ -1239,25 +1246,38 @@ def register_edit_handlers(router, states_group):
 
 
 async def enter_answer_options(callback, repeat=False, options_text=""):
+    text_content = ""
     if not repeat:
-        await callback.message.edit_text(
+        text_content = (
             "Введите варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
             "Поддерживаемые форматы:\n"
             "• A. Первый вариант\n"
             "• B Второй вариант\n"
             "• Третий вариант\n"
             "• Четвертый вариант\n\n"
-            "Минимум 2 варианта, максимум 10 вариантов.",
-            reply_markup=get_home_kb()
+            "Минимум 2 варианта, максимум 10 вариантов."
         )
     else:
-        await callback.message.edit_text(
+        text_content = (
             f"📝 Текущие варианты ответов:\n\n{options_text}\n"
             "Введите новые варианты ответа (от 2 до 10), каждый с новой строки.\n\n"
             "Поддерживаемые форматы:\n"
             "• A. Первый вариант\n"
             "• B Второй вариант\n"
             "• Третий вариант\n"
-            "• Четвертый вариант",
+            "• Четвертый вариант"
+        )
+
+    # Проверяем, есть ли фото в сообщении
+    if callback.message.photo:
+        # Если есть фото, отправляем новое сообщение
+        await callback.message.answer(
+            text_content,
+            reply_markup=get_home_kb()
+        )
+    else:
+        # Если нет фото, редактируем текст
+        await callback.message.edit_text(
+            text_content,
             reply_markup=get_home_kb()
         )

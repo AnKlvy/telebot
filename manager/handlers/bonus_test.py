@@ -64,6 +64,39 @@ def get_confirm_bonus_test_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_bonus_test")]
     ])
 
+async def get_bonus_tests_list_kb() -> InlineKeyboardMarkup:
+    """Клавиатура со списком бонусных тестов для удаления"""
+    from database import BonusTestRepository
+
+    try:
+        bonus_tests = await BonusTestRepository.get_all()
+
+        if not bonus_tests:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📝 Нет бонусных тестов", callback_data="no_tests")],
+                *get_main_menu_back_button()
+            ])
+
+        keyboard = []
+        for test in bonus_tests:
+            # Получаем количество вопросов
+            question_count = len(test.questions) if test.questions else 0
+            button_text = f"🧪 {test.name} - {test.price} монет ({question_count} вопр.)"
+            keyboard.append([InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"delete_bonus_{test.id}"
+            )])
+
+        keyboard.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении списка бонусных тестов: {e}")
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Ошибка загрузки", callback_data="error_loading")],
+            *get_main_menu_back_button()
+        ])
+
 @router.callback_query(F.data == "manager_bonus_test")
 async def show_bonus_test_management(callback: CallbackQuery, state: FSMContext):
     """Показ меню управления бонусными тестами"""
@@ -194,21 +227,63 @@ async def show_bonus_test_confirmation(message_or_callback, state: FSMContext):
 async def save_bonus_test(callback: CallbackQuery, state: FSMContext):
     """Сохранение бонусного теста"""
     logger.info("Вызван обработчик save_bonus_test")
-    
-    user_data = await state.get_data()
-    test_name = user_data.get("test_name", "")
-    price = user_data.get("price", 0)
-    
-    # Здесь должен быть код для сохранения бонусного теста в базу данных
-    # с пометкой что это бонусный тест для магазина
-    
-    await callback.message.edit_text(
-        f"✅ Бонусный тест '{test_name}' успешно создан!\n"
-        f"💰 Цена: {price} монет\n\n"
-        "Тест появится в каталоге бонусов у учеников.",
-        reply_markup=get_bonus_test_management_kb()
-    )
-    await state.set_state(BonusTestStates.main)
+
+    try:
+        user_data = await state.get_data()
+        test_name = user_data.get("test_name", "")
+        price = user_data.get("price", 0)
+        questions = user_data.get("questions", [])
+
+        # Импортируем репозитории
+        from database import BonusTestRepository, BonusQuestionRepository, BonusAnswerOptionRepository
+
+        # Создаем бонусный тест
+        bonus_test = await BonusTestRepository.create(name=test_name, price=price)
+        logger.info(f"✅ Создан бонусный тест: {bonus_test.id} - {bonus_test.name}")
+
+        # Создаем вопросы и варианты ответов
+        for question_data in questions:
+            # Получаем photo_path из photo_id (file_id от Telegram)
+            photo_path = question_data.get("photo_id")
+
+            # Создаем вопрос
+            bonus_question_repo = BonusQuestionRepository()
+            question = await bonus_question_repo.create(
+                bonus_test_id=bonus_test.id,
+                text=question_data.get("text", ""),
+                photo_path=photo_path,
+                time_limit=question_data.get("time_limit", 30)
+            )
+
+            # Создаем варианты ответов
+            answer_options = []
+            for letter, text in question_data.get("options", {}).items():
+                is_correct = (letter == question_data.get("correct_answer"))
+                answer_options.append({
+                    'text': text,
+                    'is_correct': is_correct
+                })
+
+            if answer_options:
+                await BonusAnswerOptionRepository.create_multiple(question.id, answer_options)
+
+        await callback.message.edit_text(
+            f"✅ Бонусный тест '{test_name}' успешно создан!\n"
+            f"💰 Цена: {price} монет\n"
+            f"📋 Вопросов: {len(questions)}\n\n"
+            "Тест появится в каталоге бонусов у учеников.",
+            reply_markup=get_bonus_test_management_kb()
+        )
+        await state.set_state(BonusTestStates.main)
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка при сохранении бонусного теста: {e}")
+        await callback.message.edit_text(
+            f"❌ Ошибка при создании бонусного теста: {str(e)}\n\n"
+            "Попробуйте еще раз.",
+            reply_markup=get_bonus_test_management_kb()
+        )
+        await state.set_state(BonusTestStates.main)
 
 @router.callback_query(BonusTestStates.enter_price, F.data == "edit_bonus_test")
 async def edit_bonus_test(callback: CallbackQuery, state: FSMContext):
@@ -236,55 +311,133 @@ async def cancel_bonus_test(callback: CallbackQuery, state: FSMContext):
 async def show_bonus_tests_to_delete(callback: CallbackQuery, state: FSMContext):
     """Показ списка бонусных тестов для удаления"""
     logger.info("Вызван обработчик show_bonus_tests_to_delete")
-    
-    # В реальном приложении здесь будет запрос к базе данных
-    tests_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🧪 Тест по алканам - 100 монет", callback_data="delete_bonus_1")],
-        [InlineKeyboardButton(text="🧪 Тест по изомерии - 150 монет", callback_data="delete_bonus_2")],
-        *get_main_menu_back_button()
-    ])
-    
-    await callback.message.edit_text(
-        "Выберите бонусный тест для удаления:",
-        reply_markup=tests_kb
-    )
-    await state.set_state(BonusTestStates.select_test_to_delete)
+
+    try:
+        tests_kb = await get_bonus_tests_list_kb()
+
+        await callback.message.edit_text(
+            "🗑 Выберите бонусный тест для удаления:\n\n"
+            "⚠️ Внимание: удаление нельзя отменить!",
+            reply_markup=tests_kb
+        )
+        await state.set_state(BonusTestStates.select_test_to_delete)
+
+    except Exception as e:
+        logger.error(f"Ошибка при показе списка тестов для удаления: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при загрузке списка тестов.",
+            reply_markup=get_bonus_test_management_kb()
+        )
 
 @router.callback_query(BonusTestStates.select_test_to_delete, F.data.startswith("delete_bonus_"))
 async def confirm_delete_bonus_test(callback: CallbackQuery, state: FSMContext):
     """Подтверждение удаления бонусного теста"""
     logger.info("Вызван обработчик confirm_delete_bonus_test")
-    
-    test_id = callback.data.replace("delete_bonus_", "")
-    await state.update_data(test_id=test_id)
-    
-    # В реальном приложении здесь будет запрос к базе данных
-    test_name = "Тест по алканам" if test_id == "1" else "Тест по изомерии"
-    
-    await callback.message.edit_text(
-        f"Вы действительно хотите удалить бонусный тест '{test_name}'?",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_delete_bonus")],
-            [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="cancel_delete_bonus")]
-        ])
-    )
+
+    try:
+        test_id = int(callback.data.replace("delete_bonus_", ""))
+        await state.update_data(bonus_test_id=test_id)
+
+        # Получаем информацию о тесте из базы данных
+        from database import BonusTestRepository
+        bonus_test = await BonusTestRepository.get_by_id(test_id)
+
+        if not bonus_test:
+            await callback.message.edit_text(
+                "❌ Бонусный тест не найден.",
+                reply_markup=await get_bonus_tests_list_kb()
+            )
+            return
+
+        # Получаем количество вопросов
+        question_count = len(bonus_test.questions) if bonus_test.questions else 0
+
+        await callback.message.edit_text(
+            f"⚠️ Подтверждение удаления\n\n"
+            f"🧪 Название: {bonus_test.name}\n"
+            f"💰 Цена: {bonus_test.price} монет\n"
+            f"📋 Вопросов: {question_count}\n\n"
+            f"Вы действительно хотите удалить этот бонусный тест?\n"
+            f"❗ Это действие нельзя отменить!",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_delete_bonus")],
+                [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="cancel_delete_bonus")]
+            ])
+        )
+
+    except ValueError:
+        await callback.message.edit_text(
+            "❌ Некорректный ID теста.",
+            reply_markup=await get_bonus_tests_list_kb()
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при подтверждении удаления: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при загрузке информации о тесте.",
+            reply_markup=await get_bonus_tests_list_kb()
+        )
 
 @router.callback_query(F.data == "confirm_delete_bonus")
 async def delete_bonus_test(callback: CallbackQuery, state: FSMContext):
     """Удаление бонусного теста"""
     logger.info("Вызван обработчик delete_bonus_test")
-    
-    # Здесь должен быть код для удаления бонусного теста из базы данных
-    
-    await callback.message.edit_text(
-        "✅ Бонусный тест успешно удален!",
-        reply_markup=get_bonus_test_management_kb()
-    )
-    await state.set_state(BonusTestStates.main)
+
+    try:
+        user_data = await state.get_data()
+        bonus_test_id = user_data.get("bonus_test_id")
+
+        if not bonus_test_id:
+            await callback.message.edit_text(
+                "❌ Ошибка: ID теста не найден.",
+                reply_markup=get_bonus_test_management_kb()
+            )
+            return
+
+        # Получаем информацию о тесте перед удалением
+        from database import BonusTestRepository
+        bonus_test = await BonusTestRepository.get_by_id(bonus_test_id)
+        test_name = bonus_test.name if bonus_test else "Неизвестный тест"
+
+        # Удаляем бонусный тест (каскадно удалятся вопросы и варианты ответов)
+        success = await BonusTestRepository.delete(bonus_test_id)
+
+        if success:
+            await callback.message.edit_text(
+                f"✅ Бонусный тест '{test_name}' успешно удален!\n\n"
+                f"Тест больше не будет доступен ученикам в каталоге бонусов.",
+                reply_markup=get_bonus_test_management_kb()
+            )
+            logger.info(f"✅ Удален бонусный тест: {test_name} (ID: {bonus_test_id})")
+        else:
+            await callback.message.edit_text(
+                "❌ Не удалось удалить бонусный тест. Попробуйте еще раз.",
+                reply_markup=get_bonus_test_management_kb()
+            )
+
+        await state.set_state(BonusTestStates.main)
+
+    except Exception as e:
+        logger.error(f"Ошибка при удалении бонусного теста: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при удалении бонусного теста.",
+            reply_markup=get_bonus_test_management_kb()
+        )
+        await state.set_state(BonusTestStates.main)
 
 @router.callback_query(F.data == "cancel_delete_bonus")
 async def cancel_delete_bonus_test(callback: CallbackQuery, state: FSMContext):
     """Отмена удаления бонусного теста"""
     logger.info("Вызван обработчик cancel_delete_bonus_test")
-    
+
     await show_bonus_tests_to_delete(callback, state)
+
+# Обработчик для случая, когда нет тестов для удаления
+@router.callback_query(F.data == "no_tests")
+async def no_tests_handler(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для случая отсутствия тестов"""
+    await callback.answer("Нет бонусных тестов для удаления")
+
+@router.callback_query(F.data == "error_loading")
+async def error_loading_handler(callback: CallbackQuery, state: FSMContext):
+    """Обработчик ошибки загрузки"""
+    await callback.answer("Ошибка при загрузке списка тестов")
