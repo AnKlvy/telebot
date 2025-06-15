@@ -459,6 +459,14 @@ async def add_initial_data():
             "group_name": "ИСТ-2",
             "subject_name": "История Казахстана",
             "tariff": "standard"
+        },
+        # Андрей Климов - основной разработчик/тестировщик
+        {
+            "name": "Андрей Климов",
+            "telegram_id": 955518340,
+            "group_name": "PY-1",  # Python группа для разработчика
+            "subject_name": "Python",
+            "tariff": "premium"
         }
     ]
 
@@ -483,14 +491,22 @@ async def add_initial_data():
             existing_user = await UserRepository.get_by_telegram_id(student_data["telegram_id"])
             if existing_user:
                 print(f"   ⚠️  Пользователь с Telegram ID {student_data['telegram_id']} уже существует")
-                continue
-
-            # Создаем пользователя
-            user = await UserRepository.create(
-                telegram_id=student_data["telegram_id"],
-                name=student_data["name"],
-                role='student'
-            )
+                # Проверяем, есть ли у него профиль студента
+                existing_student = await StudentRepository.get_by_user_id(existing_user.id)
+                if existing_student:
+                    print(f"   ⚠️  Профиль студента уже существует для пользователя {existing_user.name}")
+                    continue
+                else:
+                    user = existing_user
+                    print(f"   🔄 Создаем профиль студента для существующего пользователя {user.name}")
+            else:
+                # Создаем пользователя
+                user = await UserRepository.create(
+                    telegram_id=student_data["telegram_id"],
+                    name=student_data["name"],
+                    role='student'
+                )
+                print(f"   ✅ Создан пользователь: {user.name}")
 
             # Создаем профиль студента
             student = await StudentRepository.create(
@@ -879,6 +895,8 @@ async def add_initial_data():
     print("🔄 Обновление баллов и уровней студентов...")
     # Обновляем баллы и уровни всех студентов
     await update_all_student_stats()
+
+
 
     print("🎉 Начальные данные добавлены!")
 
@@ -1515,11 +1533,20 @@ async def add_test_homework_results():
                 print(f"   ⚠️  Нет ДЗ по предмету {student.group.subject.name}")
                 continue
 
-            # Разное количество ДЗ для разных студентов (от 1 до всех доступных)
+            # Специальная логика для Андрея Климова - отличные результаты
             import random
-            max_homeworks = len(subject_homeworks)
-            num_homeworks = random.randint(1, max_homeworks)  # От 1 до всех ДЗ
-            student_homeworks = random.sample(subject_homeworks, num_homeworks)  # Случайные ДЗ
+            if student.user.telegram_id == 955518340:  # Андрей Климов
+                print(f"   Создаем результаты для {student.user.name}")
+                max_homeworks = len(subject_homeworks)
+                num_homeworks = max_homeworks  # Выполняет ВСЕ ДЗ
+                student_homeworks = subject_homeworks  # Все ДЗ
+                is_excellent_student = True
+            else:
+                # Разное количество ДЗ для разных студентов (от 1 до всех доступных)
+                max_homeworks = len(subject_homeworks)
+                num_homeworks = random.randint(1, max_homeworks)  # От 1 до всех ДЗ
+                student_homeworks = random.sample(subject_homeworks, num_homeworks)  # Случайные ДЗ
+                is_excellent_student = False
 
             print(f"   📚 Выполняет {num_homeworks} из {max_homeworks} ДЗ по предмету {student.group.subject.name}")
 
@@ -1531,8 +1558,10 @@ async def add_test_homework_results():
                         continue
 
                     # Симулируем разные уровни успеха
-                    import random
-                    success_rate = random.choice([0.5, 0.7, 0.8, 0.9, 1.0])  # 50%, 70%, 80%, 90%, 100%
+                    if is_excellent_student:
+                        success_rate = random.choice([0.9, 0.95, 1.0, 1.0, 1.0])  # В основном 100%
+                    else:
+                        success_rate = random.choice([0.5, 0.7, 0.8, 0.9, 1.0])  # 50%, 70%, 80%, 90%, 100%
 
                     total_questions = len(homework_questions)
                     correct_answers = int(total_questions * success_rate)
@@ -1597,60 +1626,68 @@ async def add_test_homework_results():
                     print(f"   ✅ ДЗ '{homework.name}': {correct_answers}/{total_questions} ({result_percent}%) - {points_earned} баллов")
 
                     # Иногда создаем повторную попытку для студентов с неидеальным результатом
-                    if success_rate < 1.0 and random.choice([True, False]):
-                        # Повторная попытка с лучшим результатом
-                        repeat_success_rate = min(1.0, success_rate + 0.2)
-                        repeat_correct = int(total_questions * repeat_success_rate)
-                        repeat_points = total_questions * 3 if repeat_success_rate == 1.0 else 0
+                    if success_rate < 1.0:
+                        if is_excellent_student:
+                            # Андрей Климов всегда исправляет на 100%
+                            should_repeat = True
+                            repeat_success_rate = 1.0
+                        else:
+                            should_repeat = random.choice([True, False])
+                            repeat_success_rate = min(1.0, success_rate + 0.2)
 
-                        repeat_result = await HomeworkResultRepository.create(
-                            student_id=student.id,
-                            homework_id=homework.id,
-                            total_questions=total_questions,
-                            correct_answers=repeat_correct,
-                            points_earned=repeat_points,
-                            is_first_attempt=False
-                        )
+                        if should_repeat:
+                            # Повторная попытка с лучшим результатом
+                            repeat_correct = int(total_questions * repeat_success_rate)
+                            repeat_points = total_questions * 3 if repeat_success_rate == 1.0 else 0
 
-                        # Создаем улучшенные результаты вопросов
-                        repeat_question_results = []
-                        repeat_correct_count = 0
-
-                        for question in homework_questions:
-                            answer_options = await AnswerOptionRepository.get_by_question(question.id)
-                            if not answer_options:
-                                continue
-
-                            is_correct = repeat_correct_count < repeat_correct
-                            if is_correct:
-                                repeat_correct_count += 1
-
-                            if is_correct:
-                                selected_answer = next((opt for opt in answer_options if opt.is_correct), None)
-                            else:
-                                wrong_answers = [opt for opt in answer_options if not opt.is_correct]
-                                selected_answer = random.choice(wrong_answers) if wrong_answers else answer_options[0]
-
-                            time_spent = random.randint(8, 45)  # Быстрее во второй раз
-
-                            repeat_question_results.append({
-                                'question_id': question.id,
-                                'selected_answer_id': selected_answer.id if selected_answer else None,
-                                'is_correct': is_correct,
-                                'time_spent': time_spent,
-                                'microtopic_number': question.microtopic_number
-                            })
-
-                        if repeat_question_results:
-                            await QuestionResultRepository.create_multiple(
-                                repeat_result.id,
-                                repeat_question_results
+                            repeat_result = await HomeworkResultRepository.create(
+                                student_id=student.id,
+                                homework_id=homework.id,
+                                total_questions=total_questions,
+                                correct_answers=repeat_correct,
+                                points_earned=repeat_points,
+                                is_first_attempt=False
                             )
-                            created_question_results_count += len(repeat_question_results)
 
-                        repeat_percent = int(repeat_success_rate * 100)
-                        print(f"   🔄 Повтор '{homework.name}': {repeat_correct}/{total_questions} ({repeat_percent}%) - {repeat_points} баллов")
-                        created_results_count += 1
+                            # Создаем улучшенные результаты вопросов
+                            repeat_question_results = []
+                            repeat_correct_count = 0
+
+                            for question in homework_questions:
+                                answer_options = await AnswerOptionRepository.get_by_question(question.id)
+                                if not answer_options:
+                                    continue
+
+                                is_correct = repeat_correct_count < repeat_correct
+                                if is_correct:
+                                    repeat_correct_count += 1
+
+                                if is_correct:
+                                    selected_answer = next((opt for opt in answer_options if opt.is_correct), None)
+                                else:
+                                    wrong_answers = [opt for opt in answer_options if not opt.is_correct]
+                                    selected_answer = random.choice(wrong_answers) if wrong_answers else answer_options[0]
+
+                                time_spent = random.randint(8, 45)  # Быстрее во второй раз
+
+                                repeat_question_results.append({
+                                    'question_id': question.id,
+                                    'selected_answer_id': selected_answer.id if selected_answer else None,
+                                    'is_correct': is_correct,
+                                    'time_spent': time_spent,
+                                    'microtopic_number': question.microtopic_number
+                                })
+
+                            if repeat_question_results:
+                                await QuestionResultRepository.create_multiple(
+                                    repeat_result.id,
+                                    repeat_question_results
+                                )
+                                created_question_results_count += len(repeat_question_results)
+
+                            repeat_percent = int(repeat_success_rate * 100)
+                            print(f"   🔄 Повтор '{homework.name}': {repeat_correct}/{total_questions} ({repeat_percent}%) - {repeat_points} баллов")
+                            created_results_count += 1
 
                 except Exception as e:
                     print(f"   ❌ Ошибка при создании результата для ДЗ '{homework.name}': {e}")
@@ -1689,6 +1726,117 @@ async def update_all_student_stats():
 
     except Exception as e:
         print(f"❌ Ошибка при обновлении статистики студентов: {e}")
+
+
+async def create_excellent_results_for_andrey():
+    """Создать отличные результаты для Андрея Климова"""
+    try:
+        # Находим Андрея Климова
+        andrey = await StudentRepository.get_by_telegram_id(955518340)
+        if not andrey:
+            print("   ❌ Андрей Климов не найден")
+            return
+
+        # Проверяем, что он в правильной группе (Python)
+        if not andrey.group or andrey.group.subject.name != "Python":
+            print(f"   🔄 Перемещаем Андрея в группу Python...")
+            # Находим группу PY-1
+            groups = await GroupRepository.get_all()
+            python_group = next((g for g in groups if g.name == "PY-1"), None)
+            if python_group:
+                await StudentRepository.update(andrey.id, group_id=python_group.id)
+                andrey = await StudentRepository.get_by_id(andrey.id)  # Обновляем данные
+                print(f"   ✅ Андрей перемещен в группу {python_group.name}")
+            else:
+                print("   ❌ Группа PY-1 не найдена")
+                return
+
+        print(f"   👤 Создаем результаты для {andrey.user.name}")
+
+        # Получаем все ДЗ по Python
+        homeworks = await HomeworkRepository.get_all()
+        python_homeworks = [hw for hw in homeworks if hw.subject_id == andrey.group.subject.id]
+
+        if not python_homeworks:
+            print("   ❌ Нет ДЗ по Python")
+            return
+
+        question_repo = QuestionRepository()
+        created_results = 0
+
+        for homework in python_homeworks:
+            # Проверяем, есть ли уже результат
+            existing_results = await HomeworkResultRepository.get_by_student(andrey.id)
+            homework_exists = any(result.homework_id == homework.id for result in existing_results)
+            if homework_exists:
+                print(f"   ⚠️ Результат для ДЗ '{homework.name}' уже существует")
+                continue
+
+            # Получаем вопросы для этого ДЗ
+            homework_questions = await question_repo.get_by_homework(homework.id)
+            if not homework_questions:
+                continue
+
+            total_questions = len(homework_questions)
+            correct_answers = total_questions  # 100% результат
+            points_earned = total_questions * 3  # Максимальные баллы
+
+            # Создаем результат ДЗ
+            homework_result = await HomeworkResultRepository.create(
+                student_id=andrey.id,
+                homework_id=homework.id,
+                total_questions=total_questions,
+                correct_answers=correct_answers,
+                points_earned=points_earned,
+                is_first_attempt=True
+            )
+
+            # Создаем результаты для каждого вопроса
+            question_results_data = []
+
+            for question in homework_questions:
+                # Получаем варианты ответов для вопроса
+                answer_options = await AnswerOptionRepository.get_by_question(question.id)
+                if not answer_options:
+                    continue
+
+                # Выбираем правильный ответ
+                correct_answer = next((opt for opt in answer_options if opt.is_correct), None)
+
+                # Быстрое время ответа (как у опытного разработчика)
+                import random
+                time_spent = random.randint(5, 15)  # 5-15 секунд
+
+                question_results_data.append({
+                    'question_id': question.id,
+                    'selected_answer_id': correct_answer.id if correct_answer else None,
+                    'is_correct': True,
+                    'time_spent': time_spent,
+                    'microtopic_number': question.microtopic_number
+                })
+
+            # Создаем результаты вопросов
+            if question_results_data:
+                await QuestionResultRepository.create_multiple(
+                    homework_result.id,
+                    question_results_data
+                )
+
+            print(f"   ✅ ДЗ '{homework.name}': {correct_answers}/{total_questions} (100%) - {points_earned} баллов")
+            created_results += 1
+
+        # Обновляем баллы и уровень
+        await StudentRepository.update_points_and_level(andrey.id)
+
+        # Получаем финальные данные
+        final_andrey = await StudentRepository.get_by_id(andrey.id)
+        if final_andrey:
+            print(f"   🎉 Итого создано результатов: {created_results}")
+            print(f"   💎 Финальные баллы: {final_andrey.points}")
+            print(f"   🏆 Финальный уровень: {final_andrey.level}")
+
+    except Exception as e:
+        print(f"   ❌ Ошибка при создании результатов для Андрея: {e}")
 
 
 if __name__ == "__main__":

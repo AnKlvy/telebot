@@ -55,6 +55,21 @@ class StudentRepository:
             return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_by_telegram_id(telegram_id: int) -> Optional[Student]:
+        """Получить студента по Telegram ID"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Student)
+                .options(
+                    selectinload(Student.user),
+                    selectinload(Student.group).selectinload(Group.subject)
+                )
+                .join(Student.user)
+                .where(User.telegram_id == telegram_id)
+            )
+            return result.scalar_one_or_none()
+
+    @staticmethod
     async def get_by_group(group_id: int) -> List[Student]:
         """Получить студентов по группе"""
         async with get_db_session() as session:

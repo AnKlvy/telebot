@@ -9,21 +9,36 @@ def get_progress_menu_kb() -> InlineKeyboardMarkup:
          *get_main_menu_back_button()
     ])
 
-def get_subjects_progress_kb() -> InlineKeyboardMarkup:
-    """Клавиатура выбора предмета для просмотра прогресса"""
-    buttons = [
-        [InlineKeyboardButton(text="История Казахстана", callback_data="progress_sub_kz")],
-        [InlineKeyboardButton(text="Математическая грамотность", callback_data="progress_sub_mathlit")],
-        [InlineKeyboardButton(text="Математика", callback_data="progress_sub_math")],
-        [InlineKeyboardButton(text="География", callback_data="progress_sub_geo")],
-        [InlineKeyboardButton(text="Биология", callback_data="progress_sub_bio")],
-        [InlineKeyboardButton(text="Химия", callback_data="progress_sub_chem")],
-        [InlineKeyboardButton(text="Информатика", callback_data="progress_sub_inf")],
-        [InlineKeyboardButton(text="Всемирная история", callback_data="progress_sub_world")],
-        [InlineKeyboardButton(text="Грамотность чтения", callback_data="progress_sub_read")],
-        *get_main_menu_back_button()
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+async def get_subjects_progress_kb() -> InlineKeyboardMarkup:
+    """Клавиатура выбора предмета для просмотра прогресса (получает данные из БД)"""
+    from database import SubjectRepository
+
+    try:
+        # Получаем все предметы из базы данных
+        subjects = await SubjectRepository.get_all()
+
+        buttons = []
+        for subject in subjects:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=subject.name,
+                    callback_data=f"progress_sub_{subject.id}"
+                )
+            ])
+
+        # Добавляем кнопку "Назад"
+        buttons.extend(get_main_menu_back_button())
+
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    except Exception as e:
+        print(f"Ошибка при получении предметов: {e}")
+        # Возвращаем базовую клавиатуру в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="❌ Ошибка загрузки предметов", callback_data="error")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_back_to_progress_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню прогресса"""
