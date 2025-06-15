@@ -423,31 +423,21 @@ async def show_subject_analytics(callback: CallbackQuery, state: FSMContext):
         "Кислоты": 100
     }
     
-    # Определяем сильные и слабые темы
-    strong_topics = [topic for topic, percentage in topics_analytics.items() 
-                    if percentage is not None and percentage >= 80]
-    weak_topics = [topic for topic, percentage in topics_analytics.items() 
-                  if percentage is not None and percentage <= 40]
-    
     # Формируем текст с аналитикой
-    #TODO использовать как общий элемент
     analytics_text = f"Твоя аналитика по предмету {subject_name} по пробному ЕНТ:\n"
     analytics_text += f"🧾 Верных баллов по {subject_name}: {subject_correct}/{max_points}\n"
-    
-    # Добавляем информацию о каждой теме
+
+    # Добавляем информацию о каждой теме с эмодзи статуса
     for topic, percentage in topics_analytics.items():
-        analytics_text += f"• {topic} — {percentage}%\n"
-    
-    # Добавляем информацию о сильных и слабых темах
-    if strong_topics:
-        analytics_text += "\n🟢 Сильные темы (≥80%):\n"
-        for topic in strong_topics:
-            analytics_text += f"• {topic}\n"
-    
-    if weak_topics:
-        analytics_text += "\n🔴 Слабые темы (≤40%):\n"
-        for topic in weak_topics:
-            analytics_text += f"• {topic}\n"
+        if percentage is not None:
+            status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
+            analytics_text += f"• {topic} — {percentage}% {status}\n"
+        else:
+            analytics_text += f"• {topic} — ❌ Не проверено\n"
+
+    # Используем единую функцию для добавления сильных и слабых тем
+    from common.statistics import add_strong_and_weak_topics
+    analytics_text = add_strong_and_weak_topics(analytics_text, topics_analytics)
     
     await callback.message.edit_text(
         analytics_text,

@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from ..keyboards.progress import get_progress_menu_kb, get_subjects_progress_kb, get_back_to_progress_kb
-from common.statistics import get_student_topics_stats, format_student_topics_stats
+from common.statistics import get_student_topics_stats, format_student_topics_stats, format_student_topics_stats_real
 
 router = Router()
 
@@ -52,16 +52,25 @@ async def show_subjects_list(callback: CallbackQuery, state: FSMContext):
 async def show_subject_progress(callback: CallbackQuery, state: FSMContext):
     """Показать прогресс по выбранному предмету"""
     subject_id = callback.data.replace("progress_sub_", "")
-    
-    # Определяем ID ученика (в реальном приложении это будет из контекста пользователя)
-    student_id = "student2"  # Например, Аружан Ахметова
-    
-    # Получаем данные о студенте из общего компонента
-    student_data = get_student_topics_stats(student_id)
-    
-    # Форматируем статистику в текст
-    progress_text = format_student_topics_stats(student_data)
-    
+
+    # Получаем ID студента из Telegram ID
+    from database import StudentRepository
+    student = await StudentRepository.get_by_telegram_id(callback.from_user.id)
+
+    if not student:
+        await callback.message.edit_text(
+            "❌ Студент не найден в системе",
+            reply_markup=get_back_to_progress_kb()
+        )
+        return
+
+    # Используем новую функцию с реальными данными из БД
+    progress_text = await format_student_topics_stats_real(
+        student.id,
+        int(subject_id),
+        "detailed"
+    )
+
     await callback.message.edit_text(
         progress_text,
         reply_markup=get_back_to_progress_kb()

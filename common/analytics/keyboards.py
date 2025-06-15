@@ -110,8 +110,30 @@ async def get_groups_by_curator_kb(curator_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def get_student_microtopics_kb(student_id: int, subject_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура для просмотра статистики по микротемам студента"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📈 % понимания по микротемам",
+            callback_data=f"microtopics_detailed_{student_id}_{subject_id}"
+        )],
+        [InlineKeyboardButton(
+            text="🟢🔴 Сильные и слабые темы",
+            callback_data=f"microtopics_summary_{student_id}_{subject_id}"
+        )],
+        *get_main_menu_back_button()
+    ])
+
+
 def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура возврата в меню аналитики"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *get_main_menu_back_button()
+    ])
+
+
+def get_back_to_student_analytics_kb(student_id: int, subject_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура возврата к статистике студента"""
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button()
     ])

@@ -19,6 +19,99 @@ from database import (
 )
 
 
+async def format_microtopic_stats(student_id: int, subject_id: int, format_type: str = "detailed") -> dict:
+    """
+    Получить и отформатировать статистику по микротемам для студента
+
+    Args:
+        student_id: ID студента
+        subject_id: ID предмета
+        format_type: Тип форматирования ("detailed" - с процентами и эмодзи, "summary" - только сильные/слабые)
+
+    Returns:
+        dict: Словарь с отформатированными данными
+    """
+    # Получаем понимание по микротемам
+    microtopic_stats = await StudentRepository.get_microtopic_understanding(
+        student_id, subject_id
+    )
+
+    if not microtopic_stats:
+        return {
+            'text': "❌ Пока не выполнено ни одного задания по микротемам этого предмета",
+            'has_data': False
+        }
+
+    # Получаем названия микротем
+    microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+    microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+    strong_topics = []  # ≥80%
+    weak_topics = []    # ≤40%
+
+    if format_type == "detailed":
+        # Формируем список микротем с процентами и эмодзи
+        result_text = "📈 % понимания по микротемам:\n"
+
+        for number, stats in microtopic_stats.items():
+            name = microtopic_names.get(number, f"Микротема {number}")
+            percentage = stats['percentage']
+
+            # Определяем эмодзи статуса
+            if percentage >= 80:
+                status = "✅"
+                strong_topics.append(name)
+            elif percentage <= 40:
+                status = "❌"
+                weak_topics.append(name)
+            else:
+                status = "⚠️"
+
+            result_text += f"• {name} — {percentage:.0f}% {status}\n"
+
+        return {
+            'text': result_text.strip(),
+            'has_data': True,
+            'strong_topics': strong_topics,
+            'weak_topics': weak_topics
+        }
+
+    elif format_type == "summary":
+        # Определяем сильные и слабые темы
+        for number, stats in microtopic_stats.items():
+            name = microtopic_names.get(number, f"Микротема {number}")
+            percentage = stats['percentage']
+
+            if percentage >= 80:
+                strong_topics.append(name)
+            elif percentage <= 40:
+                weak_topics.append(name)
+
+        # Формируем сводку по сильным и слабым темам
+        result_text = ""
+        if strong_topics:
+            result_text += "🟢 Сильные темы (≥80%):\n"
+            for topic in strong_topics:
+                result_text += f"• {topic}\n"
+
+        if weak_topics:
+            if result_text:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not strong_topics and not weak_topics:
+            result_text = "📊 Все темы в среднем диапазоне (41-79%)"
+
+        return {
+            'text': result_text.strip(),
+            'has_data': True,
+            'strong_topics': strong_topics,
+            'weak_topics': weak_topics
+        }
+
+
 async def get_real_student_analytics(student_id: int) -> str:
     """
     Получить реальную статистику студента из базы данных
@@ -53,55 +146,18 @@ async def get_real_student_analytics(student_id: int) -> str:
             subject = student.group.subject
             result_text += f"\n📗 Прогресс по предмету '{subject.name}':\n"
 
-            # Получаем понимание по микротемам
-            microtopic_stats = await StudentRepository.get_microtopic_understanding(
-                student_id, subject.id
-            )
+            # Получаем отформатированную статистику по микротемам (детальный формат)
+            # НЕ показываем непроверенные микротемы (show_untested=False по умолчанию)
+            microtopic_data = await format_microtopic_stats(student_id, subject.id, "detailed")
 
-            if microtopic_stats:
-                # Получаем названия микротем
-                microtopics = await MicrotopicRepository.get_by_subject(subject.id)
-                microtopic_names = {mt.number: mt.name for mt in microtopics}
+            if microtopic_data['has_data']:
+                result_text += microtopic_data['text']
 
-                strong_topics = []  # ≥80%
-                weak_topics = []    # ≤40%
-
-                for number, stats in microtopic_stats.items():
-                    name = microtopic_names.get(number, f"Микротема {number}")
-                    percentage = stats['percentage']
-                    total = stats['total_answered']
-                    correct = stats['correct_answered']
-
-                    result_text += f"   • {name} — {percentage:.0f}% ({correct}/{total})\n"
-
-                    if percentage >= 80:
-                        strong_topics.append(name)
-                    elif percentage <= 40:
-                        weak_topics.append(name)
-
-                # Показываем сильные и слабые темы
-                if strong_topics:
-                    result_text += f"\n🟢 Сильные темы (≥80%):\n"
-                    for topic in strong_topics:
-                        result_text += f"   • {topic}\n"
-
-                if weak_topics:
-                    result_text += f"\n🔴 Слабые темы (≤40%):\n"
-                    for topic in weak_topics:
-                        result_text += f"   • {topic}\n"
-
-                # Показываем непроверенные микротемы
-                all_microtopic_numbers = set(microtopic_names.keys())
-                tested_numbers = set(microtopic_stats.keys())
-                untested_numbers = all_microtopic_numbers - tested_numbers
-
-                if untested_numbers:
-                    result_text += f"\n❌ Не проверено:\n"
-                    for number in sorted(untested_numbers):
-                        name = microtopic_names.get(number, f"Микротема {number}")
-                        result_text += f"   • {name}\n"
+                # Добавляем сводку по сильным и слабым темам
+                summary_data = await format_microtopic_stats(student_id, subject.id, "summary")
+                result_text += f"\n\n{summary_data['text']}"
             else:
-                result_text += "   ❌ Нет данных о прохождении ДЗ по этому предмету\n"
+                result_text += microtopic_data['text']
 
         return result_text
 
@@ -250,42 +306,126 @@ async def get_group_stats(group_id: str) -> Dict:
             "rating": []
         }
 
+async def format_student_topics_stats_real(student_id: int, subject_id: int, format_type: str = "detailed") -> str:
+    """
+    Форматировать статистику по темам ученика из реальных данных БД
+
+    Args:
+        student_id: ID студента
+        subject_id: ID предмета
+        format_type: Тип форматирования ("detailed" или "summary")
+
+    Returns:
+        str: Отформатированный текст со статистикой
+    """
+    # Получаем студента для имени
+    student = await StudentRepository.get_by_id(student_id)
+    if not student:
+        return "❌ Студент не найден"
+
+    # Получаем отформатированную статистику по микротемам
+    microtopic_data = await format_microtopic_stats(student_id, subject_id, format_type)
+
+    if not microtopic_data['has_data']:
+        return f"📌 {student.user.name}\n{microtopic_data['text']}"
+
+    result_text = f"📌 {student.user.name}\n{microtopic_data['text']}"
+
+    # Если это детальный формат, добавляем сводку
+    if format_type == "detailed":
+        summary_data = await format_microtopic_stats(student_id, subject_id, "summary")
+        result_text += f"\n\n{summary_data['text']}"
+
+    return result_text
+
+
+async def get_student_microtopics_detailed(student_id: int, subject_id: int) -> str:
+    """
+    Получить детальную статистику по микротемам для отдельной кнопки
+
+    Args:
+        student_id: ID студента
+        subject_id: ID предмета
+
+    Returns:
+        str: Отформатированный текст с детальной статистикой
+    """
+    # Получаем студента для имени
+    student = await StudentRepository.get_by_id(student_id)
+    if not student:
+        return "❌ Студент не найден"
+
+    # Получаем отформатированную статистику по микротемам
+    microtopic_data = await format_microtopic_stats(student_id, subject_id, "detailed")
+
+    if not microtopic_data['has_data']:
+        return f"📌 {student.user.name}\n{microtopic_data['text']}"
+
+    # Показываем только проверенные микротемы (НЕ показываем непроверенные)
+    return f"📌 {student.user.name}\n{microtopic_data['text']}"
+
+
+async def get_student_strong_weak_summary(student_id: int, subject_id: int) -> str:
+    """
+    Получить сводку по сильным и слабым темам для отдельной кнопки
+
+    Args:
+        student_id: ID студента
+        subject_id: ID предмета
+
+    Returns:
+        str: Отформатированный текст со сводкой
+    """
+    # Получаем студента для имени
+    student = await StudentRepository.get_by_id(student_id)
+    if not student:
+        return "❌ Студент не найден"
+
+    # Получаем сводку по сильным и слабым темам
+    summary_data = await format_microtopic_stats(student_id, subject_id, "summary")
+
+    if not summary_data['has_data']:
+        return f"📌 {student.user.name}\n❌ Пока не выполнено ни одного задания для анализа сильных и слабых тем"
+
+    return f"📌 {student.user.name}\n{summary_data['text']}"
+
+
 def format_student_topics_stats(student_data: Dict) -> str:
     """
-    Форматировать статистику по темам ученика в текстовый вид
-    
+    УСТАРЕВШАЯ ФУНКЦИЯ: Форматировать статистику по темам ученика из статических данных
+
     Args:
         student_data: Данные ученика
-        
+
     Returns:
         str: Отформатированный текст со статистикой
     """
     # Определяем сильные и слабые темы
-    strong_topics = [topic for topic, percentage in student_data["topics"].items() 
+    strong_topics = [topic for topic, percentage in student_data["topics"].items()
                     if percentage >= 80]
-    weak_topics = [topic for topic, percentage in student_data["topics"].items() 
+    weak_topics = [topic for topic, percentage in student_data["topics"].items()
                   if percentage <= 40]
-    
+
     # Формируем текст с результатами
     result_text = f"📌 {student_data['name']}\n"
     result_text += "📈 % понимания по микротемам:\n"
-    
+
     # Добавляем информацию о каждой теме
     for topic, percentage in student_data["topics"].items():
         status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
         result_text += f"• {topic} — {percentage}% {status}\n"
-    
+
     # Добавляем информацию о сильных и слабых темах в более наглядном формате
     if strong_topics:
         result_text += "\n🟢 Сильные темы (≥80%):\n"
         for topic in strong_topics:
             result_text += f"• {topic}\n"
-    
+
     if weak_topics:
         result_text += "\n🔴 Слабые темы (≤40%):\n"
         for topic in weak_topics:
             result_text += f"• {topic}\n"
-    
+
     return result_text
 
 def format_group_stats(group_data: Dict) -> str:
@@ -410,20 +550,15 @@ def format_test_result(test_results: Dict, subject_name: str, test_type: str, mo
     # Добавляем информацию о количестве правильных ответов
     result_text += f"Верных: {test_results['correct_answers']} / {test_results['total_questions']}\n"
     
-    # Добавляем информацию о каждой теме
+    # Добавляем информацию о каждой теме с единым форматированием
     for topic, percentage in test_results["topics_progress"].items():
         if percentage is None:
             result_text += f"• {topic} — ❌ Не проверено\n"
         else:
             status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
             result_text += f"• {topic} — {percentage}% {status}\n"
-    
-    # Определяем сильные и слабые темы
-    strong_topics = [topic for topic, percentage in test_results["topics_progress"].items() 
-                    if percentage is not None and percentage >= 80]
-    weak_topics = [topic for topic, percentage in test_results["topics_progress"].items() 
-                  if percentage is not None and percentage <= 40]
-    
+
+    # Добавляем сильные и слабые темы
     result_text = add_strong_and_weak_topics(result_text, test_results["topics_progress"])
     
     return result_text
@@ -469,24 +604,34 @@ def format_test_comparison(entry_results: Dict, control_results: Dict, subject_n
     
     return result_text
 
-def add_strong_and_weak_topics(result_text: str, topics:list) -> str:
-    # Определяем сильные и слабые темы по результатам контрольного теста
-    strong_topics = [topic for topic, percentage in topics.items() 
+def add_strong_and_weak_topics(result_text: str, topics: dict) -> str:
+    """
+    Добавить информацию о сильных и слабых темах к тексту результата
+
+    Args:
+        result_text: Исходный текст
+        topics: Словарь с темами и процентами
+
+    Returns:
+        str: Текст с добавленной информацией о сильных и слабых темах
+    """
+    # Определяем сильные и слабые темы по результатам теста
+    strong_topics = [topic for topic, percentage in topics.items()
                     if percentage is not None and percentage >= 80]
-    weak_topics = [topic for topic, percentage in topics.items() 
+    weak_topics = [topic for topic, percentage in topics.items()
                   if percentage is not None and percentage <= 40]
-    
+
     # Добавляем информацию о сильных и слабых темах
     if strong_topics:
         result_text += "\n🟢 Сильные темы (≥80%):\n"
         for topic in strong_topics:
             result_text += f"• {topic}\n"
-    
+
     if weak_topics:
         result_text += "\n🔴 Слабые темы (≤40%):\n"
         for topic in weak_topics:
             result_text += f"• {topic}\n"
-    
+
     return result_text
     
 
@@ -643,14 +788,36 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
     """
     student_id = await check_if_id_in_callback_data("analytics_student_", callback, state, "student")
 
-    # Получаем реальные данные о студенте из базы данных
-    result_text = await get_real_student_analytics(int(student_id))
+    # Получаем студента для определения предмета
+    student = await StudentRepository.get_by_id(int(student_id))
+    if not student or not student.group or not student.group.subject:
+        await callback.message.edit_text(
+            "❌ Студент не найден или не назначен в группу с предметом",
+            reply_markup=get_back_to_analytics_kb()
+        )
+        return
+
+    # Получаем реальные данные о студенте из базы данных (без детальной статистики по микротемам)
+    general_stats = await StudentRepository.get_general_stats(int(student_id))
+
+    # Формируем базовую информацию
+    result_text = f"👤 Студент: {student.user.name}\n"
+    result_text += f"📚 Группа: {student.group.name}\n"
+    result_text += f"💎 Тариф: {student.tariff or 'Не указан'}\n\n"
+    result_text += f"📊 Общая статистика:\n"
+    result_text += f"   • Баллы: {general_stats.get('total_points', 0)}\n"
+    result_text += f"   • Уровень: {student.level}\n"
+    result_text += f"   • Выполнено ДЗ: {general_stats.get('total_completed', 0)}\n\n"
+    result_text += f"📗 Предмет: {student.group.subject.name}\n"
+    result_text += "Выберите, что хотите посмотреть:"
+
+    # Импортируем клавиатуру
+    from common.analytics.keyboards import get_student_microtopics_kb
 
     await callback.message.edit_text(
         result_text,
-        reply_markup=get_back_to_analytics_kb()
+        reply_markup=get_student_microtopics_kb(int(student_id), student.group.subject.id)
     )
-    # Удаляем установку состояния
 
 
 async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role: str):

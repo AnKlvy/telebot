@@ -4,7 +4,8 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from common.analytics.handlers import (
     show_analytics_menu, select_group_for_student_analytics,
-    select_student_for_analytics, select_group_for_group_analytics
+    select_student_for_analytics, select_group_for_group_analytics,
+    show_microtopics_detailed, show_microtopics_summary, back_to_student_analytics
 )
 from common.statistics import show_student_analytics, show_group_analytics
 
@@ -49,3 +50,19 @@ def register_analytics_handlers(router, states_group, role):
         logging.info(f"ВЫЗОВ: role_select_group_for_student | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await select_group_for_student_analytics(callback, state, role)
         await state.set_state(states_group.select_group_for_student)
+
+    # Обработчики для новых кнопок статистики по микротемам
+    @router.callback_query(F.data.startswith("microtopics_detailed_"))
+    async def role_show_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_show_microtopics_detailed | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await show_microtopics_detailed(callback, state)
+
+    @router.callback_query(F.data.startswith("microtopics_summary_"))
+    async def role_show_microtopics_summary(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_show_microtopics_summary | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await show_microtopics_summary(callback, state)
+
+    @router.callback_query(F.data.startswith("back_to_student_"))
+    async def role_back_to_student_analytics(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_back_to_student_analytics | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await back_to_student_analytics(callback, state, role)

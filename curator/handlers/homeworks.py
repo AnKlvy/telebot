@@ -180,10 +180,12 @@ async def show_group_stats(callback: CallbackQuery, state: FSMContext):
         for i, student in enumerate(stats["rating"], 1):
             rating_text += f"{i}. {student['name']} — {student['points']} баллов\n"
     
-    # Формируем текст с темами
+    # Формируем текст с темами с единым форматированием
     topics_text = "📈 Средний % понимания по микротемам:\n"
     for topic, percentage in stats["topics"].items():
-        topics_text += f"• {topic} — {percentage}%\n"
+        # Добавляем эмодзи статуса для групповой статистики
+        status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
+        topics_text += f"• {topic} — {percentage}% {status}\n"
     
     await callback.message.edit_text(
         f"📗 {stats['subject']}\n"

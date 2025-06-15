@@ -274,27 +274,14 @@ async def finish_test(callback: CallbackQuery, state: FSMContext):
     
     result_text += f"Верных: {correct_answers} / {total_questions}\n"
     
-    # Добавляем информацию о каждой теме
+    # Добавляем информацию о каждой теме с единым форматированием
     for topic, percentage in topics_percentages.items():
         status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
         result_text += f"• {topic} — {percentage}% {status}\n"
-    
-    # Определяем сильные и слабые темы
-    strong_topics = [topic for topic, percentage in topics_percentages.items() 
-                    if percentage >= 80]
-    weak_topics = [topic for topic, percentage in topics_percentages.items() 
-                  if percentage <= 40]
-    
-    # Добавляем информацию о сильных и слабых темах
-    if strong_topics:
-        result_text += "\n🟢 Сильные темы (≥80%):\n"
-        for topic in strong_topics:
-            result_text += f"• {topic}\n"
-    
-    if weak_topics:
-        result_text += "\n🔴 Слабые темы (≤40%):\n"
-        for topic in weak_topics:
-            result_text += f"• {topic}\n"
+
+    # Используем единую функцию для добавления сильных и слабых тем
+    from common.statistics import add_strong_and_weak_topics
+    result_text = add_strong_and_weak_topics(result_text, topics_percentages)
     
     # Сохраняем результаты теста
     test_results = {
