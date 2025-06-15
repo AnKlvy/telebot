@@ -390,6 +390,162 @@ async def get_student_strong_weak_summary(student_id: int, subject_id: int) -> s
     return f"📌 {student.user.name}\n{summary_data['text']}"
 
 
+async def get_subject_microtopics_detailed(subject_id: int) -> str:
+    """
+    Получить детальную статистику по микротемам для предмета
+
+    Args:
+        subject_id: ID предмета
+
+    Returns:
+        str: Отформатированный текст с детальной статистикой
+    """
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
+
+        # Получаем предмет
+        subject = await SubjectRepository.get_by_id(subject_id)
+        if not subject:
+            return "❌ Предмет не найден"
+
+        # Получаем группы предмета
+        groups = await GroupRepository.get_by_subject(subject_id)
+        if not groups:
+            return f"📚 {subject.name}\n❌ Группы по данному предмету не найдены"
+
+        # Получаем микротемы предмета
+        microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+        if not microtopics:
+            return f"📚 {subject.name}\n❌ Микротемы по данному предмету не найдены"
+
+        # Собираем статистику по всем микротемам
+        microtopic_stats = {}
+        total_students = 0
+
+        for group in groups:
+            students = await StudentRepository.get_by_group(group.id)
+            total_students += len(students)
+
+            for student in students:
+                student_microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, subject_id)
+
+                for microtopic_number, stats in student_microtopic_stats.items():
+                    if microtopic_number not in microtopic_stats:
+                        microtopic_stats[microtopic_number] = []
+                    microtopic_stats[microtopic_number].append(stats['percentage'])
+
+        if not microtopic_stats:
+            return f"📚 {subject.name}\n❌ Пока не выполнено ни одного задания по микротемам этого предмета"
+
+        # Создаем словарь названий микротем
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Формируем результат
+        result_text = f"📚 {subject.name}\n📈 Средний % понимания по микротемам:\n"
+
+        # Сортируем по номеру микротемы
+        for microtopic_number in sorted(microtopic_stats.keys()):
+            percentages = microtopic_stats[microtopic_number]
+            avg_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0
+            microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+
+            # Определяем статус
+            status = "✅" if avg_percentage >= 80 else "❌" if avg_percentage <= 40 else "⚠️"
+            result_text += f"• {microtopic_name} — {avg_percentage}% {status}\n"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка при получении детальной статистики предмета: {e}")
+        return "❌ Ошибка при получении статистики"
+
+
+async def get_subject_microtopics_summary(subject_id: int) -> str:
+    """
+    Получить сводку по сильным и слабым темам для предмета
+
+    Args:
+        subject_id: ID предмета
+
+    Returns:
+        str: Отформатированный текст со сводкой
+    """
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
+
+        # Получаем предмет
+        subject = await SubjectRepository.get_by_id(subject_id)
+        if not subject:
+            return "❌ Предмет не найден"
+
+        # Получаем группы предмета
+        groups = await GroupRepository.get_by_subject(subject_id)
+        if not groups:
+            return f"📚 {subject.name}\n❌ Группы по данному предмету не найдены"
+
+        # Получаем микротемы предмета
+        microtopics = await MicrotopicRepository.get_by_subject(subject_id)
+        if not microtopics:
+            return f"📚 {subject.name}\n❌ Микротемы по данному предмету не найдены"
+
+        # Собираем статистику по всем микротемам
+        microtopic_stats = {}
+
+        for group in groups:
+            students = await StudentRepository.get_by_group(group.id)
+
+            for student in students:
+                student_microtopic_stats = await StudentRepository.get_microtopic_understanding(student.id, subject_id)
+
+                for microtopic_number, stats in student_microtopic_stats.items():
+                    if microtopic_number not in microtopic_stats:
+                        microtopic_stats[microtopic_number] = []
+                    microtopic_stats[microtopic_number].append(stats['percentage'])
+
+        if not microtopic_stats:
+            return f"📚 {subject.name}\n❌ Пока не выполнено ни одного задания для анализа сильных и слабых тем"
+
+        # Создаем словарь названий микротем
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Вычисляем средние значения и определяем сильные/слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        for microtopic_number, percentages in microtopic_stats.items():
+            avg_percentage = round(sum(percentages) / len(percentages), 1) if percentages else 0
+            microtopic_name = microtopic_names.get(microtopic_number, f"Микротема {microtopic_number}")
+
+            if avg_percentage >= 80:
+                strong_topics.append(microtopic_name)
+            elif avg_percentage <= 40:
+                weak_topics.append(microtopic_name)
+
+        # Формируем результат
+        result_text = f"📚 {subject.name}\n"
+
+        if strong_topics:
+            result_text += "🟢 Сильные темы (≥80%):\n"
+            for topic in strong_topics:
+                result_text += f"• {topic}\n"
+
+        if weak_topics:
+            if strong_topics:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not strong_topics and not weak_topics:
+            result_text += "⚠️ Все темы находятся в среднем диапазоне (41-79%)"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка при получении сводки по предмету: {e}")
+        return "❌ Ошибка при получении сводки"
+
+
 def format_student_topics_stats(student_data: Dict) -> str:
     """
     УСТАРЕВШАЯ ФУНКЦИЯ: Форматировать статистику по темам ученика из статических данных
@@ -635,9 +791,9 @@ def add_strong_and_weak_topics(result_text: str, topics: dict) -> str:
     return result_text
     
 
-def get_subject_stats(subject_id: str) -> dict:
+async def get_subject_stats(subject_id: str) -> dict:
     """
-    Получить статистику по предмету
+    Получить статистику по предмету из реальной базы данных
 
     Args:
         subject_id: ID предмета
@@ -645,71 +801,135 @@ def get_subject_stats(subject_id: str) -> dict:
     Returns:
         dict: Данные о статистике предмета
     """
-    # В реальном приложении здесь будет запрос к базе данных
-    # Для примера возвращаем тестовые данные
-    return {
-        "subject_id": subject_id,
-        "name": "Химия",
-        "groups": [
-            {
-                "group_id": "group1",
-                "name": "Интенсив. География",
-                "homework_completion": 75,
-                "topics": {
-                    "Алканы": 82,
-                    "Изомерия": 37,
-                    "Кислоты": 66
-                },
-                "rating": [
-                    {"name": "Аружан", "points": 870},
-                    {"name": "Диана", "points": 800},
-                    {"name": "Мадияр", "points": 780}
-                ]
-            },
-            {
-                "group_id": "group2",
-                "name": "Интенсив. Математика",
-                "homework_completion": 80,
-                "topics": {
-                    "Алканы": 78,
-                    "Изомерия": 42,
-                    "Кислоты": 70
-                },
-                "rating": [
-                    {"name": "Арман", "points": 850},
-                    {"name": "Алия", "points": 820},
-                    {"name": "Диас", "points": 790}
-                ]
-            }
-        ]
-    }
+    try:
+        from database.repositories import SubjectRepository, GroupRepository, StudentRepository, MicrotopicRepository
 
-def get_general_stats() -> dict:
+        # Получаем предмет
+        subject = await SubjectRepository.get_by_id(int(subject_id))
+        if not subject:
+            return {
+                "subject_id": subject_id,
+                "name": "Неизвестный предмет",
+                "groups": []
+            }
+
+        # Получаем группы предмета
+        groups = await GroupRepository.get_by_subject(int(subject_id))
+
+        groups_data = []
+        for group in groups:
+            # Получаем статистику группы (используем существующую функцию)
+            group_stats = await get_group_stats(str(group.id))
+
+            groups_data.append({
+                "group_id": str(group.id),
+                "name": group_stats["name"],
+                "homework_completion": group_stats["homework_completion"],
+                "topics": group_stats["topics"],
+                "rating": group_stats["rating"]
+            })
+
+        return {
+            "subject_id": subject_id,
+            "name": subject.name,
+            "groups": groups_data
+        }
+
+    except Exception as e:
+        print(f"Ошибка при получении статистики предмета: {e}")
+        return {
+            "subject_id": subject_id,
+            "name": "Ошибка загрузки",
+            "groups": []
+        }
+
+async def get_general_stats() -> dict:
     """
-    Получить общую статистику по всем предметам
-    
+    Получить общую статистику по всем предметам из реальной базы данных
+
     Returns:
         dict: Общие данные статистики
     """
-    # В реальном приложении здесь будет запрос к базе данных
-    # Для примера возвращаем тестовые данные
-    return {
-        "total_students": 450,
-        "active_students": 380,
-        "total_groups": 15,
-        "subjects": [
-            {"name": "Математика", "average_score": 78.5, "completion_rate": 82.3},
-            {"name": "Физика", "average_score": 75.2, "completion_rate": 79.8},
-            {"name": "Химия", "average_score": 81.7, "completion_rate": 85.4},
-            {"name": "Биология", "average_score": 83.1, "completion_rate": 87.2}
-        ],
-        "monthly_progress": {
-            "Январь": 75.2,
-            "Февраль": 78.5,
-            "Март": 80.1,
-            "Апрель": 82.3
+    try:
+        from database.repositories import StudentRepository, GroupRepository, SubjectRepository
+
+        # Получаем общее количество студентов
+        all_students = await StudentRepository.get_all()
+        total_students = len(all_students)
+
+        # Считаем активных студентов (у которых есть группа)
+        active_students = len([s for s in all_students if s.group_id is not None])
+
+        # Получаем общее количество групп
+        all_groups = await GroupRepository.get_all()
+        total_groups = len(all_groups)
+
+        # Получаем статистику по предметам
+        all_subjects = await SubjectRepository.get_all()
+        subjects_stats = []
+
+        for subject in all_subjects:
+            # Получаем группы предмета
+            subject_groups = await GroupRepository.get_by_subject(subject.id)
+
+            if not subject_groups:
+                continue
+
+            total_points = 0
+            total_completion = 0
+            students_count = 0
+
+            for group in subject_groups:
+                # Получаем студентов группы
+                group_students = await StudentRepository.get_by_group(group.id)
+
+                for student in group_students:
+                    # Получаем статистику студента
+                    student_stats = await StudentRepository.get_general_stats(student.id)
+                    total_points += student_stats.get('total_points', 0)
+
+                    # Вычисляем процент выполнения ДЗ
+                    if student_stats.get('total_attempted', 0) > 0:
+                        completion_rate = (student_stats.get('unique_completed', 0) / student_stats.get('total_attempted', 1)) * 100
+                    else:
+                        completion_rate = 0
+                    total_completion += completion_rate
+                    students_count += 1
+
+            if students_count > 0:
+                avg_score = round(total_points / students_count, 1)
+                avg_completion = round(total_completion / students_count, 1)
+            else:
+                avg_score = 0
+                avg_completion = 0
+
+            subjects_stats.append({
+                "name": subject.name,
+                "average_score": avg_score,
+                "completion_rate": avg_completion
+            })
+
+        return {
+            "total_students": total_students,
+            "active_students": active_students,
+            "total_groups": total_groups,
+            "subjects": subjects_stats,
+            "monthly_progress": {
+                "Данные": "В разработке",
+                "по месяцам": "будут добавлены",
+                "позже": "..."
+            }
         }
-    }
+
+    except Exception as e:
+        print(f"Ошибка при получении общей статистики: {e}")
+        return {
+            "total_students": 0,
+            "active_students": 0,
+            "total_groups": 0,
+            "subjects": [],
+            "monthly_progress": {}
+        }
 
 def format_subject_stats(subject_data: dict) -> str:
     """

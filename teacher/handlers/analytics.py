@@ -11,6 +11,8 @@ class TeacherAnalyticsStates(StatesGroup):
     student_stats = State()
     select_group_for_group = State()
     group_stats = State()
+    select_subject = State()
+    subject_stats = State()
 
 router = Router()
 

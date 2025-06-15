@@ -11,11 +11,18 @@ from database import StudentRepository, GroupRepository, CuratorRepository
 
 def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
-    return InlineKeyboardMarkup(inline_keyboard=[
+    buttons = [
         [InlineKeyboardButton(text="📊 Статистика по ученику", callback_data="student_analytics")],
         [InlineKeyboardButton(text="📈 Статистика по группе", callback_data="group_analytics")],
-        *get_main_menu_back_button()
-    ])
+        [InlineKeyboardButton(text="📚 Статистика по предмету", callback_data="subject_analytics")]
+    ]
+
+    # Добавляем общую статистику только для менеджеров
+    if role == "manager":
+        buttons.append([InlineKeyboardButton(text="📋 Общая статистика", callback_data="general_analytics")])
+
+    buttons.extend(get_main_menu_back_button())
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def get_groups_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для аналитики"""
@@ -134,6 +141,64 @@ def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
 
 def get_back_to_student_analytics_kb(student_id: int, subject_id: int) -> InlineKeyboardMarkup:
     """Клавиатура возврата к статистике студента"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *get_main_menu_back_button()
+    ])
+
+
+async def get_subjects_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
+    """Клавиатура выбора предмета для аналитики"""
+    try:
+        from database.repositories import SubjectRepository
+        subjects = await SubjectRepository.get_all()
+    except Exception as e:
+        print(f"Ошибка при получении предметов: {e}")
+        subjects = []
+
+    buttons = []
+    for subject in subjects:
+        # Используем разные callback_data в зависимости от роли
+        if role == "manager":
+            callback_data = f"manager_subject_{subject.id}"
+        else:
+            callback_data = f"analytics_subject_{subject.id}"
+
+        buttons.append([
+            InlineKeyboardButton(
+                text=subject.name,
+                callback_data=callback_data
+            )
+        ])
+
+    if not buttons:
+        buttons.append([
+            InlineKeyboardButton(
+                text="❌ Предметы не найдены",
+                callback_data="no_subjects"
+            )
+        ])
+
+    buttons.extend(get_main_menu_back_button())
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_subject_microtopics_kb(subject_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура для просмотра статистики по микротемам предмета"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📈 % понимания по микротемам",
+            callback_data=f"subject_microtopics_detailed_{subject_id}"
+        )],
+        [InlineKeyboardButton(
+            text="🟢🔴 Сильные и слабые темы",
+            callback_data=f"subject_microtopics_summary_{subject_id}"
+        )],
+        *get_main_menu_back_button()
+    ])
+
+
+def get_back_to_subject_analytics_kb(subject_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура возврата к статистике предмета"""
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button()
     ])

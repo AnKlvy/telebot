@@ -5,7 +5,9 @@ from aiogram.fsm.context import FSMContext
 from common.analytics.handlers import (
     show_analytics_menu, select_group_for_student_analytics,
     select_student_for_analytics, select_group_for_group_analytics,
-    show_microtopics_detailed, show_microtopics_summary, back_to_student_analytics
+    show_microtopics_detailed, show_microtopics_summary, back_to_student_analytics,
+    select_subject_for_analytics, show_subject_analytics,
+    show_subject_microtopics_detailed, show_subject_microtopics_summary
 )
 from common.statistics import show_student_analytics, show_group_analytics
 
@@ -66,3 +68,27 @@ def register_analytics_handlers(router, states_group, role):
     async def role_back_to_student_analytics(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_back_to_student_analytics | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await back_to_student_analytics(callback, state, role)
+
+    # Обработчики для статистики по предмету
+    @router.callback_query(states_group.main, F.data == "subject_analytics")
+    async def role_select_subject_for_analytics(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_select_subject_for_analytics | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await select_subject_for_analytics(callback, state, role)
+        await state.set_state(states_group.select_subject)
+
+    @router.callback_query(states_group.select_subject, F.data.startswith("analytics_subject_"))
+    async def role_show_subject_analytics(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_show_subject_analytics | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await show_subject_analytics(callback, state, role)
+        await state.set_state(states_group.subject_stats)
+
+    # Обработчики для детальной статистики по микротемам предмета
+    @router.callback_query(F.data.startswith("subject_microtopics_detailed_"))
+    async def role_show_subject_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_show_subject_microtopics_detailed | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await show_subject_microtopics_detailed(callback, state)
+
+    @router.callback_query(F.data.startswith("subject_microtopics_summary_"))
+    async def role_show_subject_microtopics_summary(callback: CallbackQuery, state: FSMContext):
+        logging.info(f"ВЫЗОВ: role_show_subject_microtopics_summary | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        await show_subject_microtopics_summary(callback, state)

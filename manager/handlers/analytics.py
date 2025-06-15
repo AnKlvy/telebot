@@ -4,7 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from common.analytics.handlers import (
     select_group_for_student_analytics,
-    select_student_for_analytics, select_group_for_group_analytics
+    select_student_for_analytics, select_group_for_group_analytics,
+    show_subject_microtopics_detailed, show_subject_microtopics_summary
 )
 from ..keyboards.analytics import (
     get_manager_analytics_menu_kb, get_curators_kb, get_subjects_kb
@@ -128,16 +129,34 @@ async def manager_show_subject_analytics(callback: CallbackQuery, state: FSMCont
     logger.info("Вызван обработчик manager_show_subject_analytics")
     subject_id = callback.data.replace("manager_subject_", "")
     logger.debug(f"Выбран предмет с ID: {subject_id}")
-    
-    # Получаем данные о предмете из общего компонента
-    subject_data = get_subject_stats(subject_id)
-    
-    # Форматируем статистику в текст
-    result_text = format_subject_stats(subject_data)
-    
+
+    # Получаем данные о предмете
+    subject_data = await get_subject_stats(subject_id)
+
+    # Формируем базовую информацию о предмете (как в общей функции)
+    result_text = f"📚 Предмет: {subject_data['name']}\n\n"
+    result_text += f"👨‍👩‍👧‍👦 Количество групп: {len(subject_data['groups'])}\n"
+
+    if subject_data['groups']:
+        # Вычисляем средний процент выполнения ДЗ
+        avg_homework = sum(group['homework_completion'] for group in subject_data['groups']) / len(subject_data['groups'])
+        result_text += f"📊 Средний % выполнения ДЗ: {avg_homework:.1f}%\n\n"
+
+        # Показываем список групп
+        result_text += "📋 Группы:\n"
+        for group in subject_data['groups']:
+            result_text += f"• {group['name']} - {group['homework_completion']}%\n"
+    else:
+        result_text += "❌ Группы не найдены\n"
+
+    result_text += "\nВыберите, что хотите посмотреть:"
+
+    # Импортируем клавиатуру
+    from common.analytics.keyboards import get_subject_microtopics_kb
+
     await callback.message.edit_text(
         result_text,
-        reply_markup=get_back_to_analytics_kb()
+        reply_markup=get_subject_microtopics_kb(int(subject_id))
     )
     await state.set_state(ManagerAnalyticsStates.subject_stats)
 
@@ -146,14 +165,27 @@ async def manager_show_subject_analytics(callback: CallbackQuery, state: FSMCont
 async def manager_show_general_analytics(callback: CallbackQuery, state: FSMContext):
     """Показать общую статистику"""
     logger.info("Вызван обработчик manager_show_general_analytics")
-    # Получаем общие данные из общего компонента
-    general_data = get_general_stats()
-    
+    # Получаем общие данные из общего компонента (теперь асинхронно)
+    general_data = await get_general_stats()
+
     # Форматируем статистику в текст
     result_text = format_general_stats(general_data)
-    
+
     await callback.message.edit_text(
         result_text,
         reply_markup=get_back_to_analytics_kb()
     )
     await state.set_state(ManagerAnalyticsStates.general_stats)
+
+# Обработчики для детальной статистики по микротемам предмета
+@router.callback_query(F.data.startswith("subject_microtopics_detailed_"))
+async def manager_show_subject_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам предмета"""
+    logger.info("Вызван обработчик manager_show_subject_microtopics_detailed")
+    await show_subject_microtopics_detailed(callback, state)
+
+@router.callback_query(F.data.startswith("subject_microtopics_summary_"))
+async def manager_show_subject_microtopics_summary(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным и слабым темам предмета"""
+    logger.info("Вызван обработчик manager_show_subject_microtopics_summary")
+    await show_subject_microtopics_summary(callback, state)
