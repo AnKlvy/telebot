@@ -8,16 +8,15 @@ from database import SubjectRepository
 class TopicActions:
     VIEW = "view"
     ADD = "add"
-    DELETE = "del"
-    CONFIRM_DELETE = "cdel"
-    CANCEL = "cancel"
+    DELETE_BY_NUMBER = "del_num"
+    SHOW_LIST = "show_list"
 
 class TopicCallback(CallbackData, prefix="topic"):
     """Фабрика callback-данных для работы с микротемами"""
-    action: Literal[TopicActions.VIEW, TopicActions.ADD, TopicActions.DELETE, 
-                   TopicActions.CONFIRM_DELETE, TopicActions.CANCEL]  # Тип действия с микротемой
-    subject: str  # Название предмета
-    topic: str | None = None  # Название микротемы (опционально)
+    action: Literal[TopicActions.VIEW, TopicActions.ADD, TopicActions.DELETE_BY_NUMBER,
+                   TopicActions.SHOW_LIST]  # Тип действия с микротемой
+    subject: str  # ID предмета
+    topic: str | None = None  # Дополнительные данные (опционально)
 
 async def get_subjects_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета для микротемы"""
@@ -36,7 +35,7 @@ async def get_subjects_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 async def get_topics_list_kb(subject_name: str, microtopics: List) -> InlineKeyboardMarkup:
-    """Клавиатура со списком микротем по предмету"""
+    """Клавиатура с основными действиями для микротем"""
     keyboard = []
 
     # Получаем subject_id из первой микротемы (если есть) или ищем по названию
@@ -51,43 +50,23 @@ async def get_topics_list_kb(subject_name: str, microtopics: List) -> InlineKeyb
                 subject_id = subject.id
                 break
 
-    # Кнопка добавления новой микротемы
+    # Основные кнопки управления микротемами
     if subject_id:
-        keyboard.append([
-            InlineKeyboardButton(
-                text="➕ Добавить микротему",
+        keyboard.extend([
+            [InlineKeyboardButton(
+                text="➕ Добавить микротемы",
                 callback_data=TopicCallback(action=TopicActions.ADD, subject=str(subject_id)).pack()
-            )
-        ])
-
-    # Список существующих микротем
-    for microtopic in microtopics:
-        keyboard.append([
-            InlineKeyboardButton(
-                text=f"📝 {microtopic.name}",
-                callback_data=TopicCallback(action=TopicActions.VIEW, subject=str(microtopic.subject_id), topic=str(microtopic.id)).pack()
-            ),
-            InlineKeyboardButton(
-                text="❌",
-                callback_data=TopicCallback(action=TopicActions.DELETE, subject=str(microtopic.subject_id), topic=str(microtopic.id)).pack()
-            )
+            )],
+            [InlineKeyboardButton(
+                text="❌ Удалить микротему",
+                callback_data=TopicCallback(action=TopicActions.DELETE_BY_NUMBER, subject=str(subject_id)).pack()
+            )],
+            [InlineKeyboardButton(
+                text="📋 Список всех микротем",
+                callback_data=TopicCallback(action=TopicActions.SHOW_LIST, subject=str(subject_id)).pack()
+            )]
         ])
 
     keyboard.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def confirm_delete_topic_kb(subject: str, topic: str) -> InlineKeyboardMarkup:
-    """Клавиатура подтверждения удаления микротемы"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="✅ Подтвердить", 
-                callback_data=TopicCallback(action=TopicActions.CONFIRM_DELETE, subject=subject, topic=topic).pack()
-            ),
-            InlineKeyboardButton(
-                text="❌ Отменить", 
-                callback_data=TopicCallback(action=TopicActions.CANCEL, subject=subject).pack()
-            )
-        ],
-        *get_main_menu_back_button()
-    ]) 

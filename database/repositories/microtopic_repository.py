@@ -255,6 +255,39 @@ class MicrotopicRepository:
             return result.rowcount > 0
 
     @staticmethod
+    async def delete_by_number(subject_id: int, number: int) -> tuple[bool, str]:
+        """Удалить микротему по номеру в рамках предмета
+
+        Returns:
+            tuple[bool, str]: (успех, название_удаленной_микротемы)
+        """
+        async with get_db_session() as session:
+            # Находим микротему по номеру и предмету
+            microtopic_result = await session.execute(
+                select(Microtopic).where(
+                    Microtopic.subject_id == subject_id,
+                    Microtopic.number == number
+                )
+            )
+            microtopic = microtopic_result.scalar_one_or_none()
+
+            if not microtopic:
+                return False, ""
+
+            microtopic_name = microtopic.name
+
+            # Удаляем микротему (без перенумерации согласно требованиям)
+            result = await session.execute(
+                delete(Microtopic).where(
+                    Microtopic.subject_id == subject_id,
+                    Microtopic.number == number
+                )
+            )
+            await session.commit()
+
+            return result.rowcount > 0, microtopic_name
+
+    @staticmethod
     async def delete_by_subject(subject_id: int) -> int:
         """Удалить все микротемы предмета (используется при удалении предмета)"""
         async with get_db_session() as session:
