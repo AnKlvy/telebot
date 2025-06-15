@@ -14,6 +14,8 @@ from .lesson_repository import LessonRepository
 from .homework_repository import HomeworkRepository
 from .question_repository import QuestionRepository
 from .answer_option_repository import AnswerOptionRepository
+from .month_test_repository import MonthTestRepository
+from .month_test_microtopic_repository import MonthTestMicrotopicRepository
 from .bonus_test_repository import BonusTestRepository
 from .bonus_question_repository import BonusQuestionRepository
 from .bonus_answer_option_repository import BonusAnswerOptionRepository
@@ -32,6 +34,8 @@ __all__ = [
     'HomeworkRepository',
     'QuestionRepository',
     'AnswerOptionRepository',
+    'MonthTestRepository',
+    'MonthTestMicrotopicRepository',
     'BonusTestRepository',
     'BonusQuestionRepository',
     'BonusAnswerOptionRepository'

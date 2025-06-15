@@ -23,6 +23,8 @@ from database import (
     HomeworkRepository,
     QuestionRepository,
     AnswerOptionRepository,
+    MonthTestRepository,
+    MonthTestMicrotopicRepository,
     BonusTestRepository,
     BonusQuestionRepository,
     BonusAnswerOptionRepository,
@@ -689,6 +691,10 @@ async def add_initial_data():
     # Создаем тестовые бонусные тесты
     await add_test_bonus_tests()
 
+    print("📅 Добавление тестовых тестов месяца...")
+    # Создаем тестовые тесты месяца
+    await add_test_month_tests(created_subjects, course_ent, course_it)
+
     print("🎉 Начальные данные добавлены!")
 
 
@@ -1037,6 +1043,109 @@ async def add_test_bonus_tests():
 
     except Exception as e:
         print(f"❌ Ошибка при добавлении тестовых бонусных тестов: {e}")
+
+
+async def add_test_month_tests(created_subjects, course_ent, course_it):
+    """Добавление тестовых тестов месяца"""
+    try:
+        # Данные для тестовых тестов месяца
+        month_tests_data = [
+            {
+                "name": "Сентябрь",
+                "course": course_ent,
+                "subject_name": "Математика",
+                "microtopic_numbers": [1, 2, 3]  # Первые 3 микротемы
+            },
+            {
+                "name": "Октябрь",
+                "course": course_ent,
+                "subject_name": "Математика",
+                "microtopic_numbers": [2, 3, 4]  # Микротемы 2-4
+            },
+            {
+                "name": "Сентябрь",
+                "course": course_ent,
+                "subject_name": "Химия",
+                "microtopic_numbers": [1, 2]  # Первые 2 микротемы
+            },
+            {
+                "name": "Октябрь",
+                "course": course_ent,
+                "subject_name": "Физика",
+                "microtopic_numbers": [1, 2, 3, 4]  # Все 4 микротемы
+            },
+            {
+                "name": "Сентябрь",
+                "course": course_it,
+                "subject_name": "Python",
+                "microtopic_numbers": [1, 2]  # Первые 2 микротемы
+            },
+            {
+                "name": "Октябрь",
+                "course": course_it,
+                "subject_name": "Python",
+                "microtopic_numbers": [3, 4]  # Микротемы 3-4
+            },
+            {
+                "name": "Сентябрь",
+                "course": course_it,
+                "subject_name": "JavaScript",
+                "microtopic_numbers": [1, 2, 3]  # Первые 3 микротемы
+            }
+        ]
+
+        created_month_tests_count = 0
+        created_relations_count = 0
+
+        for test_data in month_tests_data:
+            try:
+                # Находим предмет
+                subject = created_subjects.get(test_data["subject_name"])
+                if not subject:
+                    print(f"   ❌ Предмет '{test_data['subject_name']}' не найден")
+                    continue
+
+                course = test_data["course"]
+                if not course:
+                    print(f"   ❌ Курс не найден для теста '{test_data['name']}'")
+                    continue
+
+                # Проверяем, существует ли уже такой тест месяца
+                existing_test = await MonthTestRepository.exists_by_name_course_subject(
+                    test_data["name"], course.id, subject.id
+                )
+                if existing_test:
+                    print(f"   ⚠️  Тест месяца '{test_data['name']}' уже существует для {course.name}/{subject.name}")
+                    continue
+
+                # Создаем тест месяца
+                month_test = await MonthTestRepository.create(
+                    name=test_data["name"],
+                    course_id=course.id,
+                    subject_id=subject.id
+                )
+
+                print(f"   ✅ Создан тест месяца '{month_test.name}' для {course.name}/{subject.name} (ID: {month_test.id})")
+                created_month_tests_count += 1
+
+                # Привязываем микротемы
+                relations = await MonthTestMicrotopicRepository.create_multiple(
+                    month_test.id,
+                    test_data["microtopic_numbers"]
+                )
+
+                created_relations_count += len(relations)
+                numbers_text = ", ".join([str(num) for num in sorted(test_data["microtopic_numbers"])])
+                print(f"      📌 Привязаны микротемы: {numbers_text}")
+
+            except Exception as e:
+                print(f"   ❌ Ошибка при создании теста месяца '{test_data['name']}': {e}")
+
+        print(f"📊 Создано тестов месяца: {created_month_tests_count}")
+        print(f"📊 Создано связей с микротемами: {created_relations_count}")
+
+    except Exception as e:
+        print(f"❌ Ошибка при добавлении тестовых тестов месяца: {e}")
 
 
 if __name__ == "__main__":

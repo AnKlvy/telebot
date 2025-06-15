@@ -248,6 +248,45 @@ class AnswerOption(Base):
     )
 
 
+# Модель теста месяца
+class MonthTest(Base):
+    __tablename__ = 'month_tests'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)  # Название месяца (Сентябрь, Октябрь и т.д.)
+    course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    course = relationship("Course", backref="month_tests")
+    subject = relationship("Subject", backref="month_tests")
+    microtopics = relationship("MonthTestMicrotopic", back_populates="month_test", cascade="all, delete-orphan")
+
+    # Уникальность: один тест месяца на курс/предмет/месяц
+    __table_args__ = (
+        UniqueConstraint('name', 'course_id', 'subject_id', name='unique_month_test_per_course_subject'),
+    )
+
+
+# Модель связи тестов месяца с микротемами
+class MonthTestMicrotopic(Base):
+    __tablename__ = 'month_test_microtopics'
+
+    id = Column(Integer, primary_key=True)
+    month_test_id = Column(Integer, ForeignKey('month_tests.id', ondelete='CASCADE'), nullable=False)
+    microtopic_number = Column(Integer, nullable=False)  # Номер микротемы в рамках предмета
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    month_test = relationship("MonthTest", back_populates="microtopics")
+
+    # Уникальность: одна микротема на тест месяца
+    __table_args__ = (
+        UniqueConstraint('month_test_id', 'microtopic_number', name='unique_microtopic_per_month_test'),
+    )
+
+
 # Модель бонусного теста
 class BonusTest(Base):
     __tablename__ = 'bonus_tests'

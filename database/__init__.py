@@ -2,11 +2,11 @@
 Модуль для работы с базой данных
 """
 from .database import init_database, close_database, get_db_session
-from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager, Microtopic, Lesson, Homework, Question, AnswerOption, BonusTest, BonusQuestion, BonusAnswerOption
+from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager, Microtopic, Lesson, Homework, Question, AnswerOption, MonthTest, MonthTestMicrotopic, BonusTest, BonusQuestion, BonusAnswerOption
 from .repositories import UserRepository, CourseRepository, SubjectRepository, GroupRepository, StudentRepository, \
     CuratorRepository, TeacherRepository, ManagerRepository, MicrotopicRepository, LessonRepository, \
-    HomeworkRepository, QuestionRepository, AnswerOptionRepository, BonusTestRepository, \
-    BonusQuestionRepository, BonusAnswerOptionRepository
+    HomeworkRepository, QuestionRepository, AnswerOptionRepository, MonthTestRepository, \
+    MonthTestMicrotopicRepository, BonusTestRepository, BonusQuestionRepository, BonusAnswerOptionRepository
 
 
 # Функции для совместимости со старым кодом
@@ -39,6 +39,8 @@ __all__ = [
     'Homework',
     'Question',
     'AnswerOption',
+    'MonthTest',
+    'MonthTestMicrotopic',
     'BonusTest',
     'BonusQuestion',
     'BonusAnswerOption',
@@ -55,6 +57,8 @@ __all__ = [
     'HomeworkRepository',
     'QuestionRepository',
     'AnswerOptionRepository',
+    'MonthTestRepository',
+    'MonthTestMicrotopicRepository',
     'BonusTestRepository',
     'BonusQuestionRepository',
     'BonusAnswerOptionRepository',
