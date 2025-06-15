@@ -190,8 +190,8 @@ async def delete_topic(callback: CallbackQuery, callback_data: TopicCallback, st
     subject_id = data['subject_id']
     subject_name = data['subject_name']
 
-    # Удаляем микротему из базы данных с перенумерацией
-    success = await MicrotopicRepository.delete(microtopic_id, renumber=True)
+    # Удаляем микротему из базы данных без перенумерации
+    success = await MicrotopicRepository.delete(microtopic_id, renumber=False)
 
     if success:
         # Получаем обновленный список микротем

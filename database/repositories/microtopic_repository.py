@@ -48,14 +48,27 @@ class MicrotopicRepository:
 
     @staticmethod
     async def get_next_number_for_subject(subject_id: int) -> int:
-        """Получить следующий номер для микротемы в рамках предмета"""
+        """Получить следующий свободный номер для микротемы в рамках предмета"""
         async with get_db_session() as session:
+            # Получаем все существующие номера для данного предмета
             result = await session.execute(
-                select(func.max(Microtopic.number))
+                select(Microtopic.number)
                 .where(Microtopic.subject_id == subject_id)
+                .order_by(Microtopic.number)
             )
-            max_number = result.scalar()
-            return (max_number or 0) + 1
+            existing_numbers = [row[0] for row in result.fetchall()]
+
+            # Если нет микротем, возвращаем 1
+            if not existing_numbers:
+                return 1
+
+            # Ищем первый пропущенный номер
+            for i in range(1, max(existing_numbers) + 2):
+                if i not in existing_numbers:
+                    return i
+
+            # Если пропусков нет, возвращаем следующий после максимального
+            return max(existing_numbers) + 1
 
     @staticmethod
     async def get_by_number(subject_id: int, number: int) -> Optional[Microtopic]:
@@ -89,13 +102,25 @@ class MicrotopicRepository:
             if existing_name.scalar_one_or_none():
                 raise ValueError(f"Микротема с названием '{name}' уже существует для данного предмета")
 
-            # Получаем следующий номер для данного предмета в той же сессии
-            result = await session.execute(
-                select(func.max(Microtopic.number))
+            # Получаем следующий свободный номер для данного предмета в той же сессии
+            existing_numbers_result = await session.execute(
+                select(Microtopic.number)
                 .where(Microtopic.subject_id == subject_id)
+                .order_by(Microtopic.number)
             )
-            max_number = result.scalar()
-            next_number = (max_number or 0) + 1
+            existing_numbers = [row[0] for row in existing_numbers_result.fetchall()]
+
+            # Находим первый свободный номер
+            if not existing_numbers:
+                next_number = 1
+            else:
+                next_number = None
+                for i in range(1, max(existing_numbers) + 2):
+                    if i not in existing_numbers:
+                        next_number = i
+                        break
+                if next_number is None:
+                    next_number = max(existing_numbers) + 1
 
             microtopic = Microtopic(name=name, subject_id=subject_id, number=next_number)
             session.add(microtopic)
@@ -139,18 +164,22 @@ class MicrotopicRepository:
             if not clean_names:
                 raise ValueError("Не найдено ни одного валидного названия микротемы")
 
-            # Получаем следующий номер для данного предмета в той же сессии
-            result = await session.execute(
-                select(func.max(Microtopic.number))
+            # Получаем все существующие номера для данного предмета в той же сессии
+            existing_numbers_result = await session.execute(
+                select(Microtopic.number)
                 .where(Microtopic.subject_id == subject_id)
+                .order_by(Microtopic.number)
             )
-            max_number = result.scalar()
-            next_number = (max_number or 0) + 1
+            existing_numbers = set(row[0] for row in existing_numbers_result.fetchall())
 
-            # Создаем микротемы
+            # Создаем микротемы, находя свободные номера
             microtopics = []
-            current_number = next_number
+            current_number = 1
             for name in clean_names:
+                # Находим следующий свободный номер
+                while current_number in existing_numbers:
+                    current_number += 1
+
                 microtopic = Microtopic(
                     name=name,
                     subject_id=subject_id,
@@ -158,6 +187,7 @@ class MicrotopicRepository:
                 )
                 session.add(microtopic)
                 microtopics.append(microtopic)
+                existing_numbers.add(current_number)  # Добавляем в множество занятых номеров
                 current_number += 1
 
             await session.commit()
@@ -205,26 +235,21 @@ class MicrotopicRepository:
             return updated_count
 
     @staticmethod
-    async def delete(microtopic_id: int, renumber: bool = True) -> bool:
-        """Удалить микротему с опциональной перенумерацией"""
+    async def delete(microtopic_id: int, renumber: bool = False) -> bool:
+        """Удалить микротему без автоматической перенумерации"""
         async with get_db_session() as session:
-            # Сначала получаем информацию о микротеме для перенумерации
+            # Сначала получаем subject_id для возможной перенумерации
             microtopic_result = await session.execute(
-                select(Microtopic).where(Microtopic.id == microtopic_id)
+                select(Microtopic.subject_id).where(Microtopic.id == microtopic_id)
             )
-            microtopic = microtopic_result.scalar_one_or_none()
-
-            if not microtopic:
-                return False
-
-            subject_id = microtopic.subject_id
+            subject_id = microtopic_result.scalar_one_or_none()
 
             # Удаляем микротему
             result = await session.execute(delete(Microtopic).where(Microtopic.id == microtopic_id))
             await session.commit()
 
-            # Перенумеровываем, если требуется
-            if renumber and result.rowcount > 0:
+            # Перенумеровываем только если явно запрошено (для обратной совместимости)
+            if renumber and result.rowcount > 0 and subject_id:
                 await MicrotopicRepository.renumber_subject_microtopics(subject_id)
 
             return result.rowcount > 0
@@ -257,3 +282,30 @@ class MicrotopicRepository:
                 select(Microtopic).where(Microtopic.subject_id == subject_id)
             )
             return len(list(result.scalars().all()))
+
+    @staticmethod
+    async def get_available_numbers(subject_id: int, limit: int = 10) -> List[int]:
+        """Получить список доступных номеров для микротем в предмете"""
+        async with get_db_session() as session:
+            # Получаем все существующие номера для данного предмета
+            result = await session.execute(
+                select(Microtopic.number)
+                .where(Microtopic.subject_id == subject_id)
+                .order_by(Microtopic.number)
+            )
+            existing_numbers = set(row[0] for row in result.fetchall())
+
+            # Находим свободные номера
+            available_numbers = []
+            current_number = 1
+
+            while len(available_numbers) < limit:
+                if current_number not in existing_numbers:
+                    available_numbers.append(current_number)
+                current_number += 1
+
+                # Защита от бесконечного цикла
+                if current_number > 1000:
+                    break
+
+            return available_numbers
