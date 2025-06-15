@@ -154,3 +154,46 @@ class StudentRepository:
             result = await session.execute(delete(Student).where(Student.user_id == user_id))
             await session.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def get_general_stats(student_id: int) -> dict:
+        """Получить общую статистику студента"""
+        from .homework_result_repository import HomeworkResultRepository
+        return await HomeworkResultRepository.get_student_stats(student_id)
+
+    @staticmethod
+    async def get_microtopic_understanding(student_id: int, subject_id: int) -> dict:
+        """Получить понимание по микротемам для предмета"""
+        from .homework_result_repository import HomeworkResultRepository
+        return await HomeworkResultRepository.get_microtopic_understanding(student_id, subject_id)
+
+    @staticmethod
+    async def update_points_and_level(student_id: int) -> bool:
+        """Обновить баллы и уровень студента на основе результатов ДЗ"""
+        async with get_db_session() as session:
+            student = await session.get(Student, student_id)
+            if not student:
+                return False
+
+            # Получаем общую статистику
+            stats = await StudentRepository.get_general_stats(student_id)
+            total_points = stats.get('total_points', 0)
+
+            # Определяем уровень на основе баллов
+            if total_points >= 1000:
+                level = "🏆 Эксперт"
+            elif total_points >= 500:
+                level = "🧪 Практик"
+            elif total_points >= 200:
+                level = "📚 Ученик"
+            elif total_points >= 50:
+                level = "🌱 Начинающий"
+            else:
+                level = "🆕 Новичок"
+
+            # Обновляем данные студента
+            student.points = total_points
+            student.level = level
+
+            await session.commit()
+            return True

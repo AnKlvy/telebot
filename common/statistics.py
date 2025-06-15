@@ -1,10 +1,112 @@
 from typing import Dict
+import sys
+import os
 
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 from common.utils import check_if_id_in_callback_data
 
 from common.analytics.keyboards import get_back_to_analytics_kb
+
+# Добавляем путь к корневой папке проекта для импорта database
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database import (
+    StudentRepository,
+    SubjectRepository,
+    MicrotopicRepository,
+    HomeworkResultRepository
+)
+
+
+async def get_real_student_analytics(student_id: int) -> str:
+    """
+    Получить реальную статистику студента из базы данных
+
+    Args:
+        student_id: ID студента
+
+    Returns:
+        str: Отформатированный текст со статистикой
+    """
+    try:
+        # Получаем студента
+        student = await StudentRepository.get_by_id(student_id)
+        if not student:
+            return "❌ Студент не найден"
+
+        # Получаем общую статистику
+        general_stats = await StudentRepository.get_general_stats(student_id)
+
+        # Формируем текст результата
+        result_text = f"👤 Студент: {student.user.name}\n"
+        result_text += f"📚 Группа: {student.group.name if student.group else 'Не назначена'}\n"
+        result_text += f"💎 Тариф: {student.tariff or 'Не указан'}\n\n"
+
+        result_text += f"📊 Общая статистика:\n"
+        result_text += f"   • Баллы: {general_stats.get('total_points', 0)}\n"
+        result_text += f"   • Уровень: {student.level}\n"
+        result_text += f"   • Выполнено ДЗ: {general_stats.get('total_completed', 0)}\n"
+
+        # Если студент в группе, показываем статистику по предмету
+        if student.group and student.group.subject:
+            subject = student.group.subject
+            result_text += f"\n📗 Прогресс по предмету '{subject.name}':\n"
+
+            # Получаем понимание по микротемам
+            microtopic_stats = await StudentRepository.get_microtopic_understanding(
+                student_id, subject.id
+            )
+
+            if microtopic_stats:
+                # Получаем названия микротем
+                microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+                microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+                strong_topics = []  # ≥80%
+                weak_topics = []    # ≤40%
+
+                for number, stats in microtopic_stats.items():
+                    name = microtopic_names.get(number, f"Микротема {number}")
+                    percentage = stats['percentage']
+                    total = stats['total_answered']
+                    correct = stats['correct_answered']
+
+                    result_text += f"   • {name} — {percentage:.0f}% ({correct}/{total})\n"
+
+                    if percentage >= 80:
+                        strong_topics.append(name)
+                    elif percentage <= 40:
+                        weak_topics.append(name)
+
+                # Показываем сильные и слабые темы
+                if strong_topics:
+                    result_text += f"\n🟢 Сильные темы (≥80%):\n"
+                    for topic in strong_topics:
+                        result_text += f"   • {topic}\n"
+
+                if weak_topics:
+                    result_text += f"\n🔴 Слабые темы (≤40%):\n"
+                    for topic in weak_topics:
+                        result_text += f"   • {topic}\n"
+
+                # Показываем непроверенные микротемы
+                all_microtopic_numbers = set(microtopic_names.keys())
+                tested_numbers = set(microtopic_stats.keys())
+                untested_numbers = all_microtopic_numbers - tested_numbers
+
+                if untested_numbers:
+                    result_text += f"\n❌ Не проверено:\n"
+                    for number in sorted(untested_numbers):
+                        name = microtopic_names.get(number, f"Микротема {number}")
+                        result_text += f"   • {name}\n"
+            else:
+                result_text += "   ❌ Нет данных о прохождении ДЗ по этому предмету\n"
+
+        return result_text
+
+    except Exception as e:
+        return f"❌ Ошибка при получении статистики: {str(e)}"
 
 
 def get_student_topics_stats(student_id: str) -> Dict:
@@ -496,12 +598,8 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
     """
     student_id = await check_if_id_in_callback_data("analytics_student_", callback, state, "student")
 
-
-    # Получаем данные о студенте из общего компонента
-    student_data = get_student_topics_stats(student_id)
-
-    # Форматируем статистику в текст
-    result_text = format_student_topics_stats(student_data)
+    # Получаем реальные данные о студенте из базы данных
+    result_text = await get_real_student_analytics(int(student_id))
 
     await callback.message.edit_text(
         result_text,

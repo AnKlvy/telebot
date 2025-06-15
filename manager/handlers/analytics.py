@@ -51,9 +51,10 @@ async def show_manager_analytics_menu(callback: CallbackQuery, state: FSMContext
 async def manager_select_curator_for_student(callback: CallbackQuery, state: FSMContext):
     """Выбор куратора для статистики по ученику"""
     logger.info("Вызван обработчик manager_select_curator_for_student")
+    curators_kb = await get_curators_kb()
     await callback.message.edit_text(
         "Выберите куратора:",
-        reply_markup=get_curators_kb()
+        reply_markup=curators_kb
     )
     await state.set_state(ManagerAnalyticsStates.select_curator_for_student)
 
@@ -85,9 +86,10 @@ async def manager_show_student_analytics(callback: CallbackQuery, state: FSMCont
 async def manager_select_curator_for_group(callback: CallbackQuery, state: FSMContext):
     """Выбор куратора для статистики по группе"""
     logger.info("Вызван обработчик manager_select_curator_for_group")
+    curators_kb = await get_curators_kb()
     await callback.message.edit_text(
         "Выберите куратора:",
-        reply_markup=get_curators_kb()
+        reply_markup=curators_kb
     )
     await state.set_state(ManagerAnalyticsStates.select_curator_for_group)
 
@@ -113,9 +115,10 @@ async def manager_show_group_analytics(callback: CallbackQuery, state: FSMContex
 async def manager_select_subject(callback: CallbackQuery, state: FSMContext):
     """Выбор предмета для статистики"""
     logger.info("Вызван обработчик manager_select_subject")
+    subjects_kb = await get_subjects_kb()
     await callback.message.edit_text(
         "Выберите предмет для просмотра статистики:",
-        reply_markup=get_subjects_kb()
+        reply_markup=subjects_kb
     )
     await state.set_state(ManagerAnalyticsStates.select_subject)
 

@@ -29,6 +29,7 @@ from teacher.handlers.main import show_teacher_main_menu
 from admin.handlers import router as admin_router
 from admin.handlers.main import show_admin_main_menu
 from middlewares.role_middleware import RoleMiddleware
+from middlewares.performance_middleware import PerformanceMiddleware
 
 async def start_command(message, user_role: str):
     """Обработчик команды /start, перенаправляющий на соответствующие функции"""
@@ -74,6 +75,11 @@ async def main() -> None:
     dp.message.middleware(RoleMiddleware())
     dp.callback_query.middleware(RoleMiddleware())
 
+    # Регистрируем middleware для мониторинга производительности
+    performance_middleware = PerformanceMiddleware()
+    dp.message.middleware(performance_middleware)
+    dp.callback_query.middleware(performance_middleware)
+
     # Регистрируем команды
     dp.message.register(start_command, CommandStart())
     dp.message.register(show_admin_main_menu, Command("admin"))
@@ -95,6 +101,17 @@ async def main() -> None:
         # Webhook режим с aiohttp сервером
         app = web.Application()
         app.router.add_get("/health", health_check)
+
+        # Добавляем endpoint для статистики производительности
+        async def performance_stats(request):
+            """Endpoint для получения статистики производительности"""
+            try:
+                stats = performance_middleware.get_current_stats()
+                return web.json_response(stats)
+            except Exception as e:
+                return web.json_response({"error": str(e)}, status=500)
+
+        app.router.add_get("/stats", performance_stats)
 
         # Настраиваем webhook handler
         webhook_requests_handler = SimpleRequestHandler(

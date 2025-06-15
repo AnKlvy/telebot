@@ -340,3 +340,42 @@ class BonusAnswerOption(Base):
     __table_args__ = (
         UniqueConstraint('bonus_question_id', 'order_number', name='unique_bonus_answer_order_per_question'),
     )
+
+
+# Модель результата домашнего задания
+class HomeworkResult(Base):
+    __tablename__ = 'homework_results'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    homework_id = Column(Integer, ForeignKey('homeworks.id', ondelete='CASCADE'), nullable=False)
+    total_questions = Column(Integer, nullable=False)
+    correct_answers = Column(Integer, nullable=False, default=0)
+    points_earned = Column(Integer, nullable=False, default=0)  # Баллы за прохождение (3 за вопрос если 100%)
+    is_first_attempt = Column(Boolean, default=True)  # Первая попытка или повторная
+    completed_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="homework_results")
+    homework = relationship("Homework", backref="results")
+    question_results = relationship("QuestionResult", back_populates="homework_result", cascade="all, delete-orphan")
+
+
+# Модель результата ответа на вопрос
+class QuestionResult(Base):
+    __tablename__ = 'question_results'
+
+    id = Column(Integer, primary_key=True)
+    homework_result_id = Column(Integer, ForeignKey('homework_results.id', ondelete='CASCADE'), nullable=False)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+    selected_answer_id = Column(Integer, ForeignKey('answer_options.id', ondelete='SET NULL'), nullable=True)
+    is_correct = Column(Boolean, nullable=False)
+    time_spent = Column(Integer, nullable=True)  # Время в секундах
+    microtopic_number = Column(Integer, nullable=True)  # Номер микротемы для статистики понимания
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    homework_result = relationship("HomeworkResult", back_populates="question_results")
+    question = relationship("Question", backref="results")
+    selected_answer = relationship("AnswerOption", backref="question_results")

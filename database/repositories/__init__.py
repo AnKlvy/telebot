@@ -19,6 +19,8 @@ from .month_test_microtopic_repository import MonthTestMicrotopicRepository
 from .bonus_test_repository import BonusTestRepository
 from .bonus_question_repository import BonusQuestionRepository
 from .bonus_answer_option_repository import BonusAnswerOptionRepository
+from .homework_result_repository import HomeworkResultRepository
+from .question_result_repository import QuestionResultRepository
 
 __all__ = [
     'UserRepository',
@@ -38,5 +40,7 @@ __all__ = [
     'MonthTestMicrotopicRepository',
     'BonusTestRepository',
     'BonusQuestionRepository',
-    'BonusAnswerOptionRepository'
+    'BonusAnswerOptionRepository',
+    'HomeworkResultRepository',
+    'QuestionResultRepository'
 ]

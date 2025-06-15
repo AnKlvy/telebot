@@ -1,5 +1,13 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from common.keyboards import get_main_menu_back_button, get_universal_back_button
+import asyncio
+import sys
+import os
+
+# Добавляем путь к корневой папке проекта для импорта database
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from database import StudentRepository, GroupRepository, CuratorRepository
 
 def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
@@ -9,55 +17,98 @@ def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
     ])
 
-def get_groups_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
+async def get_groups_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для аналитики"""
-    # В реальном приложении здесь будет запрос к базе данных
-    groups = [
-        {"id": "group1", "name": "Интенсив. География"},
-        {"id": "group2", "name": "Интенсив. Математика"}
-    ]
-    
+    # Получаем реальные группы из базы данных
+    try:
+        groups = await GroupRepository.get_all()
+    except Exception as e:
+        print(f"Ошибка при получении групп: {e}")
+        groups = []
+
     buttons = []
     for group in groups:
+        # Показываем название группы с предметом
+        group_name = f"{group.name} ({group.subject.name})" if group.subject else group.name
         buttons.append([
             InlineKeyboardButton(
-                text=group["name"], 
-                callback_data=f"analytics_group_{group['id']}"
+                text=group_name,
+                callback_data=f"analytics_group_{group.id}"
             )
         ])
-    
+
+    if not buttons:
+        buttons.append([
+            InlineKeyboardButton(
+                text="❌ Группы не найдены",
+                callback_data="no_groups"
+            )
+        ])
+
     buttons.extend(get_main_menu_back_button())
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
+async def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора ученика для аналитики"""
-    # В реальном приложении здесь будет запрос к базе данных
-    students = {
-        "group1": [
-            {"id": "student1", "name": "Мадияр Сапаров"},
-            {"id": "student2", "name": "Аружан Ахметова"}
-        ],
-        "group2": [
-            {"id": "student3", "name": "Диана Нурланова"},
-            {"id": "student4", "name": "Арман Сериков"}
-        ]
-    }
-    
-    group_students = students.get(group_id, [])
-    
+    # Получаем реальных студентов из базы данных
+    try:
+        students = await StudentRepository.get_by_group(int(group_id))
+    except Exception as e:
+        print(f"Ошибка при получении студентов: {e}")
+        students = []
+
     buttons = []
-    for student in group_students:
+    for student in students:
         buttons.append([
             InlineKeyboardButton(
-                text=student["name"], 
-                callback_data=f"analytics_student_{student['id']}"
+                text=student.user.name,
+                callback_data=f"analytics_student_{student.id}"
             )
         ])
-    
+
+    if not buttons:
+        buttons.append([
+            InlineKeyboardButton(
+                text="❌ Студенты не найдены",
+                callback_data="no_students"
+            )
+        ])
+
     buttons.extend(get_main_menu_back_button())
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_groups_by_curator_kb(curator_id: str) -> InlineKeyboardMarkup:
+    """Клавиатура выбора группы конкретного куратора для аналитики"""
+    try:
+        # Получаем куратора и его группу
+        curator = await CuratorRepository.get_by_id(int(curator_id))
+
+        if not curator or not curator.group:
+            # Если у куратора нет группы, показываем все группы
+            return await get_groups_for_analytics_kb("manager")
+
+        # Показываем только группу этого куратора
+        buttons = []
+        group = curator.group
+        group_name = f"{group.name} ({group.subject.name})" if group.subject else group.name
+        buttons.append([
+            InlineKeyboardButton(
+                text=group_name,
+                callback_data=f"analytics_group_{group.id}"
+            )
+        ])
+
+    except Exception as e:
+        print(f"Ошибка при получении группы куратора: {e}")
+        # В случае ошибки показываем все группы
+        return await get_groups_for_analytics_kb("manager")
+
+    buttons.extend(get_main_menu_back_button())
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 def get_back_to_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура возврата в меню аналитики"""
