@@ -95,7 +95,7 @@ async def handle_test_back_navigation(callback: CallbackQuery, state: FSMContext
     await state.set_state(HomeworkStates.confirmation)
 
 
-@router.callback_query(F.data.startswith("homework_"))
+@router.callback_query(HomeworkStates.homework, F.data.startswith("homework_"))
 async def confirm_test(callback: CallbackQuery, state: FSMContext):
     """Подтверждение начала домашнего задания"""
     await log("confirm_test", "student", state)
@@ -337,7 +337,7 @@ async def send_next_question(chat_id, state: FSMContext, bot):
 
 
 
-@router.poll_answer()
+@router.poll_answer(HomeworkStates.test_in_progress)
 async def handle_poll_answer(poll: PollAnswer, state: FSMContext):
     """Обработка ответа на вопрос"""
     await log("handle_poll_answer", "student", state)
@@ -654,7 +654,7 @@ async def process_question_timeout_reliable(question_uuid: str):
             del active_questions[question_uuid]
 
 
-@router.poll()
+@router.poll(HomeworkStates.test_in_progress)
 async def handle_poll_closed(poll: Poll, state: FSMContext, bot: Bot):
     """Резервный обработчик закрытия опроса (на случай если основной таймер не сработает)"""
     logging.info(f"🔔 РЕЗЕРВНЫЙ обработчик: Poll closed event: poll_id={poll.id}, is_closed={poll.is_closed}")
