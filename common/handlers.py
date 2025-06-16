@@ -20,9 +20,4 @@ async def go_back(callback: CallbackQuery, state: FSMContext, user_role: str = N
 @router.callback_query(F.data == "back_to_main")
 async def back_to_main_handler(callback: CallbackQuery, state: FSMContext, user_role: str):
     await log("back_to_main_handler", user_role, state)
-
-    # Очищаем состояние FSM при переходе в главное меню
-    await state.clear()
-    logging.info(f"🧹 Состояние FSM очищено для пользователя {callback.from_user.id} при переходе в главное меню")
-
     await navigation_manager.handle_main_menu(callback, state, user_role)
