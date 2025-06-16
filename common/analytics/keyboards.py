@@ -7,7 +7,7 @@ import os
 # Добавляем путь к корневой папке проекта для импорта database
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from database import StudentRepository, GroupRepository, CuratorRepository
+from database import StudentRepository, GroupRepository, CuratorRepository, UserRepository
 
 def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
@@ -24,11 +24,20 @@ def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     buttons.extend(get_main_menu_back_button())
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-async def get_groups_for_analytics_kb(role: str) -> InlineKeyboardMarkup:
+async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для аналитики"""
     # Получаем реальные группы из базы данных
     try:
-        groups = await GroupRepository.get_all()
+        if role == "curator" and user_telegram_id:
+            # Для куратора получаем только его группы
+            user = await UserRepository.get_by_telegram_id(user_telegram_id)
+            if user and user.curator_profile:
+                groups = await CuratorRepository.get_curator_groups(user.curator_profile.id)
+            else:
+                groups = []
+        else:
+            # Для других ролей получаем все группы
+            groups = await GroupRepository.get_all()
     except Exception as e:
         print(f"Ошибка при получении групп: {e}")
         groups = []

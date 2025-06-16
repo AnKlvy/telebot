@@ -182,6 +182,73 @@ async def remove_group(group_id: int) -> bool:
     """Удалить группу"""
     return await GroupRepository.delete(group_id)
 
+async def check_existing_user_for_role_assignment(telegram_id: int, target_role: str, current_user_telegram_id: int = None) -> dict:
+    """
+    Проверить существующего пользователя для назначения роли
+
+    Args:
+        telegram_id: Telegram ID проверяемого пользователя
+        target_role: Целевая роль (student, curator, teacher, manager)
+        current_user_telegram_id: Telegram ID текущего пользователя (админа)
+
+    Returns:
+        dict: {
+            'exists': bool,
+            'user': User|None,
+            'can_assign': bool,
+            'message': str
+        }
+    """
+    from database import UserRepository
+
+    print(f"🔍 DEBUG: check_existing_user_for_role_assignment вызвана")
+    print(f"🔍 DEBUG: telegram_id={telegram_id}, target_role={target_role}, current_user_telegram_id={current_user_telegram_id}")
+
+    existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+
+    if not existing_user:
+        print(f"🔍 DEBUG: Пользователь не найден")
+        return {
+            'exists': False,
+            'user': None,
+            'can_assign': True,
+            'message': ''
+        }
+
+    print(f"🔍 DEBUG: Найден пользователь: {existing_user.name}, роль: {existing_user.role}")
+
+    # Если это админ добавляет себя
+    is_admin_self_assignment = (
+        current_user_telegram_id and
+        telegram_id == current_user_telegram_id and
+        existing_user.role == 'admin'
+    )
+
+    print(f"🔍 DEBUG: is_admin_self_assignment = {is_admin_self_assignment}")
+
+    if is_admin_self_assignment:
+        print(f"🔍 DEBUG: Разрешаем самоназначение админа")
+        return {
+            'exists': True,
+            'user': existing_user,
+            'can_assign': True,
+            'message': f"✅ Вы можете добавить себя как {target_role}\n"
+                      f"Текущая роль: {existing_user.role}\n"
+                      f"Имя: {existing_user.name}"
+        }
+
+    # Обычная проверка для других случаев
+    print(f"🔍 DEBUG: Блокируем добавление существующего пользователя")
+    return {
+        'exists': True,
+        'user': existing_user,
+        'can_assign': False,
+        'message': f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
+                  f"Имя: {existing_user.name}\n"
+                  f"Роль: {existing_user.role}\n\n"
+                  f"Введите другой Telegram ID:"
+    }
+
 def add_person(person_db: Dict, name: str, telegram_id: int, **kwargs) -> str:
     """Универсальная функция добавления человека"""
     person_id = str(telegram_id)
@@ -273,25 +340,45 @@ async def get_group_by_id(group_id: int):
 
 # Функции для работы с кураторами
 async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: int, group_id: int) -> bool:
-    """Добавить нового куратора"""
+    """Добавить нового куратора или создать профиль куратора для существующего пользователя"""
     try:
-        # Сначала создаем пользователя
-        user = await UserRepository.create(
-            telegram_id=telegram_id,
-            name=name,
-            role='curator'
-        )
+        # Проверяем, существует ли пользователь
+        existing_user = await UserRepository.get_by_telegram_id(telegram_id)
 
-        # Затем создаем профиль куратора
-        await CuratorRepository.create(
+        if existing_user:
+            # Пользователь существует - используем его
+            user = existing_user
+            print(f"🔍 DEBUG: Используем существующего пользователя {user.name} (ID: {user.id})")
+        else:
+            # Создаем нового пользователя
+            user = await UserRepository.create(
+                telegram_id=telegram_id,
+                name=name,
+                role='curator'
+            )
+            print(f"🔍 DEBUG: Создан новый пользователь {user.name} (ID: {user.id})")
+
+        # Создаем профиль куратора (без group_id)
+        curator = await CuratorRepository.create(
             user_id=user.id,
             course_id=course_id,
-            subject_id=subject_id,
-            group_id=group_id
+            subject_id=subject_id
         )
+        print(f"🔍 DEBUG: Создан профиль куратора (ID: {curator.id})")
+
+        # Добавляем куратора в группу
+        if group_id:
+            group_added = await CuratorRepository.add_curator_to_group(curator.id, group_id)
+            if group_added:
+                print(f"🔍 DEBUG: Куратор добавлен в группу (group_id: {group_id})")
+            else:
+                print(f"⚠️ DEBUG: Не удалось добавить куратора в группу (group_id: {group_id})")
+
         return True
-    except Exception:
-        # Куратор уже существует или другая ошибка
+    except Exception as e:
+        print(f"❌ DEBUG: Ошибка при добавлении куратора: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 async def remove_curator(curator_id: int) -> bool:

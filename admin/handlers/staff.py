@@ -78,22 +78,33 @@ def generate_staff_handlers(
     
     @router.message(StateFilter(getattr(states_class, f"enter_{callback_prefix}_telegram_id")))
     async def process_staff_telegram_id(message: Message, state: FSMContext):
+        print(f"🔍 DEBUG: Обработчик staff.py вызван для {callback_prefix}, telegram_id: {message.text}")
         try:
             telegram_id = int(message.text.strip())
 
-            # Проверяем, существует ли уже пользователь с таким Telegram ID
-            from database import UserRepository
-            existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+            # Проверяем существующего пользователя с учетом возможности самоназначения админа
+            from admin.utils.common import check_existing_user_for_role_assignment
+            check_result = await check_existing_user_for_role_assignment(
+                telegram_id, callback_prefix, message.from_user.id
+            )
 
-            if existing_user:
+            print(f"🔍 DEBUG: check_result = {check_result}")
+
+            if check_result['exists'] and not check_result['can_assign']:
+                print(f"🔍 DEBUG: Блокируем добавление - пользователь существует и не может быть назначен")
                 await message.answer(
-                    text=f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
-                         f"Имя: {existing_user.name}\n"
-                         f"Роль: {existing_user.role}\n\n"
-                         f"Введите другой Telegram ID:",
+                    text=check_result['message'],
                     reply_markup=get_home_kb()
                 )
                 return
+
+            # Если пользователь существует и может быть назначен (админ добавляет себя)
+            if check_result['exists'] and check_result['can_assign']:
+                print(f"🔍 DEBUG: Разрешаем добавление - админ добавляет себя")
+                await message.answer(
+                    text=check_result['message'] + f"\n\nПродолжаем назначение роли {entity_name_accusative}...",
+                    reply_markup=get_home_kb()
+                )
 
             await state.update_data(**{f"{callback_prefix}_telegram_id": telegram_id})
             await state.set_state(getattr(states_class, f"select_{callback_prefix}_course"))

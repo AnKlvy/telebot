@@ -193,19 +193,25 @@ def generate_person_entity_handlers(
         try:
             telegram_id = int(message.text.strip())
 
-            # Проверяем, существует ли уже пользователь с таким Telegram ID
-            from database import UserRepository
-            existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+            # Проверяем существующего пользователя с учетом возможности самоназначения админа
+            from admin.utils.common import check_existing_user_for_role_assignment
+            check_result = await check_existing_user_for_role_assignment(
+                telegram_id, callback_prefix, message.from_user.id
+            )
 
-            if existing_user:
+            if check_result['exists'] and not check_result['can_assign']:
                 await message.answer(
-                    text=f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
-                         f"Имя: {existing_user.name}\n"
-                         f"Роль: {existing_user.role}\n\n"
-                         f"Введите другой Telegram ID:",
+                    text=check_result['message'],
                     reply_markup=get_home_kb()
                 )
                 return
+
+            # Если пользователь существует и может быть назначен (админ добавляет себя)
+            if check_result['exists'] and check_result['can_assign']:
+                await message.answer(
+                    text=check_result['message'] + f"\n\nПродолжаем назначение роли {callback_prefix}...",
+                    reply_markup=get_home_kb()
+                )
 
             await state.update_data(**{f"{callback_prefix}_telegram_id": telegram_id})
 

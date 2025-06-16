@@ -56,8 +56,9 @@ async def select_group_for_student_analytics(callback: CallbackQuery, state: FSM
         # Если выбран куратор, показываем его группы
         keyboard = await get_groups_by_curator_kb(curator_id)
     else:
-        # Иначе показываем все группы
-        keyboard = await get_groups_for_analytics_kb(role)
+        # Передаем Telegram ID для кураторов
+        user_telegram_id = callback.from_user.id if role == "curator" else None
+        keyboard = await get_groups_for_analytics_kb(role, user_telegram_id)
 
     await callback.message.edit_text(
         "Выберите группу ученика:",
@@ -102,8 +103,9 @@ async def select_group_for_group_analytics(callback: CallbackQuery, state: FSMCo
         # Если выбран куратор, показываем его группы
         keyboard = await get_groups_by_curator_kb(curator_id)
     else:
-        # Иначе показываем все группы
-        keyboard = await get_groups_for_analytics_kb(role)
+        # Передаем Telegram ID для кураторов
+        user_telegram_id = callback.from_user.id if role == "curator" else None
+        keyboard = await get_groups_for_analytics_kb(role, user_telegram_id)
 
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики:",

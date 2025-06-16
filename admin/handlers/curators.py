@@ -54,22 +54,33 @@ async def process_curator_name(message: Message, state: FSMContext):
 @router.message(StateFilter(AdminCuratorsStates.enter_curator_telegram_id))
 async def process_curator_telegram_id(message: Message, state: FSMContext):
     """Обработать ввод Telegram ID куратора"""
+    print(f"🔍 DEBUG: Обработчик curators.py вызван, telegram_id: {message.text}")
     try:
         telegram_id = int(message.text.strip())
 
-        # Проверяем, существует ли уже пользователь с таким Telegram ID
-        from database import UserRepository
-        existing_user = await UserRepository.get_by_telegram_id(telegram_id)
+        # Проверяем существующего пользователя с учетом возможности самоназначения админа
+        from admin.utils.common import check_existing_user_for_role_assignment
+        check_result = await check_existing_user_for_role_assignment(
+            telegram_id, 'curator', message.from_user.id
+        )
 
-        if existing_user:
+        print(f"🔍 DEBUG: check_result = {check_result}")
+
+        if check_result['exists'] and not check_result['can_assign']:
+            print(f"🔍 DEBUG: Блокируем добавление - пользователь существует и не может быть назначен")
             await message.answer(
-                text=f"❌ Пользователь с Telegram ID {telegram_id} уже существует!\n"
-                     f"Имя: {existing_user.name}\n"
-                     f"Роль: {existing_user.role}\n\n"
-                     f"Введите другой Telegram ID:",
+                text=check_result['message'],
                 reply_markup=get_home_kb()
             )
             return
+
+        # Если пользователь существует и может быть назначен (админ добавляет себя)
+        if check_result['exists'] and check_result['can_assign']:
+            print(f"🔍 DEBUG: Разрешаем добавление - админ добавляет себя")
+            await message.answer(
+                text=check_result['message'] + "\n\nПродолжаем назначение роли куратора...",
+                reply_markup=get_home_kb()
+            )
 
         await state.update_data(curator_telegram_id=telegram_id)
         await state.set_state(AdminCuratorsStates.select_curator_course)
