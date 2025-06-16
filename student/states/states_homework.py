@@ -1,5 +1,6 @@
-from student.handlers.homework import HomeworkStates, confirm_homework, choose_homework, choose_lesson, choose_subject, \
+from student.handlers.homework import HomeworkStates, choose_homework, choose_lesson, choose_subject, \
     choose_course
+from student.handlers.homework_quiz import confirm_test, handle_test_back_navigation
 
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
@@ -17,5 +18,6 @@ STATE_HANDLERS = {
     HomeworkStates.subject: choose_subject,
     HomeworkStates.lesson: choose_lesson,
     HomeworkStates.homework: choose_homework,
-    HomeworkStates.confirmation: confirm_homework
+    HomeworkStates.confirmation: confirm_test,  # Обработчик подтверждения теста
+    HomeworkStates.test_in_progress: handle_test_back_navigation,  # Специальный обработчик для возврата из теста
 }

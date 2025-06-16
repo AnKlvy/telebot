@@ -5,7 +5,7 @@ from aiogram.types import FSInputFile
 import logging
 import os
 
-from common.keyboards import get_main_menu_back_button, get_home_and_back_kb
+from common.keyboards import get_main_menu_back_button, get_home_and_back_kb, get_home_kb
 from common.manager_tests.register_handlers import register_test_handlers
 from common.utils import check_if_id_in_callback_data
 from ..keyboards.homework import (
@@ -186,7 +186,8 @@ async def select_homework_lesson(callback: CallbackQuery, state: FSMContext):
             f"Курс: {course_name}\n"
             f"Предмет: {subject_name}\n"
             f"Урок: {lesson.name}\n\n"
-            "Введите название домашнего задания:"
+            "Введите название домашнего задания:",
+            reply_markup=get_home_kb()
         )
         await state.set_state(AddHomeworkStates.enter_test_name)
     except Exception as e:

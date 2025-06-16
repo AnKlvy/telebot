@@ -117,7 +117,7 @@ async def get_role_to_use(state: FSMContext, user_role: str) -> str:
     # Проверяем состояние на принадлежность к определенной роли
     role_prefixes = {
         "student": ["StudentMain", "HomeworkStates", "ProgressStates", "ShopStates",
-                    "TrialEntStates", "StudentTestsStates", "CuratorStates", "AccountStates"],
+                    "TrialEntStates", "StudentTestsStates", "CuratorStates", "AccountStates", "QuizStates"],
         "curator": ["CuratorMain", "CuratorGroupStates", "CuratorAnalyticsStates",
                     "CuratorHomeworkStates", "MessageStates", "CuratorTestsStatisticsStates"],
         "teacher": ["TeacherMain", "TeacherGroupStates", "TeacherAnalyticsStates",

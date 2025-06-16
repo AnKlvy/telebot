@@ -1,36 +1,93 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from common.keyboards import get_main_menu_back_button
+from database import LessonRepository, SubjectRepository, CourseRepository
 
-def get_courses_kb() -> InlineKeyboardMarkup:
-    buttons = [
-        [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
-        [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_math")],
-        *get_main_menu_back_button()
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+async def get_courses_kb() -> InlineKeyboardMarkup:
+    """Клавиатура выбора курса с реальными данными из БД"""
+    try:
+        courses = await CourseRepository.get_all()
+        buttons = []
 
-def get_subjects_kb() -> InlineKeyboardMarkup:
-    buttons = [
-        [InlineKeyboardButton(text="История Казахстана", callback_data="sub_kz")],
-        [InlineKeyboardButton(text="Математическая грамотность", callback_data="sub_mathlit")],
-        [InlineKeyboardButton(text="Математика", callback_data="sub_math")],
-        [InlineKeyboardButton(text="География", callback_data="sub_geo")],
-        [InlineKeyboardButton(text="Биология", callback_data="sub_bio")],
-        [InlineKeyboardButton(text="Химия", callback_data="sub_chem")],
-        [InlineKeyboardButton(text="Информатика", callback_data="sub_inf")],
-        [InlineKeyboardButton(text="Всемирная история", callback_data="sub_world")],
-        [InlineKeyboardButton(text="Грамотность чтения", callback_data="sub_read")],
-        *get_main_menu_back_button()
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+        for course in courses:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=course.name,
+                    callback_data=f"course_{course.id}"
+                )
+            ])
 
-def get_lessons_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="1. Алканы", callback_data="lesson_alkanes")],
-        [InlineKeyboardButton(text="2. Изомерия", callback_data="lesson_isomeria")],
-        [InlineKeyboardButton(text="3. Кислоты", callback_data="lesson_acids")],
-        *get_main_menu_back_button()
-    ])
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception:
+        # Fallback на хардкод данные в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="Интенсив. География", callback_data="course_1")],
+            [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_2")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_subjects_kb(course_id: int = None) -> InlineKeyboardMarkup:
+    """Клавиатура выбора предмета с реальными данными из БД"""
+    try:
+        if course_id:
+            # Получаем предметы для конкретного курса
+            course = await CourseRepository.get_by_id(course_id)
+            subjects = course.subjects if course else []
+        else:
+            # Получаем все предметы
+            subjects = await SubjectRepository.get_all()
+
+        buttons = []
+        for subject in subjects:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=subject.name,
+                    callback_data=f"subject_{subject.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception:
+        # Fallback на хардкод данные в случае ошибки
+        buttons = [
+            [InlineKeyboardButton(text="История Казахстана", callback_data="subject_1")],
+            [InlineKeyboardButton(text="Математическая грамотность", callback_data="subject_2")],
+            [InlineKeyboardButton(text="География", callback_data="subject_3")],
+            [InlineKeyboardButton(text="Биология", callback_data="subject_4")],
+            [InlineKeyboardButton(text="Химия", callback_data="subject_5")],
+            [InlineKeyboardButton(text="Информатика", callback_data="subject_6")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_lessons_kb(subject_id: int = None) -> InlineKeyboardMarkup:
+    """Клавиатура выбора урока с реальными данными из БД"""
+    try:
+        if subject_id:
+            lessons = await LessonRepository.get_by_subject(subject_id)
+        else:
+            # Если предмет не указан, показываем все уроки (для обратной совместимости)
+            lessons = await LessonRepository.get_all()
+
+        buttons = []
+        for lesson in lessons:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=lesson.name,
+                    callback_data=f"lesson_{lesson.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    except Exception as e:
+        # В случае ошибки возвращаем пустую клавиатуру с кнопкой назад
+        return InlineKeyboardMarkup(inline_keyboard=[
+            *get_main_menu_back_button()
+        ])
 
 def get_homeworks_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[

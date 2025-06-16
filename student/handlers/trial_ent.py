@@ -13,7 +13,7 @@ from ..keyboards.trial_ent import (
     get_analytics_subjects_kb,
     get_back_to_analytics_kb
 )
-from .test_logic import process_test_answer
+# process_test_answer больше не используется, логика перенесена в homework_quiz.py
 
 router = Router()
 

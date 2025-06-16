@@ -31,7 +31,8 @@ class QuestionRepository(BaseQuestionRepository):
         return Homework
 
     # Специфичные методы для домашних заданий
-    async def create(self, homework_id: int, text: str, subject_id: int, microtopic_number: Optional[int] = None,
+    @staticmethod
+    async def create(homework_id: int, text: str, subject_id: int, microtopic_number: Optional[int] = None,
                     photo_path: Optional[str] = None, time_limit: int = 30) -> Question:
         """Создать новый вопрос для домашнего задания"""
         async with get_db_session() as session:
@@ -53,15 +54,29 @@ class QuestionRepository(BaseQuestionRepository):
                 if not microtopic_exists.scalar_one_or_none():
                     raise ValueError(f"Микротема с номером {microtopic_number} не найдена для предмета с ID {subject_id}")
 
-            # Используем базовый метод создания с дополнительными параметрами
-            return await self.create_question(
-                parent_id=homework_id,
+            # Получаем следующий порядковый номер
+            max_order_result = await session.execute(
+                select(func.max(Question.order_number))
+                .where(Question.homework_id == homework_id)
+            )
+            max_order = max_order_result.scalar() or 0
+            next_order = max_order + 1
+
+            # Создаем вопрос
+            question = Question(
+                homework_id=homework_id,
                 text=text,
                 photo_path=photo_path,
-                time_limit=time_limit,
                 subject_id=subject_id,
-                microtopic_number=microtopic_number
+                microtopic_number=microtopic_number,
+                time_limit=time_limit,
+                order_number=next_order
             )
+
+            session.add(question)
+            await session.commit()
+            await session.refresh(question)
+            return question
 
     # Переопределяем методы базового класса для добавления специфичной логики
     async def get_all(self) -> List[Question]:
@@ -92,9 +107,21 @@ class QuestionRepository(BaseQuestionRepository):
             )
             return result.scalar_one_or_none()
 
-    async def get_by_homework(self, homework_id: int) -> List[Question]:
+    @staticmethod
+    async def get_by_homework(homework_id: int) -> List[Question]:
         """Получить все вопросы домашнего задания"""
-        return await self.get_by_parent(homework_id)
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Question)
+                .options(
+                    selectinload(Question.homework),
+                    selectinload(Question.subject),
+                    selectinload(Question.answer_options)
+                )
+                .where(Question.homework_id == homework_id)
+                .order_by(Question.order_number)
+            )
+            return list(result.scalars().all())
 
     async def get_next_order_number(self, homework_id: int) -> int:
         """Получить следующий порядковый номер для вопроса в ДЗ"""

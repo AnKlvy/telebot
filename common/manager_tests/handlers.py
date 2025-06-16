@@ -487,7 +487,8 @@ async def save_question_with_time(callback: CallbackQuery, state: FSMContext):
 async def add_more_question(callback: CallbackQuery, state: FSMContext):
     """Добавление еще одного вопроса"""
     logger.info("Вызван обработчик add_more_question")
-    await callback.message.edit_text("Введите текст следующего вопроса:")
+    await callback.message.edit_text("Введите текст следующего вопроса:",
+                                     reply_markup=get_home_kb())
 
 
 async def finish_adding_questions(callback: CallbackQuery, state: FSMContext):
