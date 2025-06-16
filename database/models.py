@@ -27,6 +27,14 @@ curator_groups = Table(
     Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True)
 )
 
+# Таблица связи Many-to-Many для учителей и групп
+teacher_groups = Table(
+    'teacher_groups',
+    Base.metadata,
+    Column('teacher_id', Integer, ForeignKey('teachers.id'), primary_key=True),
+    Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True)
+)
+
 
 # Модель пользователя
 class User(Base):
@@ -78,6 +86,8 @@ class Group(Base):
     subject = relationship("Subject", back_populates="groups")
     # Связь Many-to-Many с кураторами
     curators = relationship("Curator", secondary=curator_groups, back_populates="groups")
+    # Связь Many-to-Many с учителями
+    teachers = relationship("Teacher", secondary=teacher_groups, back_populates="groups")
 
 
 # Модель студента
@@ -123,14 +133,14 @@ class Teacher(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
     course_id = Column(Integer, ForeignKey('courses.id', ondelete='SET NULL'), nullable=True)
     subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='SET NULL'), nullable=True)
-    group_id = Column(Integer, ForeignKey('groups.id', ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     # Связи
     user = relationship("User", backref="teacher_profile")
     course = relationship("Course", backref="teachers")
     subject = relationship("Subject", backref="teachers")
-    group = relationship("Group", backref="teacher")
+    # Связь Many-to-Many с группами
+    groups = relationship("Group", secondary=teacher_groups, back_populates="teachers")
 
 
 # Модель менеджера

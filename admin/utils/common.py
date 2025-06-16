@@ -351,7 +351,7 @@ async def get_group_by_id(group_id: int):
     return await GroupRepository.get_by_id(group_id)
 
 # Функции для работы с кураторами
-async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: int, group_id: int) -> bool:
+async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: int, group_ids: list) -> bool:
     """Добавить нового куратора или создать профиль куратора для существующего пользователя"""
     try:
         # Проверяем, существует ли пользователь
@@ -370,7 +370,7 @@ async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: i
             )
             print(f"🔍 DEBUG: Создан новый пользователь {user.name} (ID: {user.id})")
 
-        # Создаем профиль куратора (без group_id)
+        # Создаем профиль куратора
         curator = await CuratorRepository.create(
             user_id=user.id,
             course_id=course_id,
@@ -378,8 +378,8 @@ async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: i
         )
         print(f"🔍 DEBUG: Создан профиль куратора (ID: {curator.id})")
 
-        # Добавляем куратора в группу
-        if group_id:
+        # Добавляем куратора во все выбранные группы
+        for group_id in group_ids:
             group_added = await CuratorRepository.add_curator_to_group(curator.id, group_id)
             if group_added:
                 print(f"🔍 DEBUG: Куратор добавлен в группу (group_id: {group_id})")
@@ -417,7 +417,7 @@ async def get_curators_list_kb(callback_prefix: str = "select_curator", subject_
     return get_entity_list_kb(curators_list, callback_prefix)
 
 # Функции для работы с преподавателями
-async def add_teacher(name: str, telegram_id: int, course_id: int, subject_id: int, group_id: int) -> bool:
+async def add_teacher(name: str, telegram_id: int, course_id: int, subject_id: int, group_ids: list) -> bool:
     """Добавить нового преподавателя или создать профиль преподавателя для существующего пользователя"""
     try:
         # Проверяем, существует ли пользователь
@@ -440,10 +440,18 @@ async def add_teacher(name: str, telegram_id: int, course_id: int, subject_id: i
         teacher = await TeacherRepository.create(
             user_id=user.id,
             course_id=course_id,
-            subject_id=subject_id,
-            group_id=group_id
+            subject_id=subject_id
         )
         print(f"🔍 DEBUG: Создан профиль преподавателя (ID: {teacher.id})")
+
+        # Добавляем преподавателя во все выбранные группы
+        for group_id in group_ids:
+            group_added = await TeacherRepository.add_teacher_to_group(teacher.id, group_id)
+            if group_added:
+                print(f"🔍 DEBUG: Преподаватель добавлен в группу (group_id: {group_id})")
+            else:
+                print(f"⚠️ DEBUG: Не удалось добавить преподавателя в группу (group_id: {group_id})")
+
         return True
     except Exception as e:
         print(f"❌ DEBUG: Ошибка при добавлении преподавателя: {e}")
@@ -526,3 +534,44 @@ async def get_managers_list_kb(callback_prefix: str = "select_manager") -> Inlin
     managers = await ManagerRepository.get_all()
     managers_list = [{"id": manager.id, "name": manager.user.name} for manager in managers]
     return get_entity_list_kb(managers_list, callback_prefix)
+
+# Функции для множественного выбора групп
+async def get_groups_selection_kb(selected_group_ids: list, subject_id: int):
+    """Клавиатура для выбора групп с возможностью множественного выбора"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from common.keyboards import back_to_main_button
+
+    buttons = []
+
+    # Получаем все группы предмета из базы данных
+    groups = await GroupRepository.get_by_subject(subject_id)
+
+    for group in groups:
+        if group.id in selected_group_ids:
+            # Группа уже выбрана
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"✅ {group.name}",
+                    callback_data=f"unselect_group_{group.id}"
+                )
+            ])
+        else:
+            # Группа не выбрана
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"⬜ {group.name}",
+                    callback_data=f"select_group_{group.id}"
+                )
+            ])
+
+    # Кнопки управления
+    if selected_group_ids:
+        buttons.append([
+            InlineKeyboardButton(text="✅ Готово", callback_data="finish_group_selection")
+        ])
+
+    buttons.extend([
+        back_to_main_button()
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

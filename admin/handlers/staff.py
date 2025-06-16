@@ -300,22 +300,4 @@ def generate_staff_handlers(
         )
         await state.clear()
 
-# Генерируем обработчики для кураторов
-generate_staff_handlers(
-    router=router,
-    entity_name="куратор",
-    entity_name_accusative="куратора",
-    callback_prefix="curator",
-    data_storage=curators_db,
-    states_class=AdminCuratorsStates
-)
 
-# Генерируем обработчики для преподавателей
-generate_staff_handlers(
-    router=router,
-    entity_name="преподаватель", 
-    entity_name_accusative="преподавателя",
-    callback_prefix="teacher",
-    data_storage=teachers_db,
-    states_class=AdminTeachersStates
-)

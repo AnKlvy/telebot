@@ -7,7 +7,7 @@ from aiogram.filters import StateFilter
 from admin.utils.common import (
     get_courses_list_kb, get_subjects_list_kb, get_groups_list_kb, get_curators_list_kb,
     get_confirmation_kb, add_curator, remove_curator,
-    get_course_by_id, get_subject_by_id, get_group_by_id
+    get_course_by_id, get_subject_by_id, get_group_by_id, get_groups_selection_kb
 )
 from common.keyboards import get_home_kb
 
@@ -19,7 +19,7 @@ class AdminCuratorsStates(StatesGroup):
     enter_curator_telegram_id = State()
     select_curator_course = State()
     select_curator_subject = State()
-    select_curator_group = State()
+    select_curator_groups = State()  # Множественный выбор групп
     confirm_add_curator = State()
     
     # Состояния для удаления куратора
@@ -127,39 +127,92 @@ async def select_curator_subject(callback: CallbackQuery, state: FSMContext):
     subject = await get_subject_by_id(subject_id)
     subject_name = subject.name if subject else "Неизвестный предмет"
     
-    await state.update_data(curator_subject_id=subject_id, curator_subject_name=subject_name)
-    await state.set_state(AdminCuratorsStates.select_curator_group)
-    
+    await state.update_data(curator_subject_id=subject_id, curator_subject_name=subject_name, selected_group_ids=[])
+    await state.set_state(AdminCuratorsStates.select_curator_groups)
+
     await callback.message.edit_text(
-        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\nВыберите группу:",
-        reply_markup=await get_groups_list_kb("curator_group", subject_id)
+        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\n"
+             f"Выберите группы для куратора (можно выбрать несколько):\n"
+             f"Выбрано: 0",
+        reply_markup=await get_groups_selection_kb([], subject_id)
     )
 
-@router.callback_query(AdminCuratorsStates.select_curator_group, F.data.startswith("curator_group_"))
-async def select_curator_group(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(AdminCuratorsStates.select_curator_groups, F.data.startswith("select_group_"))
+async def select_group_for_curator(callback: CallbackQuery, state: FSMContext):
     """Выбрать группу для куратора"""
-    group_id = int(callback.data.replace("curator_group_", ""))
+    group_id = int(callback.data.replace("select_group_", ""))
+    data = await state.get_data()
+
+    selected_group_ids = data.get("selected_group_ids", [])
+    if group_id not in selected_group_ids:
+        selected_group_ids.append(group_id)
+
+    await state.update_data(selected_group_ids=selected_group_ids)
+
+    course_name = data.get("curator_course_name", "")
+    subject_name = data.get("curator_subject_name", "")
+    subject_id = data.get("curator_subject_id")
+
+    await callback.message.edit_text(
+        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\n"
+             f"Выберите группы для куратора (можно выбрать несколько):\n"
+             f"Выбрано: {len(selected_group_ids)}",
+        reply_markup=await get_groups_selection_kb(selected_group_ids, subject_id)
+    )
+
+@router.callback_query(AdminCuratorsStates.select_curator_groups, F.data.startswith("unselect_group_"))
+async def unselect_group_for_curator(callback: CallbackQuery, state: FSMContext):
+    """Отменить выбор группы для куратора"""
+    group_id = int(callback.data.replace("unselect_group_", ""))
+    data = await state.get_data()
+
+    selected_group_ids = data.get("selected_group_ids", [])
+    if group_id in selected_group_ids:
+        selected_group_ids.remove(group_id)
+
+    await state.update_data(selected_group_ids=selected_group_ids)
+
+    course_name = data.get("curator_course_name", "")
+    subject_name = data.get("curator_subject_name", "")
+    subject_id = data.get("curator_subject_id")
+
+    await callback.message.edit_text(
+        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\n"
+             f"Выберите группы для куратора (можно выбрать несколько):\n"
+             f"Выбрано: {len(selected_group_ids)}",
+        reply_markup=await get_groups_selection_kb(selected_group_ids, subject_id)
+    )
+
+@router.callback_query(AdminCuratorsStates.select_curator_groups, F.data == "finish_group_selection")
+async def finish_group_selection_for_curator(callback: CallbackQuery, state: FSMContext):
+    """Завершить выбор групп для куратора"""
     data = await state.get_data()
     course_name = data.get("curator_course_name", "")
     subject_name = data.get("curator_subject_name", "")
-    
-    # Получаем информацию о группе
-    group = await get_group_by_id(group_id)
-    group_name = group.name if group else "Неизвестная группа"
-    
-    await state.update_data(curator_group_id=group_id, curator_group_name=group_name)
+    selected_group_ids = data.get("selected_group_ids", [])
+
+    # Получаем названия групп по ID
+    group_names = []
+    for group_id in selected_group_ids:
+        group = await get_group_by_id(group_id)
+        if group:
+            group_names.append(group.name)
+
+    groups_text = "\n".join([f"• {name}" for name in group_names])
+
+    await state.update_data(curator_group_ids=selected_group_ids, curator_group_names=group_names)
     await state.set_state(AdminCuratorsStates.confirm_add_curator)
-    
+
     curator_name = data.get("curator_name", "")
     telegram_id = data.get("curator_telegram_id", "")
-    
+
     await callback.message.edit_text(
         text=f"📋 Подтверждение добавления куратора:\n\n"
              f"Имя: {curator_name}\n"
              f"Telegram ID: {telegram_id}\n"
              f"Курс: {course_name}\n"
              f"Предмет: {subject_name}\n"
-             f"Группа: {group_name}",
+             f"Группы ({len(selected_group_ids)}):\n{groups_text}",
         reply_markup=get_confirmation_kb("add", "curator")
     )
 
@@ -172,14 +225,15 @@ async def confirm_add_curator(callback: CallbackQuery, state: FSMContext):
     telegram_id = data.get("curator_telegram_id", "")
     course_id = data.get("curator_course_id")
     subject_id = data.get("curator_subject_id")
-    group_id = data.get("curator_group_id")
+    group_ids = data.get("curator_group_ids", [])
 
     # Добавляем куратора
-    success = await add_curator(curator_name, telegram_id, course_id, subject_id, group_id)
+    success = await add_curator(curator_name, telegram_id, course_id, subject_id, group_ids)
 
     if success:
+        group_names = data.get("curator_group_names", [])
         await callback.message.edit_text(
-            text=f"✅ Куратор '{curator_name}' успешно добавлен!",
+            text=f"✅ Куратор '{curator_name}' успешно добавлен в группы: {', '.join(group_names)}!",
             reply_markup=get_home_kb()
         )
     else:
@@ -187,7 +241,7 @@ async def confirm_add_curator(callback: CallbackQuery, state: FSMContext):
             text=f"❌ Ошибка при добавлении куратора '{curator_name}'!\nВозможно, пользователь с таким Telegram ID уже существует.",
             reply_markup=get_home_kb()
         )
-    
+
     await state.clear()
 
 # === УДАЛЕНИЕ КУРАТОРА ===

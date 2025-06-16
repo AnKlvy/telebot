@@ -7,7 +7,7 @@ from aiogram.filters import StateFilter
 from admin.utils.common import (
     get_courses_list_kb, get_subjects_list_kb, get_groups_list_kb, get_teachers_list_kb,
     get_confirmation_kb, add_teacher, remove_teacher,
-    get_course_by_id, get_subject_by_id, get_group_by_id
+    get_course_by_id, get_subject_by_id, get_group_by_id, get_groups_selection_kb
 )
 from common.keyboards import get_home_kb
 
@@ -19,7 +19,7 @@ class AdminTeachersStates(StatesGroup):
     enter_teacher_telegram_id = State()
     select_teacher_course = State()
     select_teacher_subject = State()
-    select_teacher_group = State()
+    select_teacher_groups = State()  # Множественный выбор групп
     confirm_add_teacher = State()
     
     # Состояния для удаления преподавателя
@@ -122,39 +122,92 @@ async def select_teacher_subject(callback: CallbackQuery, state: FSMContext):
     subject = await get_subject_by_id(subject_id)
     subject_name = subject.name if subject else "Неизвестный предмет"
     
-    await state.update_data(teacher_subject_id=subject_id, teacher_subject_name=subject_name)
-    await state.set_state(AdminTeachersStates.select_teacher_group)
-    
+    await state.update_data(teacher_subject_id=subject_id, teacher_subject_name=subject_name, selected_group_ids=[])
+    await state.set_state(AdminTeachersStates.select_teacher_groups)
+
     await callback.message.edit_text(
-        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\nВыберите группу:",
-        reply_markup=await get_groups_list_kb("teacher_group", subject_id)
+        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\n"
+             f"Выберите группы для преподавателя (можно выбрать несколько):\n"
+             f"Выбрано: 0",
+        reply_markup=await get_groups_selection_kb([], subject_id)
     )
 
-@router.callback_query(AdminTeachersStates.select_teacher_group, F.data.startswith("teacher_group_"))
-async def select_teacher_group(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(AdminTeachersStates.select_teacher_groups, F.data.startswith("select_group_"))
+async def select_group_for_teacher(callback: CallbackQuery, state: FSMContext):
     """Выбрать группу для преподавателя"""
-    group_id = int(callback.data.replace("teacher_group_", ""))
+    group_id = int(callback.data.replace("select_group_", ""))
+    data = await state.get_data()
+
+    selected_group_ids = data.get("selected_group_ids", [])
+    if group_id not in selected_group_ids:
+        selected_group_ids.append(group_id)
+
+    await state.update_data(selected_group_ids=selected_group_ids)
+
+    course_name = data.get("teacher_course_name", "")
+    subject_name = data.get("teacher_subject_name", "")
+    subject_id = data.get("teacher_subject_id")
+
+    await callback.message.edit_text(
+        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\n"
+             f"Выберите группы для преподавателя (можно выбрать несколько):\n"
+             f"Выбрано: {len(selected_group_ids)}",
+        reply_markup=await get_groups_selection_kb(selected_group_ids, subject_id)
+    )
+
+@router.callback_query(AdminTeachersStates.select_teacher_groups, F.data.startswith("unselect_group_"))
+async def unselect_group_for_teacher(callback: CallbackQuery, state: FSMContext):
+    """Отменить выбор группы для преподавателя"""
+    group_id = int(callback.data.replace("unselect_group_", ""))
+    data = await state.get_data()
+
+    selected_group_ids = data.get("selected_group_ids", [])
+    if group_id in selected_group_ids:
+        selected_group_ids.remove(group_id)
+
+    await state.update_data(selected_group_ids=selected_group_ids)
+
+    course_name = data.get("teacher_course_name", "")
+    subject_name = data.get("teacher_subject_name", "")
+    subject_id = data.get("teacher_subject_id")
+
+    await callback.message.edit_text(
+        text=f"Курс: {course_name}\nПредмет: {subject_name}\n\n"
+             f"Выберите группы для преподавателя (можно выбрать несколько):\n"
+             f"Выбрано: {len(selected_group_ids)}",
+        reply_markup=await get_groups_selection_kb(selected_group_ids, subject_id)
+    )
+
+@router.callback_query(AdminTeachersStates.select_teacher_groups, F.data == "finish_group_selection")
+async def finish_group_selection_for_teacher(callback: CallbackQuery, state: FSMContext):
+    """Завершить выбор групп для преподавателя"""
     data = await state.get_data()
     course_name = data.get("teacher_course_name", "")
     subject_name = data.get("teacher_subject_name", "")
-    
-    # Получаем информацию о группе
-    group = await get_group_by_id(group_id)
-    group_name = group.name if group else "Неизвестная группа"
-    
-    await state.update_data(teacher_group_id=group_id, teacher_group_name=group_name)
+    selected_group_ids = data.get("selected_group_ids", [])
+
+    # Получаем названия групп по ID
+    group_names = []
+    for group_id in selected_group_ids:
+        group = await get_group_by_id(group_id)
+        if group:
+            group_names.append(group.name)
+
+    groups_text = "\n".join([f"• {name}" for name in group_names])
+
+    await state.update_data(teacher_group_ids=selected_group_ids, teacher_group_names=group_names)
     await state.set_state(AdminTeachersStates.confirm_add_teacher)
-    
+
     teacher_name = data.get("teacher_name", "")
     telegram_id = data.get("teacher_telegram_id", "")
-    
+
     await callback.message.edit_text(
         text=f"📋 Подтверждение добавления преподавателя:\n\n"
              f"Имя: {teacher_name}\n"
              f"Telegram ID: {telegram_id}\n"
              f"Курс: {course_name}\n"
              f"Предмет: {subject_name}\n"
-             f"Группа: {group_name}",
+             f"Группы ({len(selected_group_ids)}):\n{groups_text}",
         reply_markup=get_confirmation_kb("add", "teacher")
     )
 
@@ -167,14 +220,15 @@ async def confirm_add_teacher(callback: CallbackQuery, state: FSMContext):
     telegram_id = data.get("teacher_telegram_id", "")
     course_id = data.get("teacher_course_id")
     subject_id = data.get("teacher_subject_id")
-    group_id = data.get("teacher_group_id")
+    group_ids = data.get("teacher_group_ids", [])
 
     # Добавляем преподавателя
-    success = await add_teacher(teacher_name, telegram_id, course_id, subject_id, group_id)
+    success = await add_teacher(teacher_name, telegram_id, course_id, subject_id, group_ids)
 
     if success:
+        group_names = data.get("teacher_group_names", [])
         await callback.message.edit_text(
-            text=f"✅ Преподаватель '{teacher_name}' успешно добавлен!",
+            text=f"✅ Преподаватель '{teacher_name}' успешно добавлен в группы: {', '.join(group_names)}!",
             reply_markup=get_home_kb()
         )
     else:
@@ -182,7 +236,7 @@ async def confirm_add_teacher(callback: CallbackQuery, state: FSMContext):
             text=f"❌ Ошибка при добавлении преподавателя '{teacher_name}'!\nВозможно, пользователь с таким Telegram ID уже существует.",
             reply_markup=get_home_kb()
         )
-    
+
     await state.clear()
 
 # === УДАЛЕНИЕ ПРЕПОДАВАТЕЛЯ ===
