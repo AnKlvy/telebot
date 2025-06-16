@@ -328,8 +328,8 @@ async def add_initial_data():
             "tariff": "standard"
         },
         {
-            "name": "Мадияр Сапаров",
-            "telegram_id": 222222222,
+            "name": "Айсулу Нурбекова",
+            "telegram_id": 333444555,
             "group_name": "БИО-1",
             "subject_name": "Биология",
             "tariff": "premium"
@@ -1071,6 +1071,79 @@ async def add_test_homework_data(created_subjects, course_ent, course_it):
                     }
                 ]
             },
+            # Биология - 4 ДЗ
+            {
+                "name": "Строение клетки",
+                "subject_name": "Биология",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Что является основной структурной единицей живого организма?",
+                        "time_limit": 30,
+                        "microtopic_number": 1,
+                        "answers": [
+                            {"text": "Клетка", "is_correct": True},
+                            {"text": "Ткань", "is_correct": False},
+                            {"text": "Орган", "is_correct": False},
+                            {"text": "Система органов", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Генетика и наследственность",
+                "subject_name": "Биология",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Кто открыл законы наследственности?",
+                        "time_limit": 30,
+                        "microtopic_number": 2,
+                        "answers": [
+                            {"text": "Грегор Мендель", "is_correct": True},
+                            {"text": "Чарльз Дарвин", "is_correct": False},
+                            {"text": "Луи Пастер", "is_correct": False},
+                            {"text": "Александр Флеминг", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Эволюция и естественный отбор",
+                "subject_name": "Биология",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Кто является автором теории эволюции?",
+                        "time_limit": 30,
+                        "microtopic_number": 3,
+                        "answers": [
+                            {"text": "Чарльз Дарвин", "is_correct": True},
+                            {"text": "Грегор Мендель", "is_correct": False},
+                            {"text": "Жан-Батист Ламарк", "is_correct": False},
+                            {"text": "Альфред Уоллес", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "Экосистемы и биосфера",
+                "subject_name": "Биология",
+                "course": course_ent,
+                "questions": [
+                    {
+                        "text": "Что такое экосистема?",
+                        "time_limit": 30,
+                        "microtopic_number": 4,
+                        "answers": [
+                            {"text": "Совокупность живых организмов и среды их обитания", "is_correct": True},
+                            {"text": "Только живые организмы", "is_correct": False},
+                            {"text": "Только неживая природа", "is_correct": False},
+                            {"text": "Только растения", "is_correct": False}
+                        ]
+                    }
+                ]
+            },
             # Математика - 4 ДЗ
             {
                 "name": "Основы математики",
@@ -1538,10 +1611,15 @@ async def add_test_homework_results():
                 print(f"   ⚠️  Нет ДЗ по предмету {student.group.subject.name}")
                 continue
 
-            # Специальная логика для Андрея Климова - отличные результаты
             import random
             if student.user.telegram_id == 955518340:  # Андрей Климов
                 print(f"   Создаем результаты для {student.user.name}")
+                max_homeworks = len(subject_homeworks)
+                num_homeworks = max_homeworks  # Выполняет ВСЕ ДЗ
+                student_homeworks = subject_homeworks  # Все ДЗ
+                is_excellent_student = True
+            elif student.user.telegram_id == 333444555:  # Айсулу Нурбекова
+                print(f"   Создаем отличные результаты для {student.user.name}")
                 max_homeworks = len(subject_homeworks)
                 num_homeworks = max_homeworks  # Выполняет ВСЕ ДЗ
                 student_homeworks = subject_homeworks  # Все ДЗ
@@ -1633,7 +1711,7 @@ async def add_test_homework_results():
                     # Иногда создаем повторную попытку для студентов с неидеальным результатом
                     if success_rate < 1.0:
                         if is_excellent_student:
-                            # Андрей Климов всегда исправляет на 100%
+                            # Андрей Климов и Айсулу Нурбекова всегда исправляют на 100%
                             should_repeat = True
                             repeat_success_rate = 1.0
                         else:
@@ -1734,7 +1812,6 @@ async def update_all_student_stats():
 
 
 async def create_excellent_results_for_andrey():
-    """Создать отличные результаты для Андрея Климова"""
     try:
         # Находим Андрея Климова
         andrey = await StudentRepository.get_by_telegram_id(955518340)
@@ -1847,11 +1924,10 @@ async def create_excellent_results_for_andrey():
 async def add_admin_roles(created_subjects, course_ent, course_it):
     """Добавление всех ролей для админов с соответствующими данными"""
     try:
-        # ID админов
-        admin_ids = [955518340, 5205775566]
+        # ID админов (только Андрей Климов получает все роли)
+        admin_ids = [955518340]
         admin_names = {
-            955518340: "Андрей Климов",
-            5205775566: "Мадияр Сапаров"
+            955518340: "Андрей Климов"
         }
 
         for admin_telegram_id in admin_ids:
