@@ -268,24 +268,36 @@ def remove_person(person_db: Dict, person_id: str) -> bool:
 
 # Функции для работы со студентами
 async def add_student(name: str, telegram_id: int, group_id: int, tariff: str) -> bool:
-    """Добавить нового студента"""
+    """Добавить нового студента или создать профиль студента для существующего пользователя"""
     try:
-        # Сначала создаем пользователя
-        user = await UserRepository.create(
-            telegram_id=telegram_id,
-            name=name,
-            role='student'
-        )
+        # Проверяем, существует ли пользователь
+        existing_user = await UserRepository.get_by_telegram_id(telegram_id)
 
-        # Затем создаем профиль студента
-        await StudentRepository.create(
+        if existing_user:
+            # Пользователь существует - используем его
+            user = existing_user
+            print(f"🔍 DEBUG: Используем существующего пользователя {user.name} (ID: {user.id})")
+        else:
+            # Создаем нового пользователя
+            user = await UserRepository.create(
+                telegram_id=telegram_id,
+                name=name,
+                role='student'
+            )
+            print(f"🔍 DEBUG: Создан новый пользователь {user.name} (ID: {user.id})")
+
+        # Создаем профиль студента
+        student = await StudentRepository.create(
             user_id=user.id,
             group_id=group_id,
             tariff=tariff
         )
+        print(f"🔍 DEBUG: Создан профиль студента (ID: {student.id})")
         return True
-    except Exception:
-        # Студент уже существует или другая ошибка
+    except Exception as e:
+        print(f"❌ DEBUG: Ошибка при добавлении студента: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 async def remove_student(student_id: int) -> bool:
@@ -406,25 +418,37 @@ async def get_curators_list_kb(callback_prefix: str = "select_curator", subject_
 
 # Функции для работы с преподавателями
 async def add_teacher(name: str, telegram_id: int, course_id: int, subject_id: int, group_id: int) -> bool:
-    """Добавить нового преподавателя"""
+    """Добавить нового преподавателя или создать профиль преподавателя для существующего пользователя"""
     try:
-        # Сначала создаем пользователя
-        user = await UserRepository.create(
-            telegram_id=telegram_id,
-            name=name,
-            role='teacher'
-        )
+        # Проверяем, существует ли пользователь
+        existing_user = await UserRepository.get_by_telegram_id(telegram_id)
 
-        # Затем создаем профиль преподавателя
-        await TeacherRepository.create(
+        if existing_user:
+            # Пользователь существует - используем его
+            user = existing_user
+            print(f"🔍 DEBUG: Используем существующего пользователя {user.name} (ID: {user.id})")
+        else:
+            # Создаем нового пользователя
+            user = await UserRepository.create(
+                telegram_id=telegram_id,
+                name=name,
+                role='teacher'
+            )
+            print(f"🔍 DEBUG: Создан новый пользователь {user.name} (ID: {user.id})")
+
+        # Создаем профиль преподавателя
+        teacher = await TeacherRepository.create(
             user_id=user.id,
             course_id=course_id,
             subject_id=subject_id,
             group_id=group_id
         )
+        print(f"🔍 DEBUG: Создан профиль преподавателя (ID: {teacher.id})")
         return True
-    except Exception:
-        # Преподаватель уже существует или другая ошибка
+    except Exception as e:
+        print(f"❌ DEBUG: Ошибка при добавлении преподавателя: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 async def remove_teacher(teacher_id: int) -> bool:
@@ -452,20 +476,32 @@ async def get_teachers_list_kb(callback_prefix: str = "select_teacher", subject_
 
 # Функции для работы с менеджерами
 async def add_manager(name: str, telegram_id: int) -> bool:
-    """Добавить нового менеджера"""
+    """Добавить нового менеджера или создать профиль менеджера для существующего пользователя"""
     try:
-        # Сначала создаем пользователя
-        user = await UserRepository.create(
-            telegram_id=telegram_id,
-            name=name,
-            role='manager'
-        )
+        # Проверяем, существует ли пользователь
+        existing_user = await UserRepository.get_by_telegram_id(telegram_id)
 
-        # Затем создаем профиль менеджера
-        await ManagerRepository.create(user_id=user.id)
+        if existing_user:
+            # Пользователь существует - используем его
+            user = existing_user
+            print(f"🔍 DEBUG: Используем существующего пользователя {user.name} (ID: {user.id})")
+        else:
+            # Создаем нового пользователя
+            user = await UserRepository.create(
+                telegram_id=telegram_id,
+                name=name,
+                role='manager'
+            )
+            print(f"🔍 DEBUG: Создан новый пользователь {user.name} (ID: {user.id})")
+
+        # Создаем профиль менеджера
+        manager = await ManagerRepository.create(user_id=user.id)
+        print(f"🔍 DEBUG: Создан профиль менеджера (ID: {manager.id})")
         return True
-    except Exception:
-        # Менеджер уже существует или другая ошибка
+    except Exception as e:
+        print(f"❌ DEBUG: Ошибка при добавлении менеджера: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 async def remove_manager(manager_id: int) -> bool:
