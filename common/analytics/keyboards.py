@@ -29,13 +29,14 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
 
     # Получаем реальные группы из базы данных
     try:
-        # Проверяем, нужно ли получать группы конкретного куратора
+        # Проверяем, нужно ли получать группы конкретного куратора/учителя
         # Это происходит если:
         # 1. role == "curator" и есть telegram_id
-        # 2. role == "admin" и есть telegram_id (админ работает в контексте куратора)
-        # 3. role == "manager" - менеджер всегда получает все группы
-        should_get_curator_groups = (
-            (role == "curator" or role == "admin") and user_telegram_id
+        # 2. role == "teacher" и есть telegram_id
+        # 3. role == "admin" и есть telegram_id (админ работает в контексте куратора)
+        # 4. role == "manager" - менеджер всегда получает все группы
+        should_get_role_specific_groups = (
+            (role == "curator" or role == "teacher" or role == "admin") and user_telegram_id
         )
 
         if should_get_curator_groups:

@@ -109,7 +109,7 @@ class HomeworkResultRepository:
             if not student or not student.group:
                 return {
                     'total_completed': 0,
-                    'total_attempted': 0,
+                    'total_available': 0,
                     'total_points': 0
                 }
 
@@ -151,7 +151,7 @@ class HomeworkResultRepository:
 
             return {
                 'total_completed': total_completed,
-                'total_attempted': total_available,  # Всего доступных ДЗ
+                'total_available': total_available,  # Всего доступных ДЗ
                 'unique_completed': unique_completed,  # Уникальных выполненных
                 'total_points': total_points
             }

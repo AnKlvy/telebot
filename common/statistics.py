@@ -250,9 +250,9 @@ async def get_group_stats(group_id: str) -> Dict:
             student_stats = await StudentRepository.get_general_stats(student.id)
 
             # Вычисляем средний процент выполнения ДЗ для студента
-            # Используем unique_completed (уникальные выполненные) / total_attempted (всего доступных)
-            if student_stats.get('total_attempted', 0) > 0:
-                student_homework_percentage = (student_stats.get('unique_completed', 0) / student_stats.get('total_attempted', 1)) * 100
+            # Используем unique_completed (уникальные выполненные) / total_available (всего доступных)
+            if student_stats.get('total_available', 0) > 0:
+                student_homework_percentage = (student_stats.get('unique_completed', 0) / student_stats.get('total_available', 1)) * 100
             else:
                 student_homework_percentage = 0
             total_homework_percentage += student_homework_percentage
@@ -1211,8 +1211,8 @@ async def get_general_stats() -> dict:
                     total_points += student_stats.get('total_points', 0)
 
                     # Вычисляем процент выполнения ДЗ
-                    if student_stats.get('total_attempted', 0) > 0:
-                        completion_rate = (student_stats.get('unique_completed', 0) / student_stats.get('total_attempted', 1)) * 100
+                    if student_stats.get('total_available', 0) > 0:
+                        completion_rate = (student_stats.get('unique_completed', 0) / student_stats.get('total_available', 1)) * 100
                     else:
                         completion_rate = 0
                     total_completion += completion_rate
