@@ -260,3 +260,18 @@ async def manager_back_to_student_analytics(callback: CallbackQuery, state: FSMC
     logger.info("Вызван обработчик manager_back_to_student_analytics")
     from common.analytics.handlers import back_to_student_analytics
     await back_to_student_analytics(callback, state, "manager")
+
+# Обработчики для статистики по группе
+@router.callback_query(F.data.startswith("group_microtopics_detailed_"))
+async def manager_show_group_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам группы"""
+    logger.info("Вызван обработчик manager_show_group_microtopics_detailed")
+    from common.statistics import show_group_microtopics_detailed
+    await show_group_microtopics_detailed(callback, state)
+
+@router.callback_query(F.data.startswith("group_rating_"))
+async def manager_show_group_rating(callback: CallbackQuery, state: FSMContext):
+    """Показать рейтинг группы по баллам"""
+    logger.info("Вызван обработчик manager_show_group_rating")
+    from common.statistics import show_group_rating
+    await show_group_rating(callback, state)
