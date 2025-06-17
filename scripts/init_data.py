@@ -468,6 +468,14 @@ async def add_initial_data():
             "group_name": "PY-1",  # Python группа для разработчика
             "subject_name": "Python",
             "tariff": "premium"
+        },
+        # Медина Махамбет - тестирование как студент
+        {
+            "name": "Медина Махамбет",
+            "telegram_id": 7265679697,
+            "group_name": "МАТ-1",  # Математика группа
+            "subject_name": "Математика",
+            "tariff": "premium"
         }
     ]
 
