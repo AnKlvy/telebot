@@ -735,9 +735,13 @@ async def add_initial_data():
             teacher = await TeacherRepository.create(
                 user_id=user.id,
                 course_id=course.id,
-                subject_id=subject.id,
-                group_id=target_group.id
+                subject_id=subject.id
             )
+
+            # Добавляем преподавателя в группу через M2M связь
+            success = await TeacherRepository.add_teacher_to_group(teacher.id, target_group.id)
+            if not success:
+                print(f"   ⚠️ Преподаватель '{teacher_data['name']}' создан, но не удалось привязать к группе '{target_group.name}'")
 
             print(f"   ✅ Создан преподаватель '{teacher_data['name']}' для группы '{target_group.name}' ({teacher_data['subject_name']})")
             created_teachers_count += 1
@@ -1997,10 +2001,15 @@ async def add_admin_roles(created_subjects, course_ent, course_it):
                         teacher = await TeacherRepository.create(
                             user_id=admin_user.id,
                             course_id=course_it.id,
-                            subject_id=created_subjects["Python"].id,
-                            group_id=python_groups[0].id
+                            subject_id=created_subjects["Python"].id
                         )
-                        print(f"      ✅ Создан профиль преподавателя (ID: {teacher.id}, предмет: Python, группа: {python_groups[0].name})")
+
+                        # Добавляем преподавателя в группу через M2M связь
+                        success = await TeacherRepository.add_teacher_to_group(teacher.id, python_groups[0].id)
+                        if success:
+                            print(f"      ✅ Создан профиль преподавателя (ID: {teacher.id}, предмет: Python, группа: {python_groups[0].name})")
+                        else:
+                            print(f"      ⚠️ Преподаватель создан, но не удалось привязать к группе {python_groups[0].name}")
                     else:
                         print(f"      ❌ Не найдены группы для Python")
                 else:
