@@ -165,7 +165,11 @@ class RoleMiddleware(BaseMiddleware):
         user_id = event.from_user.id
 
         # Асинхронное обновление кэша (не блокируем запрос)
-        if not _global_cache_updated and _database_available is not False:
+        # Проверяем TTL перед созданием задачи
+        current_time = time.time()
+        cache_expired = (current_time - _last_cache_update) >= CACHE_TTL
+
+        if (not _global_cache_updated or cache_expired) and _database_available is not False:
             # Запускаем обновление в фоне, не ждем результата
             asyncio.create_task(self._update_role_cache())
 
