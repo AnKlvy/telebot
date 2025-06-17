@@ -58,16 +58,17 @@ async def select_group_for_student_analytics(callback: CallbackQuery, state: FSM
         # Если выбран куратор, показываем его группы
         keyboard = await get_groups_by_curator_kb(curator_id)
     else:
-        # Передаем Telegram ID для кураторов и админов в контексте куратора
+        # Передаем Telegram ID для кураторов, учителей и админов в контексте куратора
         # Проверяем состояние, чтобы понять, работает ли админ в контексте куратора
         current_state = await state.get_state()
-        is_curator_context = (
+        is_role_specific_context = (
             role == "curator" or
+            role == "teacher" or
             (role == "admin" and current_state and "CuratorAnalyticsStates" in current_state)
         )
 
-        user_telegram_id = callback.from_user.id if is_curator_context else None
-        print(f"🔍 ANALYTICS: role={role}, state={current_state}, is_curator_context={is_curator_context}, telegram_id={user_telegram_id}")
+        user_telegram_id = callback.from_user.id if is_role_specific_context else None
+        print(f"🔍 ANALYTICS: role={role}, state={current_state}, is_role_specific_context={is_role_specific_context}, telegram_id={user_telegram_id}")
 
         keyboard = await get_groups_for_analytics_kb(role, user_telegram_id)
 
@@ -114,16 +115,17 @@ async def select_group_for_group_analytics(callback: CallbackQuery, state: FSMCo
         # Если выбран куратор, показываем его группы
         keyboard = await get_groups_by_curator_kb(curator_id)
     else:
-        # Передаем Telegram ID для кураторов и админов в контексте куратора
+        # Передаем Telegram ID для кураторов, учителей и админов в контексте куратора
         # Проверяем состояние, чтобы понять, работает ли админ в контексте куратора
         current_state = await state.get_state()
-        is_curator_context = (
+        is_role_specific_context = (
             role == "curator" or
+            role == "teacher" or
             (role == "admin" and current_state and "CuratorAnalyticsStates" in current_state)
         )
 
-        user_telegram_id = callback.from_user.id if is_curator_context else None
-        print(f"🔍 ANALYTICS: role={role}, state={current_state}, is_curator_context={is_curator_context}, telegram_id={user_telegram_id}")
+        user_telegram_id = callback.from_user.id if is_role_specific_context else None
+        print(f"🔍 ANALYTICS: role={role}, state={current_state}, is_role_specific_context={is_role_specific_context}, telegram_id={user_telegram_id}")
 
         keyboard = await get_groups_for_analytics_kb(role, user_telegram_id)
 

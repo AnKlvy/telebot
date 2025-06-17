@@ -12,8 +12,8 @@ async def show_groups(callback: CallbackQuery, state: FSMContext, role: str):
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    # Получаем telegram_id пользователя для куратора
-    user_telegram_id = callback.from_user.id if role == "curator" else None
+    # Получаем telegram_id пользователя для куратора и учителя
+    user_telegram_id = callback.from_user.id if (role == "curator" or role == "teacher") else None
 
     print(f"🔍 HANDLER: show_groups для {role}, telegram_id={user_telegram_id}")
 

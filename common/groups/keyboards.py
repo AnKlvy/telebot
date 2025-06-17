@@ -6,35 +6,45 @@ async def get_groups_kb(role: str, user_telegram_id: int = None) -> InlineKeyboa
 
     print(f"🔍 GROUPS: role={role}, telegram_id={user_telegram_id}")
 
-    # Для куратора получаем его реальные группы из базы данных
-    if role == "curator" and user_telegram_id:
+    # Для куратора и учителя получаем их реальные группы из базы данных
+    if (role == "curator" or role == "teacher") and user_telegram_id:
         try:
-            from database import UserRepository, CuratorRepository
+            from database import UserRepository, CuratorRepository, TeacherRepository
 
             # Получаем пользователя по telegram_id
             user = await UserRepository.get_by_telegram_id(user_telegram_id)
             print(f"🔍 GROUPS: Пользователь: {user.name if user else 'НЕ НАЙДЕН'}")
 
             if user:
-                # Получаем профиль куратора по user_id
-                curator = await CuratorRepository.get_by_user_id(user.id)
-                print(f"🔍 GROUPS: Куратор: {'ID=' + str(curator.id) if curator else 'НЕ НАЙДЕН'}")
+                groups = []
+                role_profile = None
 
-                if curator:
-                    # Получаем группы куратора
-                    groups = await CuratorRepository.get_curator_groups(curator.id)
-                    print(f"🔍 GROUPS: Найдено групп: {len(groups)}")
+                if role == "curator":
+                    # Получаем профиль куратора по user_id
+                    curator = await CuratorRepository.get_by_user_id(user.id)
+                    print(f"🔍 GROUPS: Куратор: {'ID=' + str(curator.id) if curator else 'НЕ НАЙДЕН'}")
 
-                    if not groups:
-                        # Если у куратора нет групп
-                        print("❌ GROUPS: У куратора нет групп")
-                        return InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton(text="❌ Группы не найдены", callback_data="no_groups")],
-                            *get_main_menu_back_button()
-                        ])
+                    if curator:
+                        role_profile = curator
+                        # Получаем группы куратора
+                        groups = await CuratorRepository.get_curator_groups(curator.id)
+                        print(f"🔍 GROUPS: Найдено групп куратора: {len(groups)}")
 
-                    # Создаем кнопки для реальных групп куратора
-                    print(f"✅ GROUPS: Создаем {len(groups)} кнопок")
+                elif role == "teacher":
+                    # Получаем профиль учителя по user_id
+                    teacher = await TeacherRepository.get_by_user_id(user.id)
+                    print(f"🔍 GROUPS: Учитель: {'ID=' + str(teacher.id) if teacher else 'НЕ НАЙДЕН'}")
+
+                    if teacher:
+                        role_profile = teacher
+                        # Получаем группы учителя
+                        groups = await TeacherRepository.get_teacher_groups(teacher.id)
+                        print(f"🔍 GROUPS: Найдено групп учителя: {len(groups)}")
+
+                if role_profile and groups:
+
+                    # Создаем кнопки для реальных групп
+                    print(f"✅ GROUPS: Создаем {len(groups)} кнопок для {role}")
                     buttons = []
                     for group in groups:
                         group_name = f"{group.name}"
@@ -50,11 +60,19 @@ async def get_groups_kb(role: str, user_telegram_id: int = None) -> InlineKeyboa
 
                     buttons.extend(get_main_menu_back_button())
                     return InlineKeyboardMarkup(inline_keyboard=buttons)
-                else:
-                    # Пользователь не является куратором
-                    print(f"❌ GROUPS: {user.name} не является куратором")
+                elif not groups and role_profile:
+                    # Если у роли нет групп
+                    print(f"❌ GROUPS: У {role} нет групп")
                     return InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="❌ Вы не являетесь куратором", callback_data="not_curator")],
+                        [InlineKeyboardButton(text="❌ Группы не найдены", callback_data="no_groups")],
+                        *get_main_menu_back_button()
+                    ])
+                else:
+                    # Пользователь не является куратором/учителем
+                    role_name = "куратором" if role == "curator" else "учителем"
+                    print(f"❌ GROUPS: {user.name} не является {role_name}")
+                    return InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text=f"❌ Вы не являетесь {role_name}", callback_data=f"not_{role}")],
                         *get_main_menu_back_button()
                     ])
             else:

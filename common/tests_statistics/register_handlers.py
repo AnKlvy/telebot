@@ -48,26 +48,26 @@ def get_transitions_handlers(states_group, role):
     
     # Создаем словарь обработчиков для каждого состояния
     STATE_HANDLERS = {
-        states_group.main: lambda callback, state: show_tests_statistics_menu(callback, state, role),
-        
+        states_group.main: lambda callback, state, user_role=None: show_tests_statistics_menu(callback, state, user_role or role),
+
         # Обработчики для входного теста курса
-        states_group.course_entry_select_group: show_course_entry_groups,
-        states_group.course_entry_result: show_course_entry_statistics,
-        
+        states_group.course_entry_select_group: lambda callback, state, user_role=None: show_course_entry_groups(callback, state),
+        states_group.course_entry_result: lambda callback, state, user_role=None: show_course_entry_statistics(callback, state),
+
         # Обработчики для входного теста месяца
-        states_group.month_entry_select_group: show_month_entry_groups,
-        states_group.month_entry_select_month: show_month_entry_months,
-        states_group.month_entry_result: show_month_entry_statistics,
-        
+        states_group.month_entry_select_group: lambda callback, state, user_role=None: show_month_entry_groups(callback, state),
+        states_group.month_entry_select_month: lambda callback, state, user_role=None: show_month_entry_months(callback, state),
+        states_group.month_entry_result: lambda callback, state, user_role=None: show_month_entry_statistics(callback, state),
+
         # Обработчики для контрольного теста месяца
-        states_group.month_control_select_group: show_month_control_groups,
-        states_group.month_control_select_month: show_month_control_months,
-        states_group.month_control_result: show_month_control_statistics,
-        
+        states_group.month_control_select_group: lambda callback, state, user_role=None: show_month_control_groups(callback, state),
+        states_group.month_control_select_month: lambda callback, state, user_role=None: show_month_control_months(callback, state),
+        states_group.month_control_result: lambda callback, state, user_role=None: show_month_control_statistics(callback, state),
+
         # Обработчики для пробного ЕНТ
-        states_group.ent_select_group: show_ent_groups,
-        states_group.ent_select_student: show_ent_students,
-        states_group.ent_result: show_ent_statistics
+        states_group.ent_select_group: lambda callback, state, user_role=None: show_ent_groups(callback, state),
+        states_group.ent_select_student: lambda callback, state, user_role=None: show_ent_students(callback, state),
+        states_group.ent_result: lambda callback, state, user_role=None: show_ent_statistics(callback, state)
     }
     
     return STATE_TRANSITIONS, STATE_HANDLERS

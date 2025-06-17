@@ -67,7 +67,7 @@ class NavigationManager:
                 if param_count == 2:  # callback, state
                     await handler(callback, state)
                 elif param_count == 3:  # callback, state, role
-                    await handler(callback, state, user_role)
+                    await handler(callback, state, role_to_use)
                 else:
                     print(f"DEBUG: Неподдерживаемое количество параметров в обработчике: {param_count}")
             else:

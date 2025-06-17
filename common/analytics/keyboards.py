@@ -7,7 +7,7 @@ import os
 # Добавляем путь к корневой папке проекта для импорта database
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from database import StudentRepository, GroupRepository, CuratorRepository, UserRepository
+from database import StudentRepository, GroupRepository, CuratorRepository, UserRepository, TeacherRepository
 
 def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     """Клавиатура меню аналитики"""
@@ -40,21 +40,35 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
         )
 
         if should_get_role_specific_groups:
-            # Для куратора (или админа в контексте куратора) получаем только его группы
+            # Для куратора/учителя (или админа в контексте куратора) получаем только их группы
             user = await UserRepository.get_by_telegram_id(user_telegram_id)
             print(f"🔍 ANALYTICS: Пользователь: {user.name if user else 'НЕ НАЙДЕН'}")
 
             if user:
-                # Получаем профиль куратора по user_id (исправляем ошибку SQLAlchemy)
-                curator = await CuratorRepository.get_by_user_id(user.id)
-                print(f"🔍 ANALYTICS: Куратор: {'ID=' + str(curator.id) if curator else 'НЕ НАЙДЕН'}")
+                groups = []
 
-                if curator:
-                    groups = await CuratorRepository.get_curator_groups(curator.id)
-                    print(f"🔍 ANALYTICS: Найдено групп куратора: {len(groups)}")
-                else:
-                    groups = []
-                    print(f"❌ ANALYTICS: Не является куратором")
+                # Проверяем роль и получаем соответствующие группы
+                if role == "curator" or role == "admin":
+                    # Получаем профиль куратора по user_id
+                    curator = await CuratorRepository.get_by_user_id(user.id)
+                    print(f"🔍 ANALYTICS: Куратор: {'ID=' + str(curator.id) if curator else 'НЕ НАЙДЕН'}")
+
+                    if curator:
+                        groups = await CuratorRepository.get_curator_groups(curator.id)
+                        print(f"🔍 ANALYTICS: Найдено групп куратора: {len(groups)}")
+                    else:
+                        print(f"❌ ANALYTICS: Не является куратором")
+
+                elif role == "teacher":
+                    # Получаем профиль учителя по user_id
+                    teacher = await TeacherRepository.get_by_user_id(user.id)
+                    print(f"🔍 ANALYTICS: Учитель: {'ID=' + str(teacher.id) if teacher else 'НЕ НАЙДЕН'}")
+
+                    if teacher:
+                        groups = await TeacherRepository.get_teacher_groups(teacher.id)
+                        print(f"🔍 ANALYTICS: Найдено групп учителя: {len(groups)}")
+                    else:
+                        print(f"❌ ANALYTICS: Не является учителем")
             else:
                 groups = []
         else:

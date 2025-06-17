@@ -22,9 +22,9 @@ def get_transitions_handlers(states_group, role):
 
     # Словарь обработчиков для каждого состояния
     STATE_HANDLERS = {
-        states_group.select_group: lambda callback, state: show_groups(callback, state, role),
-        states_group.select_student: lambda callback, state: show_group_students(callback, state, role),
-        states_group.student_profile: lambda callback, state: show_student_profile(callback, state, role)
+        states_group.select_group: lambda callback, state, user_role=None: show_groups(callback, state, user_role or role),
+        states_group.select_student: lambda callback, state, user_role=None: show_group_students(callback, state, user_role or role),
+        states_group.student_profile: lambda callback, state, user_role=None: show_student_profile(callback, state, user_role or role)
     }
 
     return STATE_TRANSITIONS, STATE_HANDLERS 
