@@ -10,17 +10,35 @@ def get_messages_menu_kb() -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
     ])
 
-async def get_groups_for_message_kb() -> InlineKeyboardMarkup:
-    """Клавиатура выбора группы для сообщения"""
+async def get_groups_for_message_kb(user_telegram_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура выбора группы для сообщения - показывает только группы куратора"""
     try:
-        from database import GroupRepository
+        from database import UserRepository, CuratorRepository
 
-        # Получаем реальные группы из базы данных
-        groups = await GroupRepository.get_all()
+        # Получаем пользователя по telegram_id
+        user = await UserRepository.get_by_telegram_id(user_telegram_id)
+
+        if not user:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Пользователь не найден", callback_data="user_not_found")],
+                *get_main_menu_back_button()
+            ])
+
+        # Получаем профиль куратора
+        curator = await CuratorRepository.get_by_user_id(user.id)
+
+        if not curator:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Вы не являетесь куратором", callback_data="not_curator")],
+                *get_main_menu_back_button()
+            ])
+
+        # Получаем группы куратора
+        groups = await CuratorRepository.get_curator_groups(curator.id)
 
         if not groups:
             return InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="❌ Группы не найдены", callback_data="no_groups")],
+                [InlineKeyboardButton(text="❌ У вас нет групп", callback_data="no_groups")],
                 *get_main_menu_back_button()
             ])
 
@@ -41,7 +59,9 @@ async def get_groups_for_message_kb() -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(inline_keyboard=buttons)
 
     except Exception as e:
-        print(f"❌ Ошибка при получении групп: {e}")
+        print(f"❌ Ошибка при получении групп куратора: {e}")
+        import traceback
+        traceback.print_exc()
         return InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="❌ Ошибка загрузки групп", callback_data="error_groups")],
             *get_main_menu_back_button()
