@@ -32,7 +32,9 @@ class ManagerAnalyticsStates(StatesGroup):
     select_subject = State()
     subject_stats = State()
     student_stats = State()
+    student_stats_display = State()  # Новое состояние для отображения статистики студента
     group_stats = State()
+    group_stats_display = State()  # Новое состояние для отображения статистики группы
     general_stats = State()
 
 router = Router()
@@ -245,6 +247,8 @@ async def manager_show_microtopics_detailed(callback: CallbackQuery, state: FSMC
     logger.info("Вызван обработчик manager_show_microtopics_detailed")
     from common.analytics.handlers import show_microtopics_detailed
     await show_microtopics_detailed(callback, state)
+    # Переходим в состояние отображения статистики студента
+    await state.set_state(ManagerAnalyticsStates.student_stats_display)
 
 @router.callback_query(F.data.startswith("microtopics_summary_"))
 async def manager_show_microtopics_summary(callback: CallbackQuery, state: FSMContext):
@@ -252,6 +256,8 @@ async def manager_show_microtopics_summary(callback: CallbackQuery, state: FSMCo
     logger.info("Вызван обработчик manager_show_microtopics_summary")
     from common.analytics.handlers import show_microtopics_summary
     await show_microtopics_summary(callback, state)
+    # Переходим в состояние отображения статистики студента
+    await state.set_state(ManagerAnalyticsStates.student_stats_display)
 
 # Обработчик для возврата к статистике студента
 @router.callback_query(F.data.startswith("back_to_student_"))
@@ -268,6 +274,8 @@ async def manager_show_group_microtopics_detailed(callback: CallbackQuery, state
     logger.info("Вызван обработчик manager_show_group_microtopics_detailed")
     from common.statistics import show_group_microtopics_detailed
     await show_group_microtopics_detailed(callback, state)
+    # Переходим в состояние отображения статистики группы
+    await state.set_state(ManagerAnalyticsStates.group_stats_display)
 
 @router.callback_query(F.data.startswith("group_rating_"))
 async def manager_show_group_rating(callback: CallbackQuery, state: FSMContext):
@@ -275,3 +283,5 @@ async def manager_show_group_rating(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик manager_show_group_rating")
     from common.statistics import show_group_rating
     await show_group_rating(callback, state)
+    # Переходим в состояние отображения статистики группы
+    await state.set_state(ManagerAnalyticsStates.group_stats_display)

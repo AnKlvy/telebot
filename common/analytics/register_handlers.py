@@ -62,11 +62,15 @@ def register_analytics_handlers(router, states_group, role):
     async def role_show_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_show_microtopics_detailed | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await show_microtopics_detailed(callback, state)
+        # Переходим в состояние отображения статистики студента
+        await state.set_state(states_group.student_stats_display)
 
     @router.callback_query(states_group.student_stats, F.data.startswith("microtopics_summary_"))
     async def role_show_microtopics_summary(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_show_microtopics_summary | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await show_microtopics_summary(callback, state)
+        # Переходим в состояние отображения статистики студента
+        await state.set_state(states_group.student_stats_display)
 
     @router.callback_query(F.data.startswith("back_to_student_"))
     async def role_back_to_student_analytics(callback: CallbackQuery, state: FSMContext):
@@ -102,8 +106,12 @@ def register_analytics_handlers(router, states_group, role):
     async def role_show_group_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_show_group_microtopics_detailed | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await show_group_microtopics_detailed(callback, state)
+        # Переходим в состояние отображения статистики группы
+        await state.set_state(states_group.group_stats_display)
 
     @router.callback_query(states_group.group_stats, F.data.startswith("group_rating_"))
     async def role_show_group_rating(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_show_group_rating | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await show_group_rating(callback, state)
+        # Переходим в состояние отображения статистики группы
+        await state.set_state(states_group.group_stats_display)

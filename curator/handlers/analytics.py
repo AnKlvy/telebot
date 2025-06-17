@@ -7,8 +7,10 @@ class CuratorAnalyticsStates(StatesGroup):
     select_group_for_student = State()
     select_student = State()
     student_stats = State()
+    student_stats_display = State()  # Новое состояние для отображения статистики студента
     select_group_for_group = State()
     group_stats = State()
+    group_stats_display = State()  # Новое состояние для отображения статистики группы
     select_subject = State()
     subject_stats = State()
 

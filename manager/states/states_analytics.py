@@ -20,9 +20,11 @@ STATE_TRANSITIONS = {
     ManagerAnalyticsStates.select_group_for_student: ManagerAnalyticsStates.select_curator_for_student,
     ManagerAnalyticsStates.select_student: ManagerAnalyticsStates.select_group_for_student,
     ManagerAnalyticsStates.student_stats: ManagerAnalyticsStates.select_student,
+    ManagerAnalyticsStates.student_stats_display: ManagerAnalyticsStates.student_stats,  # Возврат к статистике студента
     ManagerAnalyticsStates.select_curator_for_group: ManagerAnalyticsStates.main,
     ManagerAnalyticsStates.select_group_for_group: ManagerAnalyticsStates.select_curator_for_group,
     ManagerAnalyticsStates.group_stats: ManagerAnalyticsStates.select_group_for_group,
+    ManagerAnalyticsStates.group_stats_display: ManagerAnalyticsStates.group_stats,  # Возврат к статистике группы
     ManagerAnalyticsStates.select_subject: ManagerAnalyticsStates.main,
     ManagerAnalyticsStates.subject_stats: ManagerAnalyticsStates.select_subject,
     ManagerAnalyticsStates.general_stats: ManagerAnalyticsStates.main
@@ -35,9 +37,11 @@ STATE_HANDLERS = {
     ManagerAnalyticsStates.select_group_for_student: manager_select_group_for_student,
     ManagerAnalyticsStates.select_student: manager_select_student_for_analytics,
     ManagerAnalyticsStates.student_stats: manager_show_student_analytics,
+    ManagerAnalyticsStates.student_stats_display: manager_show_student_analytics,  # Тот же обработчик для отображения
     ManagerAnalyticsStates.select_curator_for_group: manager_select_curator_for_group,
     ManagerAnalyticsStates.select_group_for_group: manager_select_group_for_group,
     ManagerAnalyticsStates.group_stats: manager_show_group_analytics,
+    ManagerAnalyticsStates.group_stats_display: manager_show_group_analytics,  # Тот же обработчик для отображения
     ManagerAnalyticsStates.select_subject: manager_select_subject,
     ManagerAnalyticsStates.subject_stats: manager_show_subject_analytics,
     ManagerAnalyticsStates.general_stats: manager_show_general_analytics
