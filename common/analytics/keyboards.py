@@ -26,20 +26,44 @@ def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
 
 async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для аналитики"""
+    print(f"🔍 ANALYTICS: role={role}, telegram_id={user_telegram_id}")
+
     # Получаем реальные группы из базы данных
     try:
-        if role == "curator" and user_telegram_id:
-            # Для куратора получаем только его группы
+        # Проверяем, нужно ли получать группы конкретного куратора
+        # Это происходит если:
+        # 1. role == "curator" и есть telegram_id
+        # 2. role == "admin" и есть telegram_id (админ работает в контексте куратора)
+        should_get_curator_groups = (
+            (role == "curator" or role == "admin") and user_telegram_id
+        )
+
+        if should_get_curator_groups:
+            # Для куратора (или админа в контексте куратора) получаем только его группы
             user = await UserRepository.get_by_telegram_id(user_telegram_id)
-            if user and user.curator_profile:
-                groups = await CuratorRepository.get_curator_groups(user.curator_profile.id)
+            print(f"🔍 ANALYTICS: Пользователь: {user.name if user else 'НЕ НАЙДЕН'}")
+
+            if user:
+                # Получаем профиль куратора по user_id (исправляем ошибку SQLAlchemy)
+                curator = await CuratorRepository.get_by_user_id(user.id)
+                print(f"🔍 ANALYTICS: Куратор: {'ID=' + str(curator.id) if curator else 'НЕ НАЙДЕН'}")
+
+                if curator:
+                    groups = await CuratorRepository.get_curator_groups(curator.id)
+                    print(f"🔍 ANALYTICS: Найдено групп куратора: {len(groups)}")
+                else:
+                    groups = []
+                    print(f"❌ ANALYTICS: Не является куратором")
             else:
                 groups = []
         else:
             # Для других ролей получаем все группы
             groups = await GroupRepository.get_all()
+            print(f"🔍 ANALYTICS: Всего групп для {role}: {len(groups)}")
     except Exception as e:
-        print(f"Ошибка при получении групп: {e}")
+        print(f"❌ ANALYTICS: Ошибка - {e}")
+        import traceback
+        traceback.print_exc()
         groups = []
 
     buttons = []
@@ -245,6 +269,28 @@ def get_general_microtopics_kb() -> InlineKeyboardMarkup:
 
 def get_back_to_general_analytics_kb() -> InlineKeyboardMarkup:
     """Клавиатура возврата к общей статистике"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        *get_main_menu_back_button()
+    ])
+
+
+def get_group_analytics_kb(group_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура для просмотра статистики по группе"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📈 % понимания по микротемам",
+            callback_data=f"group_microtopics_detailed_{group_id}"
+        )],
+        [InlineKeyboardButton(
+            text="📋 Рейтинг по баллам",
+            callback_data=f"group_rating_{group_id}"
+        )],
+        *get_main_menu_back_button()
+    ])
+
+
+def get_back_to_group_analytics_kb(group_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура возврата к статистике группы"""
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button()
     ])

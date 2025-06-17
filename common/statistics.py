@@ -1376,12 +1376,116 @@ async def show_group_analytics(callback: CallbackQuery, state: FSMContext, role:
     # Получаем данные о группе из общего компонента
     group_data = await get_group_stats(group_id)
 
-    # Форматируем статистику в текст
-    result_text = format_group_stats(group_data)
+    # Формируем базовую информацию о группе
+    result_text = f"👥 Группа: {group_data['name']}\n"
+    result_text += f"📗 Предмет: {group_data['subject']}\n"
+    result_text += f"📊 Средний % выполнения ДЗ: {group_data['homework_completion']}%\n\n"
+    result_text += "Выберите, что хотите посмотреть:"
+
+    # Импортируем клавиатуру
+    from common.analytics.keyboards import get_group_analytics_kb
 
     await callback.message.edit_text(
         result_text,
-        reply_markup=get_back_to_analytics_kb()
+        reply_markup=get_group_analytics_kb(int(group_id))
     )
+
+
+async def show_group_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+    """
+    Показать детальную статистику по микротемам группы
+
+    Args:
+        callback: Объект CallbackQuery
+        state: Контекст состояния FSM
+    """
+    # Извлекаем group_id из callback_data
+    # Формат: group_microtopics_detailed_GROUP_ID
+    parts = callback.data.split("_")
+    if len(parts) >= 4:
+        group_id = int(parts[3])
+
+        # Получаем данные о группе
+        group_data = await get_group_stats(str(group_id))
+
+        # Формируем текст только с микротемами
+        result_text = f"👥 Группа: {group_data['name']}\n"
+        result_text += f"📗 Предмет: {group_data['subject']}\n\n"
+
+        # Добавляем информацию о микротемах
+        if group_data["topics"]:
+            result_text += "📈 Средний % понимания по микротемам:\n"
+            for topic, percentage in group_data["topics"].items():
+                # Определяем статус
+                if percentage >= 80:
+                    status = "✅"
+                elif percentage <= 40:
+                    status = "❌"
+                else:
+                    status = "⚠️"
+                result_text += f"• {topic} — {percentage}% {status}\n"
+        else:
+            result_text += "📈 Статистика по микротемам пока недоступна\n"
+
+        # Импортируем клавиатуру
+        from common.analytics.keyboards import get_back_to_analytics_kb
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_analytics_kb()
+        )
+    else:
+        from common.analytics.keyboards import get_back_to_analytics_kb
+        await callback.message.edit_text(
+            "❌ Ошибка в данных запроса",
+            reply_markup=get_back_to_analytics_kb()
+        )
+
+
+async def show_group_rating(callback: CallbackQuery, state: FSMContext):
+    """
+    Показать рейтинг по баллам группы
+
+    Args:
+        callback: Объект CallbackQuery
+        state: Контекст состояния FSM
+    """
+    # Извлекаем group_id из callback_data
+    # Формат: group_rating_GROUP_ID
+    parts = callback.data.split("_")
+    if len(parts) >= 3:
+        group_id = int(parts[2])
+
+        # Получаем данные о группе
+        group_data = await get_group_stats(str(group_id))
+
+        # Формируем текст только с рейтингом
+        result_text = f"👥 Группа: {group_data['name']}\n"
+        result_text += f"📗 Предмет: {group_data['subject']}\n\n"
+
+        # Добавляем рейтинг по баллам
+        if group_data["rating"]:
+            result_text += "📋 Рейтинг по баллам:\n"
+            for i, student in enumerate(group_data["rating"], 1):
+                result_text += f"{i}. {student['name']} — {student['points']} баллов\n"
+        else:
+            result_text += "📋 Рейтинг пока недоступен\n"
+
+        # Импортируем клавиатуру
+        from common.analytics.keyboards import get_back_to_analytics_kb
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_analytics_kb()
+        )
+    else:
+        from common.analytics.keyboards import get_back_to_analytics_kb
+        await callback.message.edit_text(
+            "❌ Ошибка в данных запроса",
+            reply_markup=get_back_to_analytics_kb()
+        )
+
+
+
 
 

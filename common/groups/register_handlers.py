@@ -15,6 +15,7 @@ def register_groups_handlers(router: Router, states_group, role: str):
     @router.callback_query(F.data == f"{role}_my_group")
     async def show_role_groups(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: show_role_groups | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
+        print(f"🔍 REGISTER: {role}_my_group от {callback.from_user.id}")
         await show_groups(callback, state, role)
         await state.set_state(states_group.select_group)
 
