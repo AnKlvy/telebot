@@ -39,7 +39,7 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
             (role == "curator" or role == "teacher" or role == "admin") and user_telegram_id
         )
 
-        if should_get_curator_groups:
+        if should_get_role_specific_groups:
             # Для куратора (или админа в контексте куратора) получаем только его группы
             user = await UserRepository.get_by_telegram_id(user_telegram_id)
             print(f"🔍 ANALYTICS: Пользователь: {user.name if user else 'НЕ НАЙДЕН'}")
