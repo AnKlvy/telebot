@@ -37,42 +37,54 @@ async def select_group_for_individual(callback: CallbackQuery, state: FSMContext
     """Выбор группы для индивидуального сообщения"""
     await callback.message.edit_text(
         "Выберите группу ученика:",
-        reply_markup=get_groups_for_message_kb()
+        reply_markup=await get_groups_for_message_kb()
     )
     await state.set_state(MessageStates.select_group_individual)
 
 @router.callback_query(MessageStates.select_group_individual, F.data.startswith("msg_group_"))
 async def select_student_for_message(callback: CallbackQuery, state: FSMContext):
     """Выбор ученика для индивидуального сообщения"""
-    group_id = callback.data.replace("msg_group_", "")
+    group_id = int(callback.data.replace("msg_group_", ""))
     await state.update_data(selected_group=group_id)
 
     await callback.message.edit_text(
         "Выберите ученика для отправки сообщения:",
-        reply_markup=get_students_for_message_kb(group_id)
+        reply_markup=await get_students_for_message_kb(group_id)
     )
     await state.set_state(MessageStates.select_student)
 
 @router.callback_query(MessageStates.select_student, F.data.startswith("msg_student_"))
 async def enter_individual_message(callback: CallbackQuery, state: FSMContext):
     """Ввод текста индивидуального сообщения"""
-    student_id = callback.data.replace("msg_student_", "")
+    student_id = int(callback.data.replace("msg_student_", ""))
 
-    # В реальном приложении здесь будет запрос к базе данных
-    student_names = {
-        "student1": "Медина Махамбет",
-        "student2": "Алтынай Ерланова",
-        "student3": "Арман Сериков",
-        "student4": "Аружан Ахметова"
-    }
+    try:
+        from database import StudentRepository
 
-    student_name = student_names.get(student_id, "Неизвестный ученик")
+        # Получаем реального студента из базы данных
+        student = await StudentRepository.get_by_id(student_id)
 
-    await state.update_data(selected_student=student_id, student_name=student_name)
+        if not student:
+            await callback.message.edit_text(
+                "❌ Студент не найден",
+                reply_markup=await get_groups_for_message_kb()
+            )
+            return
 
-    await callback.message.edit_text(
-        f"Введите текст сообщения для ученика {student_name}:"
-    )
+        student_name = student.user.name
+        await state.update_data(selected_student=student_id, student_name=student_name)
+
+        await callback.message.edit_text(
+            f"Введите текст сообщения для ученика {student_name}:"
+        )
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении студента: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при загрузке данных студента",
+            reply_markup=await get_groups_for_message_kb()
+        )
+        return
     await state.set_state(MessageStates.enter_individual_message)
 
 @router.message(MessageStates.enter_individual_message)
@@ -103,37 +115,50 @@ async def send_individual_message(callback: CallbackQuery, state: FSMContext):
     # Получаем бота из контекста
     bot = callback.bot
 
-    # Словарь с Telegram ID учеников (в реальном приложении это будет из БД)
-    student_telegram_ids = {
-        "student1": 7265679697,  # Замените на реальный ID
-        "student2": 987654321,  # Замените на реальный ID
-        "student3": 123123123,  # Замените на реальный ID
-        "student4": 321321321   # Замените на реальный ID
-    }
+    try:
+        from database import StudentRepository
 
-    # Получаем Telegram ID ученика
-    telegram_id = student_telegram_ids.get(student_id)
+        # Получаем реального студента из базы данных
+        student = await StudentRepository.get_by_id(student_id)
 
-    success = False
-    if telegram_id:
-        try:
-            # Отправляем сообщение ученику
-            await bot.send_message(
-                chat_id=telegram_id,
-                text=f"Сообщение от куратора:\n\n{message_text}"
+        if not student:
+            await callback.message.edit_text(
+                f"❌ Студент не найден в базе данных",
+                reply_markup=get_messages_menu_kb()
             )
-            success = True
-        except Exception as e:
-            print(f"Ошибка при отправке сообщения: {e}")
+            await state.set_state(MessageStates.main)
+            return
 
-    if success:
+        # Получаем Telegram ID ученика
+        telegram_id = student.user.telegram_id
+
+        success = False
+        if telegram_id:
+            try:
+                # Отправляем сообщение ученику
+                await bot.send_message(
+                    chat_id=telegram_id,
+                    text=f"Сообщение от куратора:\n\n{message_text}"
+                )
+                success = True
+            except Exception as e:
+                print(f"Ошибка при отправке сообщения: {e}")
+
+        if success:
+            await callback.message.edit_text(
+                f"✅ Сообщение успешно отправлено ученику {student_name}!",
+                reply_markup=get_messages_menu_kb()
+            )
+        else:
+            await callback.message.edit_text(
+                f"❌ Не удалось отправить сообщение ученику {student_name}. Проверьте Telegram ID ученика.",
+                reply_markup=get_messages_menu_kb()
+            )
+
+    except Exception as e:
+        print(f"❌ Ошибка при отправке сообщения: {e}")
         await callback.message.edit_text(
-            f"✅ Сообщение успешно отправлено ученику {student_name}!",
-            reply_markup=get_messages_menu_kb()
-        )
-    else:
-        await callback.message.edit_text(
-            f"❌ Не удалось отправить сообщение ученику {student_name}. Проверьте ID ученика.",
+            f"❌ Ошибка при отправке сообщения ученику {student_name}",
             reply_markup=get_messages_menu_kb()
         )
 
@@ -145,27 +170,46 @@ async def select_group_for_mass(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для массовой рассылки"""
     await callback.message.edit_text(
         "Выберите группу для массовой рассылки:",
-        reply_markup=get_groups_for_message_kb()
+        reply_markup=await get_groups_for_message_kb()
     )
     await state.set_state(MessageStates.select_group_mass)
 
 @router.callback_query(MessageStates.select_group_mass, F.data.startswith("msg_group_"))
 async def enter_mass_message(callback: CallbackQuery, state: FSMContext):
     """Ввод текста массовой рассылки"""
-    group_id = callback.data.replace("msg_group_", "")
-    
-    # Определяем название группы
-    group_names = {
-        "group1": "Интенсив. География",
-        "group2": "Интенсив. Математика"
-    }
-    group_name = group_names.get(group_id, "Неизвестная группа")
-    
-    await state.update_data(selected_group=group_id, group_name=group_name)
-    
-    await callback.message.edit_text(
-        f"Введите текст сообщения для рассылки всем ученикам группы {group_name}:"
-    )
+    group_id = int(callback.data.replace("msg_group_", ""))
+
+    try:
+        from database import GroupRepository
+
+        # Получаем реальную группу из базы данных
+        group = await GroupRepository.get_by_id(group_id)
+
+        if not group:
+            await callback.message.edit_text(
+                "❌ Группа не найдена",
+                reply_markup=await get_groups_for_message_kb()
+            )
+            return
+
+        group_name = f"{group.name}"
+        if group.subject:
+            group_name += f" ({group.subject.name})"
+
+        await state.update_data(selected_group=group_id, group_name=group_name)
+
+        await callback.message.edit_text(
+            f"Введите текст сообщения для рассылки всем ученикам группы {group_name}:"
+        )
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении группы: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при загрузке данных группы",
+            reply_markup=await get_groups_for_message_kb()
+        )
+        return
+
     await state.set_state(MessageStates.enter_mass_message)
 
 @router.message(MessageStates.enter_mass_message)
@@ -192,56 +236,66 @@ async def send_mass_message(callback: CallbackQuery, state: FSMContext):
     group_id = user_data.get("selected_group")
     group_name = user_data.get("group_name", "Неизвестная группа")
     message_text = user_data.get("message_text", "")
-    
+
     # Получаем бота из контекста
     bot = callback.bot
-    
-    # Словарь с учениками по группам (в реальном приложении это будет из БД)
-    group_students = {
-        "group1": [
-            {"id": "student1", "telegram_id": 7265679697, "name": "Медина Махамбет"},
-            {"id": "student2", "telegram_id": 955518340, "name": "Андрей Климов"}
-        ],
-        "group2": [
-            {"id": "student3", "telegram_id": 7265679697, "name": "Арман Сериков"},
-            {"id": "student4", "telegram_id": 955518340, "name": "Аружан Ахметова"}
-        ]
-    }
-    
-    # Получаем список учеников группы
-    students = group_students.get(group_id, [])
-    
-    # Счетчики для статистики
-    sent_count = 0
-    failed_count = 0
-    
-    # Отправляем сообщение каждому ученику группы
-    for student in students:
-        telegram_id = student.get("telegram_id")
-        if telegram_id:
-            try:
-                # Отправляем сообщение ученику
-                await bot.send_message(
-                    chat_id=telegram_id,
-                    text=f"Сообщение от куратора для группы {group_name}:\n\n{message_text}"
-                )
-                sent_count += 1
-            except Exception as e:
-                print(f"Ошибка при отправке сообщения ученику {student.get('name')}: {e}")
+
+    try:
+        from database import StudentRepository
+
+        # Получаем реальных студентов группы из базы данных
+        students = await StudentRepository.get_by_group(group_id)
+
+        if not students:
+            await callback.message.edit_text(
+                f"❌ В группе {group_name} нет студентов",
+                reply_markup=get_messages_menu_kb()
+            )
+            await state.set_state(MessageStates.main)
+            return
+
+        # Счетчики для статистики
+        sent_count = 0
+        failed_count = 0
+
+        # Отправляем сообщение каждому ученику группы
+        for student in students:
+            telegram_id = student.user.telegram_id
+            if telegram_id:
+                try:
+                    # Отправляем сообщение ученику
+                    await bot.send_message(
+                        chat_id=telegram_id,
+                        text=f"Сообщение от куратора для группы {group_name}:\n\n{message_text}"
+                    )
+                    sent_count += 1
+                except Exception as e:
+                    print(f"Ошибка при отправке сообщения ученику {student.user.name}: {e}")
+                    failed_count += 1
+            else:
+                print(f"У студента {student.user.name} нет Telegram ID")
                 failed_count += 1
-    
-    # Формируем отчет об отправке
-    if sent_count > 0:
-        status_text = f"✅ Сообщение успешно отправлено {sent_count} ученикам группы {group_name}!"
-        if failed_count > 0:
-            status_text += f"\n❌ Не удалось отправить сообщение {failed_count} ученикам."
-    else:
-        status_text = f"❌ Не удалось отправить сообщение ни одному ученику группы {group_name}."
-    
-    await callback.message.edit_text(
-        status_text,
-        reply_markup=get_messages_menu_kb()
-    )
+
+        # Формируем отчет об отправке
+        if sent_count > 0:
+            status_text = f"✅ Сообщение успешно отправлено {sent_count} ученикам группы {group_name}!"
+            if failed_count > 0:
+                status_text += f"\n❌ Не удалось отправить сообщение {failed_count} ученикам."
+        else:
+            status_text = f"❌ Не удалось отправить сообщение ни одному ученику группы {group_name}."
+
+        await callback.message.edit_text(
+            status_text,
+            reply_markup=get_messages_menu_kb()
+        )
+
+    except Exception as e:
+        print(f"❌ Ошибка при массовой рассылке: {e}")
+        await callback.message.edit_text(
+            f"❌ Ошибка при отправке сообщений группе {group_name}",
+            reply_markup=get_messages_menu_kb()
+        )
+
     await state.set_state(MessageStates.main)
 
 # Обработчики для отмены и навигации

@@ -10,55 +10,75 @@ def get_messages_menu_kb() -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
     ])
 
-def get_groups_for_message_kb() -> InlineKeyboardMarkup:
+async def get_groups_for_message_kb() -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для сообщения"""
-    # В реальном приложении здесь будет запрос к базе данных
-    groups = [
-        {"id": "group1", "name": "Интенсив. География"},
-        {"id": "group2", "name": "Интенсив. Математика"}
-    ]
-    
-    buttons = []
-    for group in groups:
-        buttons.append([
-            InlineKeyboardButton(
-                text=group["name"], 
-                callback_data=f"msg_group_{group['id']}"
-            )
-        ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    try:
+        from database import GroupRepository
 
-def get_students_for_message_kb(group_id: str) -> InlineKeyboardMarkup:
-    """Клавиатура выбора ученика для сообщения"""
-    # В реальном приложении здесь будет запрос к базе данных
-    students = {
-        "group1": [
-            {"id": "student1", "name": "Медина Махамбет"},
-            {"id": "student2", "name": "Алтынай Ерланова"}
-        ],
-        "group2": [
-            {"id": "student3", "name": "Арман Сериков"},
-            {"id": "student4", "name": "Аружан Ахметова"}
-        ]
-    }
-    
-    group_students = students.get(group_id, [])
-    
-    buttons = []
-    for student in group_students:
-        buttons.append([
-            InlineKeyboardButton(
-                text=student["name"], 
-                callback_data=f"msg_student_{student['id']}"
-            )
+        # Получаем реальные группы из базы данных
+        groups = await GroupRepository.get_all()
+
+        if not groups:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Группы не найдены", callback_data="no_groups")],
+                *get_main_menu_back_button()
+            ])
+
+        buttons = []
+        for group in groups:
+            group_name = f"{group.name}"
+            if group.subject:
+                group_name += f" ({group.subject.name})"
+
+            buttons.append([
+                InlineKeyboardButton(
+                    text=group_name,
+                    callback_data=f"msg_group_{group.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении групп: {e}")
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Ошибка загрузки групп", callback_data="error_groups")],
+            *get_main_menu_back_button()
         ])
-    
-    buttons.extend(get_main_menu_back_button())
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+async def get_students_for_message_kb(group_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура выбора ученика для сообщения"""
+    try:
+        from database import StudentRepository
+
+        # Получаем реальных студентов группы из базы данных
+        students = await StudentRepository.get_by_group(group_id)
+
+        if not students:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Студенты не найдены", callback_data="no_students")],
+                *get_main_menu_back_button()
+            ])
+
+        buttons = []
+        for student in students:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=student.user.name,
+                    callback_data=f"msg_student_{student.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении студентов: {e}")
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Ошибка загрузки студентов", callback_data="error_students")],
+            *get_main_menu_back_button()
+        ])
 
 def get_confirm_message_kb() -> InlineKeyboardMarkup:
     """Клавиатура подтверждения отправки сообщения"""

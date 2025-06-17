@@ -11,27 +11,42 @@ def get_homework_menu_kb() -> InlineKeyboardMarkup:
     ])
 
 
-def get_groups_kb(course_id: str = None) -> InlineKeyboardMarkup:
+async def get_groups_kb(course_id: str = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы"""
-    # В реальном приложении здесь будет запрос к базе данных
-    # для получения списка групп по конкретному курсу
-    groups = [
-        {"id": "group1", "name": "Интенсив. География"},
-        {"id": "group2", "name": "Интенсив. Математика"}
-    ]
+    try:
+        from database import GroupRepository
 
-    buttons = []
-    for group in groups:
-        buttons.append([
-            InlineKeyboardButton(
-                text=group["name"],
-                callback_data=f"hw_group_{group['id']}"
-            )
+        # Получаем реальные группы из базы данных
+        groups = await GroupRepository.get_all()
+
+        if not groups:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Группы не найдены", callback_data="no_groups")],
+                *get_main_menu_back_button()
+            ])
+
+        buttons = []
+        for group in groups:
+            group_name = f"{group.name}"
+            if group.subject:
+                group_name += f" ({group.subject.name})"
+
+            buttons.append([
+                InlineKeyboardButton(
+                    text=group_name,
+                    callback_data=f"hw_group_{group.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении групп: {e}")
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Ошибка загрузки групп", callback_data="error_groups")],
+            *get_main_menu_back_button()
         ])
-
-    buttons.extend(get_main_menu_back_button())
-
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_students_by_homework_kb(lesson_id: str) -> InlineKeyboardMarkup:

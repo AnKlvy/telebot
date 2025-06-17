@@ -25,7 +25,9 @@ def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
 
 async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора группы для аналитики"""
-    print(f"🔍 ANALYTICS: role={role}, telegram_id={user_telegram_id}")
+    print(f"🔍 ЛОГИРОВАНИЕ get_groups_for_analytics_kb:")
+    print(f"   🎭 role: {role}")
+    print(f"   👤 user_telegram_id: {user_telegram_id}")
 
     # Получаем реальные группы из базы данных
     try:
@@ -55,9 +57,11 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
 
                     if curator:
                         groups = await CuratorRepository.get_curator_groups(curator.id)
-                        print(f"🔍 ANALYTICS: Найдено групп куратора: {len(groups)}")
+                        print(f"   📚 Найдено групп куратора: {len(groups)}")
+                        for i, group in enumerate(groups):
+                            print(f"   📖 Группа {i+1}: ID={group.id}, Название={group.name}, Предмет={group.subject.name if group.subject else 'НЕТ'}")
                     else:
-                        print(f"❌ ANALYTICS: Не является куратором")
+                        print(f"   ❌ Пользователь не является куратором")
 
                 elif role == "teacher":
                     # Получаем профиль учителя по user_id
@@ -81,18 +85,22 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
         traceback.print_exc()
         groups = []
 
+    print(f"   🔘 Создаем кнопки для {len(groups)} групп")
     buttons = []
-    for group in groups:
+    for i, group in enumerate(groups):
         # Показываем название группы с предметом
         group_name = f"{group.name} ({group.subject.name})" if group.subject else group.name
+        callback_data = f"analytics_group_{group.id}"
+        print(f"   🔘 Кнопка {i+1}: {group_name} -> {callback_data}")
         buttons.append([
             InlineKeyboardButton(
                 text=group_name,
-                callback_data=f"analytics_group_{group.id}"
+                callback_data=callback_data
             )
         ])
 
     if not buttons:
+        print(f"   ⚠️ Группы не найдены, добавляем заглушку")
         buttons.append([
             InlineKeyboardButton(
                 text="❌ Группы не найдены",
@@ -101,28 +109,45 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
         ])
 
     buttons.extend(get_main_menu_back_button())
+    print(f"   ✅ Клавиатура групп создана с {len(buttons)} кнопками")
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора ученика для аналитики"""
+    print(f"🔍 ЛОГИРОВАНИЕ get_students_for_analytics_kb:")
+    print(f"   📥 Входящий group_id: {group_id} (тип: {type(group_id)})")
+
     # Получаем реальных студентов из базы данных
     try:
-        students = await StudentRepository.get_by_group(int(group_id))
+        group_id_int = int(group_id)
+        print(f"   🔢 Преобразованный group_id: {group_id_int}")
+
+        students = await StudentRepository.get_by_group(group_id_int)
+        print(f"   👥 Найдено студентов: {len(students)}")
+
+        for i, student in enumerate(students):
+            print(f"   👤 Студент {i+1}: ID={student.id}, Имя={student.user.name}, Группа={student.group_id}")
+
     except Exception as e:
-        print(f"Ошибка при получении студентов: {e}")
+        print(f"   ❌ Ошибка при получении студентов: {e}")
+        import traceback
+        traceback.print_exc()
         students = []
 
     buttons = []
     for student in students:
+        callback_data = f"analytics_student_{student.id}"
+        print(f"   🔘 Создаем кнопку: {student.user.name} -> {callback_data}")
         buttons.append([
             InlineKeyboardButton(
                 text=student.user.name,
-                callback_data=f"analytics_student_{student.id}"
+                callback_data=callback_data
             )
         ])
 
     if not buttons:
+        print(f"   ⚠️ Студенты не найдены, добавляем заглушку")
         buttons.append([
             InlineKeyboardButton(
                 text="❌ Студенты не найдены",
@@ -131,6 +156,7 @@ async def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
         ])
 
     buttons.extend(get_main_menu_back_button())
+    print(f"   ✅ Клавиатура создана с {len(buttons)} кнопками")
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

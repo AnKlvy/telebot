@@ -43,10 +43,10 @@ async def select_student_stats_group(callback: CallbackQuery, state: FSMContext)
     """Выбор группы для статистики по ученику"""
     course_id = callback.data.replace("course_", "")
     await state.update_data(selected_course=course_id)
-    
+
     await callback.message.edit_text(
         "Выберите группу:",
-        reply_markup=get_groups_kb(course_id)
+        reply_markup=await get_groups_kb(course_id)
     )
     await state.set_state(CuratorHomeworkStates.student_stats_group)
 
@@ -121,7 +121,7 @@ async def select_group_stats_group(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для статистики по группе"""
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики:",
-        reply_markup=get_groups_kb()
+        reply_markup=await get_groups_kb()
     )
     await state.set_state(CuratorHomeworkStates.group_stats_group)
 

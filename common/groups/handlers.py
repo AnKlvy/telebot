@@ -2,6 +2,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from .states import GroupStates
 from .keyboards import get_groups_kb, get_students_kb, get_student_profile_kb
+from common.keyboards import get_main_menu_back_button
 
 async def show_groups(callback: CallbackQuery, state: FSMContext, role: str):
     """
@@ -31,7 +32,33 @@ async def show_group_students(callback: CallbackQuery, state: FSMContext, role: 
         state: Контекст состояния FSM
         role: Роль пользователя (curator, teacher)
     """
-    group_id_str = callback.data.replace(f"{role}_group_", "")
+    current_state = await state.get_state()
+    data = await state.get_data()
+
+    print(f"🔍 ЛОГИРОВАНИЕ show_group_students:")
+    print(f"   📞 callback.data: {callback.data}")
+    print(f"   👤 user_id: {callback.from_user.id}")
+    print(f"   🎭 role: {role}")
+    print(f"   🔄 current_state: {current_state}")
+    print(f"   💾 FSM data: {data}")
+
+    # Проверяем, это новый выбор группы или возврат назад
+    if callback.data.startswith(f"{role}_group_"):
+        # Новый выбор группы
+        group_id_str = callback.data.replace(f"{role}_group_", "")
+        print(f"   ✅ НОВЫЙ ВЫБОР ГРУППЫ: {group_id_str}")
+    elif callback.data == "back" and data.get('selected_group'):
+        # Возврат назад, используем сохраненные данные
+        group_id_str = str(data.get('selected_group'))
+        print(f"   🔄 ВОЗВРАТ НАЗАД: используем сохраненную группу {group_id_str}")
+    else:
+        print(f"   ❌ ОШИБКА: Не удалось определить group_id")
+        print(f"   📋 callback.data не начинается с '{role}_group_' и нет сохраненной группы")
+        await callback.message.edit_text(
+            "❌ Ошибка: не удалось определить группу",
+            reply_markup=get_main_menu_back_button()
+        )
+        return
 
     # Проверяем, является ли group_id числом (реальный ID из БД) или строкой (хардкод)
     try:
@@ -47,23 +74,26 @@ async def show_group_students(callback: CallbackQuery, state: FSMContext, role: 
         else:
             group_name = "Неизвестная группа"
 
+        print(f"   📖 Группа из БД: ID={group_id}, Название={group_name}")
+
     except ValueError:
-        # Это хардкодированный ID (строка)
-        group_names = {
-            "chem_premium": "Химия — Премиум",
-            "bio_intensive": "Биология — Интенсив",
-            "history_basic": "История — Базовый"
-        }
-        group_name = group_names.get(group_id_str, "Неизвестная группа")
-        group_id = group_id_str  # Оставляем как строку для совместимости
+        # Это не числовой ID - ошибка, так как хардкод убран
+        print(f"   ❌ Неверный group_id: {group_id_str}. Ожидается числовой ID")
+        await callback.message.edit_text(
+            "❌ Ошибка: неверный идентификатор группы",
+            reply_markup=get_main_menu_back_button()
+        )
+        return
 
     await state.update_data(selected_group=group_id, group_name=group_name)
+    print(f"   💾 Сохранено в состоянии: selected_group={group_id}, group_name={group_name}")
 
     await callback.message.edit_text(
         f"Группа: {group_name}\n\n"
         "Выберите ученика для просмотра информации:",
         reply_markup=await get_students_kb(role, group_id)
     )
+    print(f"   ✅ Сообщение обновлено, показаны студенты группы {group_id}")
 
 async def show_student_profile(callback: CallbackQuery, state: FSMContext, role: str):
     """

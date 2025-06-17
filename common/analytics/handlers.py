@@ -54,6 +54,8 @@ async def select_group_for_student_analytics(callback: CallbackQuery, state: FSM
     data = await state.get_data()
     curator_id = data.get('selected_curator')
 
+    print(f"🔍 DEBUG select_group_for_student_analytics: role={role}, curator_id={curator_id}, data={data}")
+
     if curator_id and role == "manager":
         # Если выбран куратор, показываем его группы
         keyboard = await get_groups_by_curator_kb(curator_id)
@@ -81,20 +83,58 @@ async def select_group_for_student_analytics(callback: CallbackQuery, state: FSM
 async def select_student_for_analytics(callback: CallbackQuery, state: FSMContext, role: str):
     """
     Базовый обработчик для выбора ученика для статистики
-    
+
     Args:
         callback: Объект CallbackQuery
         state: Контекст состояния FSM
         role: Роль пользователя (curator)
     """
-    group_id = await check_if_id_in_callback_data("analytics_group_", callback, state, "group")
+    current_state = await state.get_state()
+    print(f"🔍 ЛОГИРОВАНИЕ select_student_for_analytics:")
+    print(f"   📞 callback.data: {callback.data}")
+    print(f"   👤 user_id: {callback.from_user.id}")
+    print(f"   🎭 role: {role}")
+    print(f"   🔄 current_state: {current_state}")
 
-    
+    # Получаем все данные из состояния
+    data = await state.get_data()
+    print(f"   💾 FSM data: {data}")
+
+    saved_group_id = data.get('selected_group')
+    print(f"   🏷️ saved_group_id: {saved_group_id}")
+
+    group_id = None
+
+    if callback.data.startswith("analytics_group_"):
+        # Если это новый выбор группы, извлекаем ID из callback
+        group_id = await check_if_id_in_callback_data("analytics_group_", callback, state, "group")
+        # Сохраняем ID группы в состоянии для возможности возврата
+        await state.update_data(selected_group=group_id)
+        print(f"   ✅ НОВЫЙ ВЫБОР ГРУППЫ: {group_id}, сохранено в состоянии")
+    elif saved_group_id:
+        # Если это возврат назад, используем сохраненный ID группы
+        group_id = saved_group_id
+        print(f"   🔄 ВОЗВРАТ НАЗАД: используем сохраненную группу {group_id}")
+    else:
+        print(f"   ❌ ОШИБКА: Не удалось определить group_id")
+        print(f"   📋 callback.data не начинается с 'analytics_group_' и saved_group_id пустой")
+        await callback.message.edit_text(
+            "❌ Ошибка: не удалось определить группу",
+            reply_markup=get_back_to_analytics_kb()
+        )
+        return
+
+    print(f"   🎯 ИТОГОВЫЙ group_id: {group_id}")
+
+    # Получаем студентов группы
     students_kb = await get_students_for_analytics_kb(group_id)
+    print(f"   👥 Получена клавиатура студентов для группы {group_id}")
+
     await callback.message.edit_text(
         "Выберите ученика для просмотра статистики:",
         reply_markup=students_kb
     )
+    print(f"   ✅ Сообщение обновлено, ожидаем выбор ученика")
     # Удаляем установку состояния
 
 
@@ -110,6 +150,8 @@ async def select_group_for_group_analytics(callback: CallbackQuery, state: FSMCo
     # Получаем ID выбранного куратора из состояния
     data = await state.get_data()
     curator_id = data.get('selected_curator')
+
+    print(f"🔍 DEBUG select_group_for_group_analytics: role={role}, curator_id={curator_id}, data={data}")
 
     if curator_id and role == "manager":
         # Если выбран куратор, показываем его группы

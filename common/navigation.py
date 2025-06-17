@@ -21,9 +21,11 @@ class NavigationManager:
     async def handle_back(self, callback: CallbackQuery, state: FSMContext, user_role: str):
         """Универсальный обработчик кнопки назад"""
         current_state = await state.get_state()
-        print(f"DEBUG: Обработка 'назад'. Текущее состояние: {current_state}, роль: {user_role}")
-        
+        data = await state.get_data()
+        print(f"   💾 FSM data: {data}")
+
         role_to_use = await get_role_to_use(state, user_role)
+        print(f"   🎯 role_to_use: {role_to_use}")
         
         # Получаем переходы и обработчики для роли (или дефолтные)
         transitions = self.transitions_map.get(role_to_use, {})
