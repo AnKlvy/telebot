@@ -27,6 +27,7 @@ def get_transitions_handlers(states_group, role):
         states_group.group_stats_display: states_group.group_stats,  # Возврат к статистике группы
         states_group.select_subject: states_group.main,
         states_group.subject_stats: states_group.select_subject,
+        states_group.subject_stats_display: states_group.subject_stats,  # Возврат к статистике предмета
         states_group.main: None  # None означает возврат в главное меню
     }
 
@@ -41,7 +42,8 @@ def get_transitions_handlers(states_group, role):
         states_group.group_stats: show_group_analytics,
         states_group.group_stats_display: show_group_analytics,  # Тот же обработчик для отображения
         states_group.select_subject: select_subject_for_analytics,
-        states_group.subject_stats: show_subject_analytics
+        states_group.subject_stats: show_subject_analytics,
+        states_group.subject_stats_display: show_subject_analytics  # Тот же обработчик для отображения
     }
 
     return STATE_TRANSITIONS, STATE_HANDLERS

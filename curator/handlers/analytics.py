@@ -13,6 +13,7 @@ class CuratorAnalyticsStates(StatesGroup):
     group_stats_display = State()  # Новое состояние для отображения статистики группы
     select_subject = State()
     subject_stats = State()
+    subject_stats_display = State()  # Новое состояние для отображения статистики предмета
 
 router = Router()
 

@@ -95,11 +95,15 @@ def register_analytics_handlers(router, states_group, role):
     async def role_show_subject_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_show_subject_microtopics_detailed | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await show_subject_microtopics_detailed(callback, state)
+        # Переходим в состояние отображения статистики предмета
+        await state.set_state(states_group.subject_stats_display)
 
     @router.callback_query(states_group.subject_stats, F.data.startswith("subject_microtopics_summary_"))
     async def role_show_subject_microtopics_summary(callback: CallbackQuery, state: FSMContext):
         logging.info(f"ВЫЗОВ: role_show_subject_microtopics_summary | КОЛБЭК: {callback.data} | СОСТОЯНИЕ: {await state.get_state()}")
         await show_subject_microtopics_summary(callback, state)
+        # Переходим в состояние отображения статистики предмета
+        await state.set_state(states_group.subject_stats_display)
 
     # Обработчики для статистики по группам (с фильтрацией по состояниям)
     @router.callback_query(states_group.group_stats, F.data.startswith("group_microtopics_detailed_"))

@@ -31,6 +31,7 @@ class ManagerAnalyticsStates(StatesGroup):
     select_curator_for_group = State()
     select_subject = State()
     subject_stats = State()
+    subject_stats_display = State()  # Новое состояние для отображения статистики предмета
     student_stats = State()
     student_stats_display = State()  # Новое состояние для отображения статистики студента
     group_stats = State()
@@ -75,6 +76,11 @@ async def manager_select_group_for_student(callback: CallbackQuery, state: FSMCo
 async def manager_select_student_for_analytics(callback: CallbackQuery, state: FSMContext):
     """Выбор ученика для статистики"""
     logger.info("Вызван обработчик manager_select_student_for_analytics")
+
+    # Сохраняем ID группы для возможного возврата
+    group_id = callback.data.replace("analytics_group_", "")
+    await state.update_data(selected_group=group_id)
+
     await select_student_for_analytics(callback, state, "manager")
     await state.set_state(ManagerAnalyticsStates.select_student)
 
@@ -82,7 +88,13 @@ async def manager_select_student_for_analytics(callback: CallbackQuery, state: F
 async def manager_show_student_analytics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику по ученику"""
     logger.info("Вызван обработчик manager_show_student_analytics")
+
+    # Сохраняем ID студента для возможного возврата
+    student_id = callback.data.replace("analytics_student_", "")
+    await state.update_data(selected_student=student_id)
+
     await show_student_analytics(callback, state, "manager")
+    await state.set_state(ManagerAnalyticsStates.student_stats)
 
 # Обработчики для статистики по группе
 @router.callback_query(ManagerAnalyticsStates.main, F.data == "manager_group_analytics")
@@ -103,7 +115,6 @@ async def manager_select_group_for_group(callback: CallbackQuery, state: FSMCont
     curator_id = callback.data.replace("manager_curator_", "")
     logger.debug(f"Выбран куратор с ID: {curator_id}")
     await state.update_data(selected_curator=curator_id)
-    
     await select_group_for_group_analytics(callback, state, "manager")
     await state.set_state(ManagerAnalyticsStates.select_group_for_group)
 
@@ -111,7 +122,13 @@ async def manager_select_group_for_group(callback: CallbackQuery, state: FSMCont
 async def manager_show_group_analytics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику по группе"""
     logger.info("Вызван обработчик manager_show_group_analytics")
+
+    # Сохраняем ID группы для возможного возврата
+    group_id = callback.data.replace("analytics_group_", "")
+    await state.update_data(selected_group=group_id)
+
     await show_group_analytics(callback, state, "manager")
+    await state.set_state(ManagerAnalyticsStates.group_stats)
 
 # Обработчики для статистики по предмету
 @router.callback_query(ManagerAnalyticsStates.main, F.data == "manager_subject_analytics")
@@ -129,7 +146,7 @@ async def manager_select_subject(callback: CallbackQuery, state: FSMContext):
 async def manager_show_subject_analytics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику по предмету"""
     logger.info("Вызван обработчик manager_show_subject_analytics")
-    subject_id = callback.data.replace("manager_subject_", "")
+    subject_id = await check_if_id_in_callback_data("manager_subject_", callback, state, "subject")
     logger.debug(f"Выбран предмет с ID: {subject_id}")
 
     # Получаем данные о предмете
@@ -208,12 +225,16 @@ async def manager_show_subject_microtopics_detailed(callback: CallbackQuery, sta
     """Показать детальную статистику по микротемам предмета"""
     logger.info("Вызван обработчик manager_show_subject_microtopics_detailed")
     await show_subject_microtopics_detailed(callback, state)
+    # Переходим в состояние отображения статистики предмета
+    await state.set_state(ManagerAnalyticsStates.subject_stats_display)
 
 @router.callback_query(F.data.startswith("subject_microtopics_summary_"))
 async def manager_show_subject_microtopics_summary(callback: CallbackQuery, state: FSMContext):
     """Показать сводку по сильным и слабым темам предмета"""
     logger.info("Вызван обработчик manager_show_subject_microtopics_summary")
     await show_subject_microtopics_summary(callback, state)
+    # Переходим в состояние отображения статистики предмета
+    await state.set_state(ManagerAnalyticsStates.subject_stats_display)
 
 # Обработчики для общей статистики по микротемам
 @router.callback_query(F.data == "general_microtopics_detailed")
