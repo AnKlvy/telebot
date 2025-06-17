@@ -14,7 +14,6 @@ def get_analytics_menu_kb(role: str) -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text="📊 Статистика по ученику", callback_data="student_analytics")],
         [InlineKeyboardButton(text="📈 Статистика по группе", callback_data="group_analytics")],
-        [InlineKeyboardButton(text="📚 Статистика по предмету", callback_data="subject_analytics")]
     ]
 
     # Добавляем общую статистику только для менеджеров
