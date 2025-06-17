@@ -237,3 +237,26 @@ async def manager_show_general_microtopics_summary(callback: CallbackQuery, stat
         result_text,
         reply_markup=get_back_to_analytics_kb()
     )
+
+# Обработчики для кнопок микротем студентов
+@router.callback_query(F.data.startswith("microtopics_detailed_"))
+async def manager_show_microtopics_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам студента"""
+    logger.info("Вызван обработчик manager_show_microtopics_detailed")
+    from common.analytics.handlers import show_microtopics_detailed
+    await show_microtopics_detailed(callback, state)
+
+@router.callback_query(F.data.startswith("microtopics_summary_"))
+async def manager_show_microtopics_summary(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным и слабым темам студента"""
+    logger.info("Вызван обработчик manager_show_microtopics_summary")
+    from common.analytics.handlers import show_microtopics_summary
+    await show_microtopics_summary(callback, state)
+
+# Обработчик для возврата к статистике студента
+@router.callback_query(F.data.startswith("back_to_student_"))
+async def manager_back_to_student_analytics(callback: CallbackQuery, state: FSMContext):
+    """Вернуться к основной статистике студента"""
+    logger.info("Вызван обработчик manager_back_to_student_analytics")
+    from common.analytics.handlers import back_to_student_analytics
+    await back_to_student_analytics(callback, state, "manager")

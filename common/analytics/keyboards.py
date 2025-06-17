@@ -33,6 +33,7 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
         # Это происходит если:
         # 1. role == "curator" и есть telegram_id
         # 2. role == "admin" и есть telegram_id (админ работает в контексте куратора)
+        # 3. role == "manager" - менеджер всегда получает все группы
         should_get_curator_groups = (
             (role == "curator" or role == "admin") and user_telegram_id
         )
@@ -56,7 +57,7 @@ async def get_groups_for_analytics_kb(role: str, user_telegram_id: int = None) -
             else:
                 groups = []
         else:
-            # Для других ролей получаем все группы
+            # Для других ролей (включая manager) получаем все группы
             groups = await GroupRepository.get_all()
             print(f"🔍 ANALYTICS: Всего групп для {role}: {len(groups)}")
     except Exception as e:
