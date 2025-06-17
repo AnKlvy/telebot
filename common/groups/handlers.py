@@ -35,22 +35,14 @@ async def show_group_students(callback: CallbackQuery, state: FSMContext, role: 
     current_state = await state.get_state()
     data = await state.get_data()
 
-    print(f"🔍 ЛОГИРОВАНИЕ show_group_students:")
-    print(f"   📞 callback.data: {callback.data}")
-    print(f"   👤 user_id: {callback.from_user.id}")
-    print(f"   🎭 role: {role}")
-    print(f"   🔄 current_state: {current_state}")
-    print(f"   💾 FSM data: {data}")
 
     # Проверяем, это новый выбор группы или возврат назад
     if callback.data.startswith(f"{role}_group_"):
         # Новый выбор группы
         group_id_str = callback.data.replace(f"{role}_group_", "")
-        print(f"   ✅ НОВЫЙ ВЫБОР ГРУППЫ: {group_id_str}")
     elif callback.data == "back" and data.get('selected_group'):
         # Возврат назад, используем сохраненные данные
         group_id_str = str(data.get('selected_group'))
-        print(f"   🔄 ВОЗВРАТ НАЗАД: используем сохраненную группу {group_id_str}")
     else:
         print(f"   ❌ ОШИБКА: Не удалось определить group_id")
         print(f"   📋 callback.data не начинается с '{role}_group_' и нет сохраненной группы")
