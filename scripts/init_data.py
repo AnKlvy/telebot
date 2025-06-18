@@ -1617,14 +1617,26 @@ async def add_test_homework_results():
         for student in students:
             print(f"📊 Создаем результаты для студента '{student.user.name}':")
 
-            # Получаем ДЗ только по предмету группы студента
-            if not student.group or not student.group.subject:
-                print(f"   ⚠️  У студента {student.user.name} нет группы или предмета")
+            # Получаем ДЗ только по предметам групп студента
+            if not student.groups:
+                print(f"   ⚠️  У студента {student.user.name} нет групп")
                 continue
 
-            subject_homeworks = [hw for hw in homeworks if hw.subject_id == student.group.subject_id]
+            # Собираем все предметы из групп студента
+            subject_ids = []
+            subject_names = []
+            for group in student.groups:
+                if group.subject:
+                    subject_ids.append(group.subject_id)
+                    subject_names.append(group.subject.name)
+
+            if not subject_ids:
+                print(f"   ⚠️  У студента {student.user.name} нет предметов в группах")
+                continue
+
+            subject_homeworks = [hw for hw in homeworks if hw.subject_id in subject_ids]
             if not subject_homeworks:
-                print(f"   ⚠️  Нет ДЗ по предмету {student.group.subject.name}")
+                print(f"   ⚠️  Нет ДЗ по предметам {', '.join(subject_names)}")
                 continue
 
             import random
@@ -1647,7 +1659,7 @@ async def add_test_homework_results():
                 student_homeworks = random.sample(subject_homeworks, num_homeworks)  # Случайные ДЗ
                 is_excellent_student = False
 
-            print(f"   📚 Выполняет {num_homeworks} из {max_homeworks} ДЗ по предмету {student.group.subject.name}")
+            print(f"   📚 Выполняет {num_homeworks} из {max_homeworks} ДЗ по предметам {', '.join(subject_names)}")
 
             for homework in student_homeworks:
                 try:
@@ -1830,7 +1842,7 @@ async def update_all_student_stats():
         print(f"❌ Ошибка при обновлении статистики студентов: {e}")
 
 
-async def create_excellent_results_for_andrey():
+async def create_results_for_andrey():
     try:
         # Находим Андрея Климова
         andrey = await StudentRepository.get_by_telegram_id(955518340)
@@ -1839,15 +1851,22 @@ async def create_excellent_results_for_andrey():
             return
 
         # Проверяем, что он в правильной группе (Python)
-        if not andrey.group or andrey.group.subject.name != "Python":
-            print(f"   🔄 Перемещаем Андрея в группу Python...")
+        has_python_group = False
+        if andrey.groups:
+            for group in andrey.groups:
+                if group.subject and group.subject.name == "Python":
+                    has_python_group = True
+                    break
+
+        if not has_python_group:
+            print(f"   🔄 Добавляем Андрея в группу Python...")
             # Находим группу PY-1
             groups = await GroupRepository.get_all()
             python_group = next((g for g in groups if g.name == "PY-1"), None)
             if python_group:
-                await StudentRepository.update(andrey.id, group_id=python_group.id)
+                await StudentRepository.add_groups(andrey.id, [python_group.id])
                 andrey = await StudentRepository.get_by_id(andrey.id)  # Обновляем данные
-                print(f"   ✅ Андрей перемещен в группу {python_group.name}")
+                print(f"   ✅ Андрей добавлен в группу {python_group.name}")
             else:
                 print("   ❌ Группа PY-1 не найдена")
                 return
@@ -1856,7 +1875,18 @@ async def create_excellent_results_for_andrey():
 
         # Получаем все ДЗ по Python
         homeworks = await HomeworkRepository.get_all()
-        python_homeworks = [hw for hw in homeworks if hw.subject_id == andrey.group.subject.id]
+        # Находим ID предмета Python из групп Андрея
+        python_subject_id = None
+        for group in andrey.groups:
+            if group.subject and group.subject.name == "Python":
+                python_subject_id = group.subject.id
+                break
+
+        if not python_subject_id:
+            print("   ❌ Не найден предмет Python в группах Андрея")
+            return
+
+        python_homeworks = [hw for hw in homeworks if hw.subject_id == python_subject_id]
 
         if not python_homeworks:
             print("   ❌ Нет ДЗ по Python")
