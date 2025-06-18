@@ -1667,6 +1667,7 @@ async def add_test_homework_results():
 
                     # Баллы начисляются только при 100% результате
                     points_earned = total_questions * 3 if success_rate == 1.0 else 0
+                    points_awarded = success_rate == 1.0
 
                     # Создаем результат ДЗ
                     homework_result = await HomeworkResultRepository.create(
@@ -1675,7 +1676,8 @@ async def add_test_homework_results():
                         total_questions=total_questions,
                         correct_answers=correct_answers,
                         points_earned=points_earned,
-                        is_first_attempt=True
+                        is_first_attempt=True,
+                        points_awarded=points_awarded
                     )
 
                     created_results_count += 1
@@ -1745,7 +1747,8 @@ async def add_test_homework_results():
                                 total_questions=total_questions,
                                 correct_answers=repeat_correct,
                                 points_earned=repeat_points,
-                                is_first_attempt=False
+                                is_first_attempt=False,
+                                points_awarded=False  # Баллы уже были начислены в первой попытке
                             )
 
                             # Создаем улучшенные результаты вопросов

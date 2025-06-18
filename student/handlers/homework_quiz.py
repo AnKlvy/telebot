@@ -229,6 +229,9 @@ async def start_quiz(callback: CallbackQuery, state: FSMContext):
     existing_attempts = await HomeworkResultRepository.get_student_homework_attempts(student.id, homework_id)
     is_first_attempt = len(existing_attempts) == 0
 
+        # Проверяем, были ли уже начислены баллы за это ДЗ
+    points_already_awarded = await HomeworkResultRepository.has_points_awarded(student.id, homework_id)
+
     # Получаем ID сообщения с подтверждением из предыдущего состояния
     data = await state.get_data()
     confirmation_message_id = data.get("confirmation_message_id")
@@ -245,6 +248,7 @@ async def start_quiz(callback: CallbackQuery, state: FSMContext):
         q_index=0,
         total_questions=len(questions),
         is_first_attempt=is_first_attempt,
+        points_already_awarded=points_already_awarded,
         question_results=[],
         start_time=datetime.now().isoformat(),
         messages_to_delete=messages_to_delete,  # Список сообщений для удаления после теста
@@ -463,10 +467,12 @@ async def finish_test(chat_id, state: FSMContext, bot):
         return
 
     try:
-        # Вычисляем баллы (3 балла за вопрос, только если 100% правильных ответов и первая попытка)
+        # Вычисляем баллы (3 балла за вопрос, только если 100% правильных ответов и баллы еще не начислялись)
         points_earned = 0
-        if score == total_questions and is_first_attempt:
+        points_awarded = False
+        if score == total_questions and not data.get("points_already_awarded", False):
             points_earned = total_questions * 3
+            points_awarded = True
 
         # Создаем результат домашнего задания
         homework_result = await HomeworkResultRepository.create(
@@ -475,7 +481,8 @@ async def finish_test(chat_id, state: FSMContext, bot):
             total_questions=total_questions,
             correct_answers=score,
             points_earned=points_earned,
-            is_first_attempt=is_first_attempt
+            is_first_attempt=is_first_attempt,
+            points_awarded=points_awarded
         )
 
         # Сохраняем результаты по каждому вопросу
@@ -489,16 +496,21 @@ async def finish_test(chat_id, state: FSMContext, bot):
                 microtopic_number=result_data["microtopic_number"]
             )
 
+        # Обновляем баллы и уровень студента в таблице students
+        if points_awarded:
+            await StudentRepository.update_points_and_level(student_id)
+            logging.info(f"✅ Обновлены баллы студента {student_id}: +{points_earned} баллов")
+
         # Формируем сообщение с результатами
         percentage = round((score / total_questions) * 100, 1) if total_questions > 0 else 0
 
         if score == total_questions:
             result_emoji = "🎉"
             result_text = "Отлично! Все ответы правильные!"
-            if is_first_attempt:
+            if points_awarded:
                 result_text += f"\n💰 Получено баллов: {points_earned}"
             else:
-                result_text += "\n🔄 Это повторная попытка, баллы не начисляются"
+                result_text += "\n🔄 Баллы уже были начислены ранее"
         elif percentage >= 80:
             result_emoji = "👏"
             result_text = "Хорошо! Почти все правильно!"

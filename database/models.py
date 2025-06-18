@@ -395,6 +395,7 @@ class HomeworkResult(Base):
     correct_answers = Column(Integer, nullable=False, default=0)
     points_earned = Column(Integer, nullable=False, default=0)  # Баллы за прохождение (3 за вопрос если 100%)
     is_first_attempt = Column(Boolean, default=True)  # Первая попытка или повторная
+    points_awarded = Column(Boolean, default=False)  # Были ли начислены баллы за это ДЗ
     completed_at = Column(DateTime, server_default=func.now())
     created_at = Column(DateTime, server_default=func.now())
 

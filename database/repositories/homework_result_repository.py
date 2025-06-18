@@ -11,8 +11,9 @@ class HomeworkResultRepository:
     """Репозиторий для работы с результатами домашних заданий"""
 
     @staticmethod
-    async def create(student_id: int, homework_id: int, total_questions: int, 
-                    correct_answers: int, points_earned: int, is_first_attempt: bool = True) -> HomeworkResult:
+    async def create(student_id: int, homework_id: int, total_questions: int,
+                    correct_answers: int, points_earned: int, is_first_attempt: bool = True,
+                    points_awarded: bool = False) -> HomeworkResult:
         """Создать результат домашнего задания"""
         async with get_db_session() as session:
             homework_result = HomeworkResult(
@@ -21,7 +22,8 @@ class HomeworkResultRepository:
                 total_questions=total_questions,
                 correct_answers=correct_answers,
                 points_earned=points_earned,
-                is_first_attempt=is_first_attempt
+                is_first_attempt=is_first_attempt,
+                points_awarded=points_awarded
             )
             session.add(homework_result)
             await session.commit()
@@ -84,65 +86,107 @@ class HomeworkResultRepository:
         """Проверить, есть ли у студента 100% результат по ДЗ"""
         async with get_db_session() as session:
             result = await session.execute(
-                select(HomeworkResult)
+                select(func.count(HomeworkResult.id))
                 .where(and_(
                     HomeworkResult.student_id == student_id,
                     HomeworkResult.homework_id == homework_id,
                     HomeworkResult.correct_answers == HomeworkResult.total_questions
                 ))
             )
-            return result.scalar_one_or_none() is not None
+            count = result.scalar() or 0
+            return count > 0
+
+    @staticmethod
+    async def has_points_awarded(student_id: int, homework_id: int) -> bool:
+        """Проверить, были ли уже начислены баллы за это ДЗ"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(func.count(HomeworkResult.id))
+                .where(and_(
+                    HomeworkResult.student_id == student_id,
+                    HomeworkResult.homework_id == homework_id,
+                    HomeworkResult.points_awarded == True
+                ))
+            )
+            count = result.scalar() or 0
+            return count > 0
 
     @staticmethod
     async def get_student_stats(student_id: int) -> dict:
         """Получить общую статистику студента"""
         async with get_db_session() as session:
-            # Получаем студента и его группу
-            from ..models import Student, Homework
+            # Получаем студента и его группы
+            from ..models import Student, Homework, Group
             student_result = await session.execute(
                 select(Student)
-                .options(selectinload(Student.group))
+                .options(selectinload(Student.groups))
                 .where(Student.id == student_id)
             )
             student = student_result.scalar_one_or_none()
 
-            if not student or not student.group:
+            if not student or not student.groups:
+                # Если нет групп, считаем общие баллы без привязки к предмету
+                total_points_result = await session.execute(
+                    select(func.sum(HomeworkResult.points_earned))
+                    .where(HomeworkResult.student_id == student_id)
+                )
+                total_points = total_points_result.scalar() or 0
+
                 return {
                     'total_completed': 0,
                     'total_available': 0,
-                    'total_points': 0
+                    'unique_completed': 0,
+                    'total_points': total_points
                 }
 
-            # Общее количество доступных ДЗ для предмета группы студента
+            # Получаем все предметы из групп студента
+            subject_ids = [group.subject_id for group in student.groups if group.subject_id]
+
+            if not subject_ids:
+                # Если нет предметов, считаем только общие баллы
+                total_points_result = await session.execute(
+                    select(func.sum(HomeworkResult.points_earned))
+                    .where(HomeworkResult.student_id == student_id)
+                )
+                total_points = total_points_result.scalar() or 0
+
+                return {
+                    'total_completed': 0,
+                    'total_available': 0,
+                    'unique_completed': 0,
+                    'total_points': total_points
+                }
+
+            # Общее количество доступных ДЗ для всех предметов групп студента
             total_available_result = await session.execute(
                 select(func.count(Homework.id))
-                .where(Homework.subject_id == student.group.subject_id)
+                .where(Homework.subject_id.in_(subject_ids))
             )
             total_available = total_available_result.scalar() or 0
 
-            # Количество уникальных выполненных ДЗ по предмету группы студента (без повторов)
+            # Количество уникальных выполненных ДЗ по всем предметам групп студента (без повторов)
             unique_completed_result = await session.execute(
                 select(func.count(func.distinct(HomeworkResult.homework_id)))
                 .join(Homework, HomeworkResult.homework_id == Homework.id)
                 .where(
                     HomeworkResult.student_id == student_id,
-                    Homework.subject_id == student.group.subject_id
+                    Homework.subject_id.in_(subject_ids)
                 )
             )
             unique_completed = unique_completed_result.scalar() or 0
 
-            # Общее количество выполненных ДЗ по предмету группы (включая повторные)
+            # Общее количество выполненных ДЗ по всем предметам групп (включая повторные)
             total_completed_result = await session.execute(
                 select(func.count(HomeworkResult.id))
                 .join(Homework, HomeworkResult.homework_id == Homework.id)
                 .where(
                     HomeworkResult.student_id == student_id,
-                    Homework.subject_id == student.group.subject_id
+                    Homework.subject_id.in_(subject_ids)
                 )
             )
             total_completed = total_completed_result.scalar() or 0
 
-            # Общие баллы
+            # Общие баллы (все баллы студента, не только по предметам групп)
             total_points_result = await session.execute(
                 select(func.sum(HomeworkResult.points_earned))
                 .where(HomeworkResult.student_id == student_id)
