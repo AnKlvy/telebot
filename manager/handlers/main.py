@@ -19,8 +19,12 @@ async def manager_start(message: Message, state: FSMContext, user_role: str = No
         await state.set_state(ManagerMainStates.main)
 
 
-async def show_manager_main_menu(message: Message | CallbackQuery, state: FSMContext = None):
+async def show_manager_main_menu(message: Message | CallbackQuery, state: FSMContext = None, user_role: str = None):
     """Показать главное меню менеджера"""
+    # Проверяем права доступа (админы тоже могут заходить в меню менеджера)
+    if user_role not in ["admin", "manager"]:
+        return
+
     text = "👨‍💼 <b>Меню менеджера</b>\n\nВыберите нужный раздел:"
 
     if isinstance(message, Message):

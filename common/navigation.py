@@ -38,7 +38,7 @@ class NavigationManager:
             if handler:
                 print(f"DEBUG: Найден обработчик для None: {handler}")
                 await callback.message.delete()
-                await handler(callback.message)
+                await handler(callback.message, user_role=role_to_use)
                 await state.clear()
             return
         
@@ -52,7 +52,7 @@ class NavigationManager:
             handler = handlers.get(None)
             if handler:
                 await callback.message.delete()
-                await handler(callback.message)
+                await handler(callback.message, user_role=role_to_use)
                 await state.clear()
         else:
             # Переходим в предыдущее состояние
@@ -78,7 +78,7 @@ class NavigationManager:
                 main_handler = handlers.get(None)
                 if main_handler:
                     await callback.message.delete()
-                    await main_handler(callback.message)
+                    await main_handler(callback.message, user_role=role_to_use)
                     await state.clear()
     
     async def handle_main_menu(self, callback: CallbackQuery, state: FSMContext, user_role: str):
@@ -103,7 +103,8 @@ class NavigationManager:
             print(f"DEBUG: Найден обработчик главного меню: {main_handler}")
             if callback.message:
                 await callback.message.delete()
-            await main_handler(callback.message if hasattr(callback, 'message') else callback)
+            # Передаем user_role в обработчик главного меню
+            await main_handler(callback.message if hasattr(callback, 'message') else callback, user_role=role_to_use)
             await state.clear()
         else:
             print(f"DEBUG: Обработчик главного меню не найден для роли: {role_to_use}")

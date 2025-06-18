@@ -34,15 +34,48 @@ from middlewares.performance_middleware import PerformanceMiddleware
 async def start_command(message, user_role: str):
     """Обработчик команды /start, перенаправляющий на соответствующие функции"""
     if user_role == "admin":
-        await show_admin_main_menu(message)
+        await show_admin_main_menu(message, user_role=user_role)
     elif user_role == "manager":
-        await show_manager_main_menu(message)
+        await show_manager_main_menu(message, user_role=user_role)
     elif user_role == "curator":
-        await show_curator_main_menu(message)
+        await show_curator_main_menu(message, user_role=user_role)
     elif user_role == "teacher":
-        await show_teacher_main_menu(message)
+        await show_teacher_main_menu(message, user_role=user_role)
     else:  # По умолчанию считаем пользователя студентом
-        await show_student_main_menu(message)
+        await show_student_main_menu(message, user_role=user_role)
+
+async def setup_commands(dp: Dispatcher):
+    """Настройка команд бота"""
+    try:
+        from database import get_db_session, User
+        from sqlalchemy import select, func
+
+        # Команда /start доступна всем
+        dp.message.register(start_command, CommandStart())
+
+        # Проверяем, есть ли админы в системе
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(func.count(User.id)).where(User.role == 'admin')
+            )
+            admin_count = result.scalar()
+
+            if admin_count > 0:
+                # Если есть админы, регистрируем все команды ролей
+                # Доступ к ним будет контролироваться проверками внутри функций
+                dp.message.register(show_admin_main_menu, Command("admin"))
+                dp.message.register(show_manager_main_menu, Command("manager"))
+                dp.message.register(show_curator_main_menu, Command("curator"))
+                dp.message.register(show_teacher_main_menu, Command("teacher"))
+                dp.message.register(show_student_main_menu, Command("student"))
+                logging.info(f"✅ Зарегистрированы все команды ролей (админов в системе: {admin_count})")
+            else:
+                logging.warning("⚠️ В системе нет админов - команды ролей не зарегистрированы")
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка настройки команд: {e}")
+        # В случае ошибки регистрируем только базовую команду
+        dp.message.register(start_command, CommandStart())
 
 async def main() -> None:
     """Главная функция запуска бота"""
@@ -80,13 +113,8 @@ async def main() -> None:
     dp.message.middleware(performance_middleware)
     dp.callback_query.middleware(performance_middleware)
 
-    # Регистрируем команды
-    dp.message.register(start_command, CommandStart())
-    dp.message.register(show_admin_main_menu, Command("admin"))
-    dp.message.register(show_manager_main_menu, Command("manager"))
-    dp.message.register(show_curator_main_menu, Command("curator"))
-    dp.message.register(show_teacher_main_menu, Command("teacher"))
-    dp.message.register(show_student_main_menu, Command("student"))
+    # Настраиваем команды бота
+    await setup_commands(dp)
 
     # Включаем роутеры для разных ролей
     dp.include_router(common_router)

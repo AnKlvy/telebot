@@ -18,8 +18,12 @@ async def curator_start(message: Message, state: FSMContext, user_role: str = No
         await show_curator_main_menu(message)
         await state.set_state(CuratorMainStates.main)
 
-async def show_curator_main_menu(message: Message):
+async def show_curator_main_menu(message: Message, user_role: str = None):
     """Показать главное меню куратора"""
+    # Проверяем права доступа (админы тоже могут заходить в меню куратора)
+    if user_role not in ["admin", "curator"]:
+        return
+
     await message.answer(
         "Добро пожаловать в панель куратора!\n"
         "Выберите действие из меню ниже:",

@@ -20,8 +20,12 @@ class AdminMainStates(StatesGroup):
     teachers_menu = State()  # Меню управления преподавателями
     managers_menu = State()  # Меню управления менеджерами
 
-async def show_admin_main_menu(message: Message, state: FSMContext = None):
+async def show_admin_main_menu(message: Message, state: FSMContext = None, user_role: str = None):
     """Показать главное меню админа"""
+    # Проверяем права доступа - если не админ, просто игнорируем
+    if user_role != "admin":
+        return
+
     if isinstance(message, Message):
         await message.answer(
             text="👑 Панель администратора\n\nВыберите действие:",

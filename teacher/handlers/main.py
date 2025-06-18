@@ -18,15 +18,19 @@ async def teacher_start(message: Message, state: FSMContext, user_role: str = No
         await show_teacher_main_menu(message)
         await state.set_state(TeacherMainStates.main)
 
-async def show_teacher_main_menu(message: Message | CallbackQuery, state: FSMContext = None):
+async def show_teacher_main_menu(message: Message | CallbackQuery, state: FSMContext = None, user_role: str = None):
     """Показать главное меню преподавателя"""
+    # Проверяем права доступа (админы тоже могут заходить в меню преподавателя)
+    if user_role not in ["admin", "teacher"]:
+        return
+
     text = "👨‍🏫 Добро пожаловать в панель <b>преподавателя</b>!\n\nВыберите нужный раздел:"
-    
+
     if isinstance(message, Message):
         await message.answer(text, reply_markup=get_teacher_main_menu_kb())
     else:  # CallbackQuery
         await message.message.edit_text(text, reply_markup=get_teacher_main_menu_kb())
-    
+
     if state:
         await state.set_state(TeacherMainStates.main)
 
