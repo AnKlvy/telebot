@@ -9,7 +9,8 @@ STATE_TRANSITIONS = {
     HomeworkStates.lesson: HomeworkStates.subject,
     HomeworkStates.subject: HomeworkStates.course,
     HomeworkStates.course: None,  # None означает возврат в главное меню
-    HomeworkStates.test_in_progress: HomeworkStates.confirmation
+    HomeworkStates.test_in_progress: HomeworkStates.confirmation,
+    HomeworkStates.repeat_test: None  # Возврат в главное меню после повторного прохождения
 }
 
 # Словарь обработчиков для каждого состояния
@@ -20,4 +21,5 @@ STATE_HANDLERS = {
     HomeworkStates.homework: choose_homework,
     HomeworkStates.confirmation: confirm_test,  # Обработчик подтверждения теста
     HomeworkStates.test_in_progress: handle_test_back_navigation,  # Специальный обработчик для возврата из теста
+    HomeworkStates.repeat_test: confirm_test,  # Обработчик для повторного прохождения
 }

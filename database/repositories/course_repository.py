@@ -74,16 +74,21 @@ class CourseRepository:
             return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_user_id(user_id: int) -> List[Course]:
-        """Получить курсы студента по user_id"""
+    async def get_by_user_id(telegram_id: int) -> List[Course]:
+        """Получить курсы студента по telegram_id"""
         async with get_db_session() as session:
-            from ..models import Student, student_courses
+            from ..models import Student, student_courses, User
+            print(f"🔍 DEBUG CourseRepository.get_by_user_id: telegram_id={telegram_id}")
+
             result = await session.execute(
                 select(Course)
                 .options(selectinload(Course.subjects))
                 .join(student_courses, Course.id == student_courses.c.course_id)
                 .join(Student, Student.id == student_courses.c.student_id)
-                .where(Student.user_id == user_id)
+                .join(User, Student.user_id == User.id)
+                .where(User.telegram_id == telegram_id)
                 .order_by(Course.name)
             )
-            return list(result.scalars().all())
+            courses = list(result.scalars().all())
+            print(f"🔍 DEBUG CourseRepository.get_by_user_id: found courses={courses}")
+            return courses

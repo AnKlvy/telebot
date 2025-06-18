@@ -128,10 +128,10 @@ class SubjectRepository:
             return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_user_id(user_id: int) -> List[Subject]:
-        """Получить уникальные предметы студента по user_id"""
+    async def get_by_user_id(telegram_id: int) -> List[Subject]:
+        """Получить уникальные предметы студента по telegram_id"""
         async with get_db_session() as session:
-            from ..models import Course, course_subjects, student_courses, Student
+            from ..models import Course, course_subjects, student_courses, Student, User
             result = await session.execute(
                 select(Subject)
                 .options(selectinload(Subject.courses))
@@ -139,7 +139,8 @@ class SubjectRepository:
                 .join(Course, Course.id == course_subjects.c.course_id)
                 .join(student_courses, Course.id == student_courses.c.course_id)
                 .join(Student, Student.id == student_courses.c.student_id)
-                .where(Student.user_id == user_id)
+                .join(User, Student.user_id == User.id)
+                .where(User.telegram_id == telegram_id)
                 .distinct()
                 .order_by(Subject.name)
             )

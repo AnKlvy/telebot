@@ -16,6 +16,7 @@ class HomeworkStates(StatesGroup):
     homework = State()
     confirmation = State()
     test_in_progress = State()
+    repeat_test = State()
 
 router = Router()
 

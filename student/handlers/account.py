@@ -16,7 +16,12 @@ async def show_account_info(callback: CallbackQuery, state: FSMContext):
 
     try:
         # Получаем студента из базы данных
+        print(f"🔍 DEBUG: Ищем студента с telegram_id={callback.from_user.id}")
         student = await StudentRepository.get_by_telegram_id(callback.from_user.id)
+        print(f"🔍 DEBUG: Студент найден: {student is not None}")
+        if student:
+            print(f"🔍 DEBUG: Студент ID: {student.id}, имя: {student.user.name}")
+            print(f"🔍 DEBUG: Курсы студента (через связь): {len(student.courses) if hasattr(student, 'courses') and student.courses else 0}")
 
         if not student:
             await callback.message.edit_text(
@@ -28,7 +33,12 @@ async def show_account_info(callback: CallbackQuery, state: FSMContext):
 
         # Получаем курсы студента
         from database import CourseRepository
+        print(f"🔍 DEBUG: Получаем курсы для user_id={callback.from_user.id}")
         courses = await CourseRepository.get_by_user_id(callback.from_user.id)
+        print(f"🔍 DEBUG: Найдено курсов: {len(courses) if courses else 0}")
+        if courses:
+            for course in courses:
+                print(f"🔍 DEBUG: Курс: {course.name} (ID: {course.id})")
         course_names = [course.name for course in courses] if courses else ["Не назначен"]
 
         # Получаем предметы студента
