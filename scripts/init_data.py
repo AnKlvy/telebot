@@ -1919,7 +1919,8 @@ async def create_results_for_andrey():
                 total_questions=total_questions,
                 correct_answers=correct_answers,
                 points_earned=points_earned,
-                is_first_attempt=True
+                is_first_attempt=True,
+                points_awarded=True
             )
 
             # Создаем результаты для каждого вопроса
