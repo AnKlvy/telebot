@@ -164,36 +164,37 @@ class RoleMiddleware(BaseMiddleware):
 
         user_id = event.from_user.id
 
-        # Асинхронное обновление кэша (не блокируем запрос)
-        # Проверяем TTL перед созданием задачи
+        # Проверяем TTL и необходимость обновления кэша
         current_time = time.time()
         cache_expired = (current_time - _last_cache_update) >= CACHE_TTL
 
+        # Если кэш не инициализирован или устарел, обновляем его синхронно
         if (not _global_cache_updated or cache_expired) and _database_available is not False:
-            # Запускаем обновление в фоне, не ждем результата
-            asyncio.create_task(self._update_role_cache())
+            await self._update_role_cache()
 
         # Определяем роль по ID из кэша
-        role = "student"  # По умолчанию
+        role = "new_user"  # По умолчанию для пользователей не из базы
 
-        # Если кэш пустой или БД недоступна, используем хардкод для админа
+        # Если кэш пустой или БД недоступна, все пользователи считаются новыми
         if (_database_available is False or
             not _global_role_cache or
             all(not users for users in _global_role_cache.values())):
-            # Хардкод для админа
-            if user_id in [955518340, 5205775566]:  # Андрей Климов
-                role = "admin"
-            else:
-                role = "student"
+            role = "new_user"
         else:
             # Быстрый поиск роли в кэше
+            user_found = False
             for role_name, user_ids in _global_role_cache.items():
                 if user_id in user_ids:
                     role = role_name
+                    user_found = True
                     break
 
-        # Убираем синхронный print, заменяем на async logging только для отладки
-        # logging.debug(f"MIDDLEWARE: User {user_id} -> Role: {role}")
+            # Если пользователь не найден в кэше, он не зарегистрирован
+            if not user_found:
+                role = "new_user"
+
+        # Логирование для отладки
+        logging.debug(f"MIDDLEWARE: User {user_id} -> Role: {role}")
 
         # Добавляем роль в данные события
         data["user_role"] = role
