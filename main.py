@@ -63,11 +63,11 @@ async def setup_commands(dp: Dispatcher):
             if admin_count > 0:
                 # Если есть админы, регистрируем все команды ролей
                 # Доступ к ним будет контролироваться проверками внутри функций
+                dp.message.register(show_student_main_menu, Command("student"))
                 dp.message.register(show_admin_main_menu, Command("admin"))
                 dp.message.register(show_manager_main_menu, Command("manager"))
                 dp.message.register(show_curator_main_menu, Command("curator"))
                 dp.message.register(show_teacher_main_menu, Command("teacher"))
-                dp.message.register(show_student_main_menu, Command("student"))
                 logging.info(f"✅ Зарегистрированы все команды ролей (админов в системе: {admin_count})")
             else:
                 logging.warning("⚠️ В системе нет админов - команды ролей не зарегистрированы")
