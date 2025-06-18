@@ -1332,9 +1332,18 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
 
     # Получаем студента для определения предмета
     student = await StudentRepository.get_by_id(int(student_id))
-    if not student or not student.group or not student.group.subject:
+    if not student or not student.groups:
         await callback.message.edit_text(
-            "❌ Студент не найден или не назначен в группу с предметом",
+            "❌ Студент не найден или не назначен в группу",
+            reply_markup=get_back_to_analytics_kb()
+        )
+        return
+
+    # Берем первую группу студента для определения предмета
+    first_group = student.groups[0]
+    if not first_group.subject:
+        await callback.message.edit_text(
+            "❌ У группы студента не указан предмет",
             reply_markup=get_back_to_analytics_kb()
         )
         return
@@ -1343,14 +1352,15 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
     general_stats = await StudentRepository.get_general_stats(int(student_id))
 
     # Формируем базовую информацию
+    group_names = [group.name for group in student.groups]
     result_text = f"👤 Студент: {student.user.name}\n"
-    result_text += f"📚 Группа: {student.group.name}\n"
+    result_text += f"📚 Группы: {', '.join(group_names)}\n"
     result_text += f"💎 Тариф: {student.tariff or 'Не указан'}\n\n"
     result_text += f"📊 Общая статистика:\n"
     result_text += f"   • Баллы: {general_stats.get('total_points', 0)}\n"
     result_text += f"   • Уровень: {student.level}\n"
     result_text += f"   • Выполнено ДЗ: {general_stats.get('total_completed', 0)}\n\n"
-    result_text += f"📗 Предмет: {student.group.subject.name}\n"
+    result_text += f"📗 Предмет: {first_group.subject.name}\n"
     result_text += "Выберите, что хотите посмотреть:"
 
     # Импортируем клавиатуру
@@ -1358,7 +1368,7 @@ async def show_student_analytics(callback: CallbackQuery, state: FSMContext, rol
 
     await callback.message.edit_text(
         result_text,
-        reply_markup=get_student_microtopics_kb(int(student_id), student.group.subject.id)
+        reply_markup=get_student_microtopics_kb(int(student_id), first_group.subject.id)
     )
 
 

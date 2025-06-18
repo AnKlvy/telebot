@@ -127,7 +127,9 @@ async def get_students_for_analytics_kb(group_id: str) -> InlineKeyboardMarkup:
         print(f"   👥 Найдено студентов: {len(students)}")
 
         for i, student in enumerate(students):
-            print(f"   👤 Студент {i+1}: ID={student.id}, Имя={student.user.name}, Группа={student.group_id}")
+            # У студента может быть несколько групп, показываем первую или "Нет группы"
+            group_names = [group.name for group in student.groups] if student.groups else ["Нет группы"]
+            print(f"   👤 Студент {i+1}: ID={student.id}, Имя={student.user.name}, Группы={', '.join(group_names)}")
 
     except Exception as e:
         print(f"   ❌ Ошибка при получении студентов: {e}")
