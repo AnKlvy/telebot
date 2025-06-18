@@ -254,27 +254,20 @@ async def save_homework(callback: CallbackQuery, state: FSMContext):
 
             # Создаем варианты ответов
             options = question_data.get("options", {})  # Словарь {A: "текст", B: "текст", ...}
-            correct_answer = question_data.get("correct_answer", "0")  # Строка "0", "1", "2"...
-
-            # Преобразуем correct_answer в индекс
-            try:
-                correct_answer_index = int(correct_answer)
-            except (ValueError, TypeError):
-                correct_answer_index = 0
+            correct_answer = question_data.get("correct_answer", "A")  # Строка "A", "B", "C"...
 
             # Создаем список вариантов ответов в правильном порядке
-            answer_options = []
+            options_data = []
             if options:
                 # Сортируем по буквам (A, B, C, D...)
                 sorted_options = sorted(options.items())
-                answer_options = [text for letter, text in sorted_options]
 
-            options_data = []
-            for i, option_text in enumerate(answer_options):
-                options_data.append({
-                    "text": option_text,
-                    "is_correct": i == correct_answer_index
-                })
+                for letter, text in sorted_options:
+                    is_correct = (letter == correct_answer)
+                    options_data.append({
+                        "text": text,
+                        "is_correct": is_correct
+                    })
 
             if options_data:
                 await AnswerOptionRepository.create_multiple(question.id, options_data)
