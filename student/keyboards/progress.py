@@ -9,13 +9,17 @@ def get_progress_menu_kb() -> InlineKeyboardMarkup:
          *get_main_menu_back_button()
     ])
 
-async def get_subjects_progress_kb() -> InlineKeyboardMarkup:
+async def get_subjects_progress_kb(user_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета для просмотра прогресса (получает данные из БД)"""
     from database import SubjectRepository
 
     try:
-        # Получаем все предметы из базы данных
-        subjects = await SubjectRepository.get_all()
+        if user_id:
+            # Получаем только предметы студента из его курсов
+            subjects = await SubjectRepository.get_by_user_id(user_id)
+        else:
+            # Получаем все предметы (для обратной совместимости)
+            subjects = await SubjectRepository.get_all()
 
         buttons = []
         for subject in subjects:
@@ -24,6 +28,11 @@ async def get_subjects_progress_kb() -> InlineKeyboardMarkup:
                     text=subject.name,
                     callback_data=f"progress_sub_{subject.id}"
                 )
+            ])
+
+        if not subjects:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Нет доступных предметов", callback_data="no_subjects")
             ])
 
         # Добавляем кнопку "Назад"

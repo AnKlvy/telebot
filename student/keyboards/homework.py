@@ -2,10 +2,16 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from common.keyboards import get_main_menu_back_button
 from database import LessonRepository, SubjectRepository, CourseRepository
 
-async def get_courses_kb() -> InlineKeyboardMarkup:
+async def get_courses_kb(user_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора курса с реальными данными из БД"""
     try:
-        courses = await CourseRepository.get_all()
+        if user_id:
+            # Получаем только курсы студента
+            courses = await CourseRepository.get_by_user_id(user_id)
+        else:
+            # Получаем все курсы (для обратной совместимости)
+            courses = await CourseRepository.get_all()
+
         buttons = []
 
         for course in courses:
@@ -14,6 +20,11 @@ async def get_courses_kb() -> InlineKeyboardMarkup:
                     text=course.name,
                     callback_data=f"course_{course.id}"
                 )
+            ])
+
+        if not courses:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Нет доступных курсов", callback_data="no_courses")
             ])
 
         buttons.extend(get_main_menu_back_button())
@@ -27,13 +38,16 @@ async def get_courses_kb() -> InlineKeyboardMarkup:
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-async def get_subjects_kb(course_id: int = None) -> InlineKeyboardMarkup:
+async def get_subjects_kb(course_id: int = None, user_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета с реальными данными из БД"""
     try:
         if course_id:
             # Получаем предметы для конкретного курса
             course = await CourseRepository.get_by_id(course_id)
             subjects = course.subjects if course else []
+        elif user_id:
+            # Получаем уникальные предметы студента из всех его курсов
+            subjects = await SubjectRepository.get_by_user_id(user_id)
         else:
             # Получаем все предметы
             subjects = await SubjectRepository.get_all()

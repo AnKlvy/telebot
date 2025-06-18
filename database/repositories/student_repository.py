@@ -20,7 +20,8 @@ class StudentRepository:
                 select(Student)
                 .options(
                     selectinload(Student.user),
-                    selectinload(Student.group).selectinload(Group.subject)
+                    selectinload(Student.groups).selectinload(Group.subject),
+                    selectinload(Student.courses)
                 )
 
             )
@@ -34,7 +35,8 @@ class StudentRepository:
                 select(Student)
                 .options(
                     selectinload(Student.user),
-                    selectinload(Student.group).selectinload(Group.subject)
+                    selectinload(Student.groups).selectinload(Group.subject),
+                    selectinload(Student.courses)
                 )
                 .where(Student.id == student_id)
             )
@@ -48,9 +50,27 @@ class StudentRepository:
                 select(Student)
                 .options(
                     selectinload(Student.user),
-                    selectinload(Student.group).selectinload(Group.subject)
+                    selectinload(Student.groups).selectinload(Group.subject),
+                    selectinload(Student.courses)
                 )
                 .where(Student.user_id == user_id)
+            )
+            return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_by_telegram_id(telegram_id: int) -> Optional[Student]:
+        """Получить студента по Telegram ID"""
+        async with get_db_session() as session:
+            from ..models import User
+            result = await session.execute(
+                select(Student)
+                .options(
+                    selectinload(Student.user),
+                    selectinload(Student.groups).selectinload(Group.subject),
+                    selectinload(Student.courses)
+                )
+                .join(User, Student.user_id == User.id)
+                .where(User.telegram_id == telegram_id)
             )
             return result.scalar_one_or_none()
 
@@ -62,9 +82,10 @@ class StudentRepository:
                 select(Student)
                 .options(
                     selectinload(Student.user),
-                    selectinload(Student.group).selectinload(Group.subject)
+                    selectinload(Student.groups).selectinload(Group.subject),
+                    selectinload(Student.courses)
                 )
-                .join(Student.user)
+                .join(User, Student.user_id == User.id)
                 .where(User.telegram_id == telegram_id)
             )
             return result.scalar_one_or_none()
@@ -106,7 +127,7 @@ class StudentRepository:
             return list(result.scalars().all())
 
     @staticmethod
-    async def create(user_id: int, group_id: int = None, tariff: str = None) -> Student:
+    async def create(user_id: int, tariff: str = None) -> Student:
         """Создать профиль студента"""
         async with get_db_session() as session:
             # Проверяем, существует ли уже профиль студента для этого пользователя
@@ -125,7 +146,6 @@ class StudentRepository:
 
             student = Student(
                 user_id=user_id,
-                group_id=group_id,
                 tariff=tariff
             )
             session.add(student)
@@ -134,23 +154,241 @@ class StudentRepository:
             return student
 
     @staticmethod
-    async def update(student_id: int, group_id: int = None, tariff: str = None, 
+    async def add_courses(student_id: int, course_ids: List[int]) -> bool:
+        """Добавить курсы студенту"""
+        from ..models import Course, student_courses
+        async with get_db_session() as session:
+            # Проверяем существование студента
+            student = await session.get(Student, student_id)
+            if not student:
+                return False
+
+            # Получаем курсы
+            courses_result = await session.execute(
+                select(Course).where(Course.id.in_(course_ids))
+            )
+            courses = list(courses_result.scalars().all())
+
+            if not courses:
+                return False
+
+            # Добавляем связи
+            for course in courses:
+                # Проверяем, нет ли уже такой связи
+                existing = await session.execute(
+                    select(student_courses).where(
+                        student_courses.c.student_id == student_id,
+                        student_courses.c.course_id == course.id
+                    )
+                )
+                if not existing.first():
+                    await session.execute(
+                        student_courses.insert().values(
+                            student_id=student_id,
+                            course_id=course.id
+                        )
+                    )
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def set_courses(student_id: int, course_ids: List[int]) -> bool:
+        """Установить курсы студенту (заменить все существующие)"""
+        from ..models import student_courses
+        async with get_db_session() as session:
+            # Удаляем все существующие связи
+            await session.execute(
+                student_courses.delete().where(
+                    student_courses.c.student_id == student_id
+                )
+            )
+
+            # Добавляем новые связи
+            if course_ids:
+                for course_id in course_ids:
+                    await session.execute(
+                        student_courses.insert().values(
+                            student_id=student_id,
+                            course_id=course_id
+                        )
+                    )
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def add_courses(student_id: int, course_ids: List[int]) -> bool:
+        """Добавить курсы студенту"""
+        from ..models import Course, student_courses
+        async with get_db_session() as session:
+            # Проверяем существование студента
+            student = await session.get(Student, student_id)
+            if not student:
+                return False
+
+            # Получаем курсы
+            courses_result = await session.execute(
+                select(Course).where(Course.id.in_(course_ids))
+            )
+            courses = list(courses_result.scalars().all())
+
+            if not courses:
+                return False
+
+            # Добавляем связи
+            for course in courses:
+                # Проверяем, нет ли уже такой связи
+                existing = await session.execute(
+                    select(student_courses).where(
+                        student_courses.c.student_id == student_id,
+                        student_courses.c.course_id == course.id
+                    )
+                )
+                if not existing.first():
+                    await session.execute(
+                        student_courses.insert().values(
+                            student_id=student_id,
+                            course_id=course.id
+                        )
+                    )
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def remove_courses(student_id: int, course_ids: List[int]) -> bool:
+        """Удалить курсы у студента"""
+        from ..models import student_courses
+        async with get_db_session() as session:
+            await session.execute(
+                student_courses.delete().where(
+                    student_courses.c.student_id == student_id,
+                    student_courses.c.course_id.in_(course_ids)
+                )
+            )
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def set_courses(student_id: int, course_ids: List[int]) -> bool:
+        """Установить курсы студенту (заменить все существующие)"""
+        from ..models import student_courses
+        async with get_db_session() as session:
+            # Удаляем все существующие связи
+            await session.execute(
+                student_courses.delete().where(
+                    student_courses.c.student_id == student_id
+                )
+            )
+
+            # Добавляем новые связи
+            if course_ids:
+                for course_id in course_ids:
+                    await session.execute(
+                        student_courses.insert().values(
+                            student_id=student_id,
+                            course_id=course_id
+                        )
+                    )
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def add_groups(student_id: int, group_ids: List[int]) -> bool:
+        """Добавить группы студенту"""
+        from ..models import Group, student_groups
+        async with get_db_session() as session:
+            # Проверяем существование студента
+            student = await session.get(Student, student_id)
+            if not student:
+                return False
+
+            # Получаем группы
+            groups_result = await session.execute(
+                select(Group).where(Group.id.in_(group_ids))
+            )
+            groups = list(groups_result.scalars().all())
+
+            if not groups:
+                return False
+
+            # Добавляем связи
+            for group in groups:
+                # Проверяем, нет ли уже такой связи
+                existing = await session.execute(
+                    select(student_groups).where(
+                        student_groups.c.student_id == student_id,
+                        student_groups.c.group_id == group.id
+                    )
+                )
+                if not existing.first():
+                    await session.execute(
+                        student_groups.insert().values(
+                            student_id=student_id,
+                            group_id=group.id
+                        )
+                    )
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def remove_groups(student_id: int, group_ids: List[int]) -> bool:
+        """Удалить группы у студента"""
+        from ..models import student_groups
+        async with get_db_session() as session:
+            await session.execute(
+                student_groups.delete().where(
+                    student_groups.c.student_id == student_id,
+                    student_groups.c.group_id.in_(group_ids)
+                )
+            )
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def set_groups(student_id: int, group_ids: List[int]) -> bool:
+        """Установить группы студенту (заменить все существующие)"""
+        from ..models import student_groups
+        async with get_db_session() as session:
+            # Удаляем все существующие связи
+            await session.execute(
+                student_groups.delete().where(
+                    student_groups.c.student_id == student_id
+                )
+            )
+
+            # Добавляем новые связи
+            if group_ids:
+                for group_id in group_ids:
+                    await session.execute(
+                        student_groups.insert().values(
+                            student_id=student_id,
+                            group_id=group_id
+                        )
+                    )
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def update(student_id: int, tariff: str = None,
                     points: int = None, level: str = None) -> bool:
         """Обновить информацию о студенте"""
         async with get_db_session() as session:
             student = await session.get(Student, student_id)
             if not student:
                 return False
-            
-            if group_id is not None:
-                student.group_id = group_id
+
             if tariff is not None:
                 student.tariff = tariff
             if points is not None:
                 student.points = points
             if level is not None:
                 student.level = level
-                
+
             await session.commit()
             return True
 

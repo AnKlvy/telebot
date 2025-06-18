@@ -520,9 +520,11 @@ async def add_initial_data():
             # Создаем профиль студента
             student = await StudentRepository.create(
                 user_id=user.id,
-                group_id=target_group.id,
                 tariff=student_data["tariff"]
             )
+
+            # Привязываем студента к группе
+            await StudentRepository.set_groups(student.id, [target_group.id])
 
             print(f"   ✅ Создан студент '{student_data['name']}' в группе '{target_group.name}' ({student_data['subject_name']})")
             created_students_count += 1
@@ -913,7 +915,9 @@ async def add_initial_data():
     # Обновляем баллы и уровни всех студентов
     await update_all_student_stats()
 
-
+    print("🔗 Привязка студентов к курсам...")
+    # Привязываем студентов к курсам на основе их предметов
+    await assign_students_to_courses(created_subjects, course_ent, course_it)
 
     print("🎉 Начальные данные добавлены!")
 
@@ -1963,9 +1967,10 @@ async def add_admin_roles(created_subjects, course_ent, course_it):
                     if math_groups:
                         student = await StudentRepository.create(
                             user_id=admin_user.id,
-                            group_id=math_groups[0].id,
                             tariff="premium"
                         )
+                        # Привязываем к группе
+                        await StudentRepository.set_groups(student.id, [math_groups[0].id])
                         print(f"      ✅ Создан профиль студента (ID: {student.id}, группа: {math_groups[0].name})")
                     else:
                         print(f"      ❌ Не найдены группы для математики")
@@ -2044,6 +2049,51 @@ async def add_admin_roles(created_subjects, course_ent, course_it):
 
     except Exception as e:
         print(f"❌ Ошибка при добавлении ролей админам: {e}")
+
+
+async def assign_students_to_courses(created_subjects, course_ent, course_it):
+    """Привязать студентов к курсам на основе их предметов"""
+    if not course_ent or not course_it:
+        print("⚠️ Курсы не найдены, пропускаем привязку студентов")
+        return
+
+    # Получаем всех студентов
+    students = await StudentRepository.get_all()
+
+    for student in students:
+        if not student.groups:
+            continue
+
+        # Собираем все предметы из групп студента
+        student_subjects = set()
+        for group in student.groups:
+            if group.subject:
+                student_subjects.add(group.subject.name)
+
+        course_ids = []
+
+        # Определяем к каким курсам относятся предметы студента
+        for subject_name in student_subjects:
+            if subject_name in ["Математика", "Физика", "История Казахстана", "Химия", "Биология"]:
+                if course_ent.id not in course_ids:
+                    course_ids.append(course_ent.id)
+
+            if subject_name in ["Python", "JavaScript", "Java", "Математика"]:
+                if course_it.id not in course_ids:
+                    course_ids.append(course_it.id)
+
+        # Привязываем студента к курсам
+        if course_ids:
+            success = await StudentRepository.set_courses(student.id, course_ids)
+            if success:
+                course_names = []
+                if course_ent.id in course_ids:
+                    course_names.append("ЕНТ")
+                if course_it.id in course_ids:
+                    course_names.append("IT")
+                print(f"✅ Студент '{student.user.name}' привязан к курсам: {', '.join(course_names)}")
+            else:
+                print(f"❌ Ошибка привязки студента '{student.user.name}' к курсам")
 
 
 if __name__ == "__main__":

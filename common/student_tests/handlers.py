@@ -29,7 +29,7 @@ async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext)
     logger.info(f"ВЫЗОВ: show_course_entry_subjects, user_id={callback.from_user.id}, текущее состояние={current_state}")
     await callback.message.edit_text(
         "Выберите предмет для входного теста курса:",
-        reply_markup=get_test_subjects_kb("course_entry")
+        reply_markup=await get_test_subjects_kb("course_entry", user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_group_entry)
     logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_group_entry")
@@ -50,7 +50,7 @@ async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
     logger.info(f"ВЫЗОВ: show_month_entry_subjects, user_id={callback.from_user.id}, текущее состояние={current_state}")
     await callback.message.edit_text(
         "Выберите предмет для входного теста месяца:",
-        reply_markup=get_test_subjects_kb("month_entry")
+        reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_group_entry)
     logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_group_entry")
@@ -89,7 +89,7 @@ async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext
     logger.info(f"ВЫЗОВ: show_month_control_subjects, user_id={callback.from_user.id}, текущее состояние={current_state}")
     await callback.message.edit_text(
         "Выберите предмет для контрольного теста месяца:",
-        reply_markup=get_test_subjects_kb("month_control")
+        reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_group_control)
     logger.info(f"УСТАНОВЛЕНО СОСТОЯНИЕ: StudentTestsStates.select_group_control")

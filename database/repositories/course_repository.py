@@ -58,3 +58,32 @@ class CourseRepository:
             result = await session.execute(delete(Course).where(Course.id == course_id))
             await session.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def get_by_student(student_id: int) -> List[Course]:
+        """Получить курсы студента"""
+        async with get_db_session() as session:
+            from ..models import Student, student_courses
+            result = await session.execute(
+                select(Course)
+                .options(selectinload(Course.subjects))
+                .join(student_courses, Course.id == student_courses.c.course_id)
+                .where(student_courses.c.student_id == student_id)
+                .order_by(Course.name)
+            )
+            return list(result.scalars().all())
+
+    @staticmethod
+    async def get_by_user_id(user_id: int) -> List[Course]:
+        """Получить курсы студента по user_id"""
+        async with get_db_session() as session:
+            from ..models import Student, student_courses
+            result = await session.execute(
+                select(Course)
+                .options(selectinload(Course.subjects))
+                .join(student_courses, Course.id == student_courses.c.course_id)
+                .join(Student, Student.id == student_courses.c.student_id)
+                .where(Student.user_id == user_id)
+                .order_by(Course.name)
+            )
+            return list(result.scalars().all())

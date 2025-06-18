@@ -109,3 +109,38 @@ class SubjectRepository:
             result = await session.execute(delete(Subject).where(Subject.id == subject_id))
             await session.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def get_by_student(student_id: int) -> List[Subject]:
+        """Получить уникальные предметы студента из всех его курсов"""
+        async with get_db_session() as session:
+            from ..models import Course, course_subjects, student_courses
+            result = await session.execute(
+                select(Subject)
+                .options(selectinload(Subject.courses))
+                .join(course_subjects, Subject.id == course_subjects.c.subject_id)
+                .join(Course, Course.id == course_subjects.c.course_id)
+                .join(student_courses, Course.id == student_courses.c.course_id)
+                .where(student_courses.c.student_id == student_id)
+                .distinct()
+                .order_by(Subject.name)
+            )
+            return list(result.scalars().all())
+
+    @staticmethod
+    async def get_by_user_id(user_id: int) -> List[Subject]:
+        """Получить уникальные предметы студента по user_id"""
+        async with get_db_session() as session:
+            from ..models import Course, course_subjects, student_courses, Student
+            result = await session.execute(
+                select(Subject)
+                .options(selectinload(Subject.courses))
+                .join(course_subjects, Subject.id == course_subjects.c.subject_id)
+                .join(Course, Course.id == course_subjects.c.course_id)
+                .join(student_courses, Course.id == student_courses.c.course_id)
+                .join(Student, Student.id == student_courses.c.student_id)
+                .where(Student.user_id == user_id)
+                .distinct()
+                .order_by(Subject.name)
+            )
+            return list(result.scalars().all())

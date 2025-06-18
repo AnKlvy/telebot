@@ -4,24 +4,67 @@ from typing import List
 from common.keyboards import get_main_menu_back_button
 
 
-def get_test_subjects_kb(test_type: str) -> InlineKeyboardMarkup:
+async def get_test_subjects_kb(test_type: str, user_id: int = None) -> InlineKeyboardMarkup:
     """
     Клавиатура с предметами для тестов
-    
+
     Args:
         test_type: Тип теста (course_entry, month_entry, month_control)
+        user_id: ID пользователя для фильтрации предметов
     """
-    subjects = [
-        {"id": "kz", "name": "История Казахстана"},
-        {"id": "mathlit", "name": "Математическая грамотность"},
-        {"id": "math", "name": "Математика"},
-        {"id": "geo", "name": "География"},
-        {"id": "bio", "name": "Биология"},
-        {"id": "chem", "name": "Химия"},
-        {"id": "inf", "name": "Информатика"},
-        {"id": "world", "name": "Всемирная история"}
-    ]
-    
+    if user_id:
+        # Получаем предметы студента из базы данных
+        try:
+            from database import SubjectRepository
+            subjects_db = await SubjectRepository.get_by_user_id(user_id)
+
+            # Преобразуем в нужный формат с сопоставлением названий
+            subject_mapping = {
+                "История Казахстана": "kz",
+                "Математическая грамотность": "mathlit",
+                "Математика": "math",
+                "География": "geo",
+                "Биология": "bio",
+                "Химия": "chem",
+                "Информатика": "inf",
+                "Всемирная история": "world",
+                "Python": "python",
+                "JavaScript": "js",
+                "Java": "java",
+                "Физика": "physics"
+            }
+
+            subjects = []
+            for subject_db in subjects_db:
+                subject_id = subject_mapping.get(subject_db.name, subject_db.name.lower())
+                subjects.append({"id": subject_id, "name": subject_db.name})
+
+        except Exception as e:
+            print(f"Ошибка при получении предметов студента: {e}")
+            # Fallback на все предметы
+            subjects = [
+                {"id": "kz", "name": "История Казахстана"},
+                {"id": "mathlit", "name": "Математическая грамотность"},
+                {"id": "math", "name": "Математика"},
+                {"id": "geo", "name": "География"},
+                {"id": "bio", "name": "Биология"},
+                {"id": "chem", "name": "Химия"},
+                {"id": "inf", "name": "Информатика"},
+                {"id": "world", "name": "Всемирная история"}
+            ]
+    else:
+        # Все предметы (для обратной совместимости)
+        subjects = [
+            {"id": "kz", "name": "История Казахстана"},
+            {"id": "mathlit", "name": "Математическая грамотность"},
+            {"id": "math", "name": "Математика"},
+            {"id": "geo", "name": "География"},
+            {"id": "bio", "name": "Биология"},
+            {"id": "chem", "name": "Химия"},
+            {"id": "inf", "name": "Информатика"},
+            {"id": "world", "name": "Всемирная история"}
+        ]
+
     buttons = []
     for subject in subjects:
         buttons.append([

@@ -54,7 +54,7 @@ async def show_subjects_list(callback: CallbackQuery, state: FSMContext):
     """Показать список предметов для просмотра понимания по темам"""
     await callback.message.edit_text(
         "Выбери предмет, чтобы посмотреть % понимания по микротемам:",
-        reply_markup=await get_subjects_progress_kb()
+        reply_markup=await get_subjects_progress_kb(user_id=callback.from_user.id)
     )
     await state.set_state(ProgressStates.subjects)
 

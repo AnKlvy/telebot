@@ -24,7 +24,7 @@ router = Router()
 async def choose_course(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "Выбери курс, по которому хочешь пройти домашнее задание 👇",
-        reply_markup=await get_courses_kb()
+        reply_markup=await get_courses_kb(user_id=callback.from_user.id)
     )
     await state.set_state(HomeworkStates.course)
 
@@ -44,7 +44,7 @@ async def choose_subject(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"📚 Курс: {course.name}\n\n"
         "Теперь выбери предмет — это поможет выбрать нужные темы и задания:",
-        reply_markup=await get_subjects_kb(course_id)
+        reply_markup=await get_subjects_kb(course_id=course_id, user_id=callback.from_user.id)
     )
     await state.set_state(HomeworkStates.subject)
 

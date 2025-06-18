@@ -267,7 +267,7 @@ def remove_person(person_db: Dict, person_id: str) -> bool:
     return False
 
 # Функции для работы со студентами
-async def add_student(name: str, telegram_id: int, group_id: int, tariff: str) -> bool:
+async def add_student(name: str, telegram_id: int, tariff: str, course_ids: list = None, group_ids: list = None) -> bool:
     """Добавить нового студента или создать профиль студента для существующего пользователя"""
     try:
         # Проверяем, существует ли пользователь
@@ -289,10 +289,26 @@ async def add_student(name: str, telegram_id: int, group_id: int, tariff: str) -
         # Создаем профиль студента
         student = await StudentRepository.create(
             user_id=user.id,
-            group_id=group_id,
             tariff=tariff
         )
         print(f"🔍 DEBUG: Создан профиль студента (ID: {student.id})")
+
+        # Добавляем студента к курсам, если они указаны
+        if course_ids:
+            course_added = await StudentRepository.set_courses(student.id, course_ids)
+            if course_added:
+                print(f"🔍 DEBUG: Студент добавлен к курсам: {course_ids}")
+            else:
+                print(f"⚠️ DEBUG: Не удалось добавить студента к курсам: {course_ids}")
+
+        # Добавляем студента к группам, если они указаны
+        if group_ids:
+            groups_added = await StudentRepository.set_groups(student.id, group_ids)
+            if groups_added:
+                print(f"🔍 DEBUG: Студент добавлен к группам: {group_ids}")
+            else:
+                print(f"⚠️ DEBUG: Не удалось добавить студента к группам: {group_ids}")
+
         return True
     except Exception as e:
         print(f"❌ DEBUG: Ошибка при добавлении студента: {e}")
@@ -568,6 +584,105 @@ async def get_groups_selection_kb(selected_group_ids: list, subject_id: int):
     if selected_group_ids:
         buttons.append([
             InlineKeyboardButton(text="✅ Готово", callback_data="finish_group_selection")
+        ])
+
+    buttons.extend([
+        back_to_main_button()
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# Функции для множественного выбора курсов
+async def get_courses_selection_kb(selected_course_ids: list):
+    """Клавиатура для выбора курсов с возможностью множественного выбора"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from common.keyboards import back_to_main_button
+
+    buttons = []
+
+    # Получаем все курсы из базы данных
+    courses = await CourseRepository.get_all()
+
+    for course in courses:
+        if course.id in selected_course_ids:
+            # Курс уже выбран
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"✅ {course.name}",
+                    callback_data=f"unselect_course_{course.id}"
+                )
+            ])
+        else:
+            # Курс не выбран
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"⬜ {course.name}",
+                    callback_data=f"select_course_{course.id}"
+                )
+            ])
+
+    # Кнопки управления
+    if selected_course_ids:
+        buttons.append([
+            InlineKeyboardButton(text="✅ Готово", callback_data="finish_course_selection")
+        ])
+
+    buttons.extend([
+        back_to_main_button()
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# Функции для множественного выбора групп студентов
+async def get_student_groups_selection_kb(selected_group_ids: list, course_ids: list = None):
+    """Клавиатура для выбора групп студента с возможностью множественного выбора"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from common.keyboards import back_to_main_button
+
+    buttons = []
+
+    # Получаем группы из базы данных
+    from database import GroupRepository, SubjectRepository
+    if course_ids:
+        # Получаем группы, связанные с выбранными курсами через предметы
+        groups = []
+        for course_id in course_ids:
+            # Получаем предметы курса
+            subjects = await SubjectRepository.get_by_course(course_id)
+            # Получаем группы для каждого предмета
+            for subject in subjects:
+                subject_groups = await GroupRepository.get_by_subject(subject.id)
+                groups.extend(subject_groups)
+        # Убираем дубликаты
+        unique_groups = {group.id: group for group in groups}.values()
+        groups = list(unique_groups)
+    else:
+        # Получаем все группы
+        groups = await GroupRepository.get_all()
+
+    for group in groups:
+        group_name = f"{group.name} ({group.subject.name})" if group.subject else group.name
+        if group.id in selected_group_ids:
+            # Группа уже выбрана
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"✅ {group_name}",
+                    callback_data=f"unselect_student_group_{group.id}"
+                )
+            ])
+        else:
+            # Группа не выбрана
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"⬜ {group_name}",
+                    callback_data=f"select_student_group_{group.id}"
+                )
+            ])
+
+    # Кнопки управления
+    if selected_group_ids:
+        buttons.append([
+            InlineKeyboardButton(text="✅ Готово", callback_data="finish_student_group_selection")
         ])
 
     buttons.extend([

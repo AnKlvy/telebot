@@ -35,6 +35,22 @@ teacher_groups = Table(
     Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True)
 )
 
+# Таблица связи Many-to-Many для студентов и курсов
+student_courses = Table(
+    'student_courses',
+    Base.metadata,
+    Column('student_id', Integer, ForeignKey('students.id'), primary_key=True),
+    Column('course_id', Integer, ForeignKey('courses.id'), primary_key=True)
+)
+
+# Таблица связи Many-to-Many для студентов и групп
+student_groups = Table(
+    'student_groups',
+    Base.metadata,
+    Column('student_id', Integer, ForeignKey('students.id'), primary_key=True),
+    Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True)
+)
+
 
 # Модель пользователя
 class User(Base):
@@ -57,6 +73,8 @@ class Course(Base):
 
     # Связь Many-to-Many с предметами
     subjects = relationship("Subject", secondary=course_subjects, back_populates="courses")
+    # Связь Many-to-Many со студентами
+    students = relationship("Student", secondary=student_courses, back_populates="courses")
 
 
 # Модель предмета
@@ -88,6 +106,8 @@ class Group(Base):
     curators = relationship("Curator", secondary=curator_groups, back_populates="groups")
     # Связь Many-to-Many с учителями
     teachers = relationship("Teacher", secondary=teacher_groups, back_populates="groups")
+    # Связь Many-to-Many со студентами
+    students = relationship("Student", secondary=student_groups, back_populates="groups")
 
 
 # Модель студента
@@ -96,7 +116,6 @@ class Student(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
-    group_id = Column(Integer, ForeignKey('groups.id', ondelete='SET NULL'), nullable=True)
     tariff = Column(String(50), nullable=True)  # 'standard' или 'premium'
     points = Column(Integer, default=0)
     level = Column(String(50), default='Новичок')
@@ -104,7 +123,10 @@ class Student(Base):
 
     # Связи
     user = relationship("User", backref="student_profile")
-    group = relationship("Group", backref="students")
+    # Связь Many-to-Many с курсами
+    courses = relationship("Course", secondary=student_courses, back_populates="students")
+    # Связь Many-to-Many с группами
+    groups = relationship("Group", secondary=student_groups, back_populates="students")
 
 
 # Модель куратора
