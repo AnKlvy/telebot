@@ -94,14 +94,15 @@ class StudentRepository:
     async def get_by_group(group_id: int) -> List[Student]:
         """Получить студентов по группе"""
         async with get_db_session() as session:
+            from ..models import student_groups
             result = await session.execute(
                 select(Student)
                 .options(
                     selectinload(Student.user),
-                    selectinload(Student.group).selectinload(Group.subject)
+                    selectinload(Student.groups).selectinload(Group.subject)
                 )
-                .where(Student.group_id == group_id)
-
+                .join(student_groups)
+                .where(student_groups.c.group_id == group_id)
             )
             return list(result.scalars().all())
 
@@ -111,18 +112,20 @@ class StudentRepository:
         async with get_db_session() as session:
             query = select(Student).options(
                 selectinload(Student.user),
-                selectinload(Student.group).selectinload(Group.subject)
+                selectinload(Student.groups).selectinload(Group.subject)
             )
-            
+
             if group_id:
-                query = query.where(Student.group_id == group_id)
+                # Используем many-to-many связь через student_groups
+                from ..models import student_groups
+                query = query.join(student_groups).where(student_groups.c.group_id == group_id)
             elif course_id:
                 # Если указан курс, но не группа, получаем студентов всех групп курса
-                from ..models import Subject, course_subjects
-                query = query.join(Student.group).join(Group.subject).join(
+                from ..models import Subject, course_subjects, student_groups
+                query = query.join(student_groups).join(Group, student_groups.c.group_id == Group.id).join(Group.subject).join(
                     course_subjects, Subject.id == course_subjects.c.subject_id
                 ).where(course_subjects.c.course_id == course_id)
-                
+
             result = await session.execute(query)
             return list(result.scalars().all())
 
