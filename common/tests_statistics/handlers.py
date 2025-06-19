@@ -7,7 +7,8 @@ from .keyboards import (
     get_groups_kb,
     get_month_kb,
     get_students_kb,
-    get_back_kb
+    get_back_kb,
+    get_curator_groups_kb
 )
 from .menu import show_tests_statistics_menu
 from common.statistics import (
@@ -44,9 +45,39 @@ async def show_course_entry_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для входного теста курса"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_course_entry_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
+
+    # Получаем группы куратора из базы данных
+    from database import CuratorRepository, UserRepository
+
+    # Получаем куратора по telegram_id
+    user = await UserRepository.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.message.edit_text(
+            "❌ Пользователь не найден в системе",
+            reply_markup=get_back_kb()
+        )
+        return
+
+    curator = await CuratorRepository.get_by_user_id(user.id)
+    if not curator:
+        await callback.message.edit_text(
+            "❌ Профиль куратора не найден",
+            reply_markup=get_back_kb()
+        )
+        return
+
+    # Получаем группы куратора
+    curator_groups = await CuratorRepository.get_curator_groups(curator.id)
+    if not curator_groups:
+        await callback.message.edit_text(
+            "❌ У вас нет назначенных групп",
+            reply_markup=get_back_kb()
+        )
+        return
+
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики входного теста курса:",
-        reply_markup=get_groups_kb("course_entry")
+        reply_markup=await get_curator_groups_kb("course_entry", curator_groups)
     )
 
 @router.callback_query(F.data.startswith("course_entry_group_"))
@@ -54,19 +85,33 @@ async def show_course_entry_statistics(callback: CallbackQuery, state: FSMContex
     """Показать статистику входного теста курса для группы"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_course_entry_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
-    group_id = callback.data.replace("course_entry_group_", "")
-    await show_test_students_statistics(callback, state, "course_entry", group_id)
+
+    try:
+        group_id = int(callback.data.replace("course_entry_group_", ""))
+        await show_course_entry_test_statistics(callback, state, group_id)
+    except ValueError:
+        await callback.message.edit_text(
+            "❌ Ошибка: неверный ID группы",
+            reply_markup=get_back_kb()
+        )
 
 @router.callback_query(F.data.startswith("course_entry_student_"))
 async def show_course_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста курса для конкретного ученика"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_course_entry_student_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
-    # Формат: course_entry_student_GROUP_ID_STUDENT_ID
-    parts = callback.data.split("_")
-    group_id = parts[3]
-    student_id = parts[4]
-    await show_student_test_statistics(callback, state, "course_entry", student_id, group_id)
+
+    try:
+        # Формат: course_entry_student_GROUP_ID_STUDENT_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        student_id = int(parts[4])
+        await show_course_entry_student_detail(callback, state, group_id, student_id)
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
 
 # Обработчики для входного теста месяца
 @router.callback_query(F.data == "stats_month_entry_test")
@@ -410,3 +455,343 @@ async def get_group_id_from_callback_or_state(callback: CallbackQuery, state: FS
         logger.info("group_id из состояния: %s", group_id)
 
     return group_id
+
+
+
+
+
+async def show_course_entry_test_statistics(callback: CallbackQuery, state: FSMContext, group_id: int):
+    """Показать статистику входного теста курса для группы"""
+    from database import CourseEntryTestResultRepository, GroupRepository
+
+    try:
+        # Получаем группу
+        group = await GroupRepository.get_by_id(group_id)
+        if not group:
+            await callback.message.edit_text(
+                "❌ Группа не найдена",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по группе
+        stats = await CourseEntryTestResultRepository.get_statistics_by_group(group_id)
+
+        # Формируем текст сообщения
+        result_text = f"📊 Статистика входного теста курса\n\n"
+        result_text += f"📗 {stats['subject_name']}\n"
+        result_text += f"Группа: {stats['group_name']}\n\n"
+
+        # Показываем прошедших тест
+        result_text += "✅ Прошли тест:\n"
+        if stats['completed']:
+            for i, student in enumerate(stats['completed'], 1):
+                # Находим результат теста для этого студента
+                test_result = next((tr for tr in stats['test_results'] if tr.student.id == student.id), None)
+                percentage = f" ({test_result.score_percentage}%)" if test_result else ""
+                result_text += f"{i}. {student.user.name}{percentage}\n"
+        else:
+            result_text += "Пока никто не прошел тест\n"
+
+        result_text += "\n❌ Не прошли тест:\n"
+        if stats['not_completed']:
+            for i, student in enumerate(stats['not_completed'], 1):
+                result_text += f"{i}. {student.user.name}\n"
+        else:
+            result_text += "Все студенты прошли тест\n"
+
+        # Добавляем кнопки для просмотра детальной статистики по ученикам
+        buttons = []
+        for test_result in stats.get('test_results', []):
+            student = test_result.student
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"📊 {student.user.name} ({test_result.score_percentage}%)",
+                    callback_data=f"course_entry_student_{group_id}_{student.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении статистики входного теста курса: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_course_entry_student_detail(callback: CallbackQuery, state: FSMContext, group_id: int, student_id: int):
+    """Показать детальную статистику входного теста курса для студента"""
+    from database import CourseEntryTestResultRepository, StudentRepository, GroupRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента
+        student = await StudentRepository.get_by_id(student_id)
+        if not student:
+            await callback.message.edit_text(
+                "❌ Студент не найден",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем группу
+        group = await GroupRepository.get_by_id(group_id)
+        if not group:
+            await callback.message.edit_text(
+                "❌ Группа не найдена",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста студента по предмету группы
+        test_result = await CourseEntryTestResultRepository.get_by_student_and_subject(
+            student_id, group.subject_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест курса по предмету {group.subject.name}",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await CourseEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Формируем краткую информацию
+        result_text = f"📊 Результат входного теста курса\n\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+        result_text += "Выберите тип аналитики:"
+
+        # Создаем кнопки для детальной аналитики
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        buttons = [
+            [InlineKeyboardButton(
+                text="📊 Проценты по микротемам",
+                callback_data=f"course_entry_detailed_{group_id}_{student_id}"
+            )],
+            [InlineKeyboardButton(
+                text="💪 Сильные/слабые темы",
+                callback_data=f"course_entry_summary_{group_id}_{student_id}"
+            )]
+        ]
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики студента: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики студента",
+            reply_markup=get_back_kb()
+        )
+
+
+# Функции для обработчиков (вызываются из register_handlers.py)
+async def show_course_entry_detailed_microtopics(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам входного теста курса"""
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_course_entry_detailed_microtopics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
+
+    try:
+        # Формат: course_entry_detailed_GROUP_ID_STUDENT_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        student_id = int(parts[4])
+
+        await show_course_entry_microtopics_detailed(callback, state, group_id, student_id)
+
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_course_entry_summary_microtopics(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным/слабым темам входного теста курса"""
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_course_entry_summary_microtopics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
+
+    try:
+        # Формат: course_entry_summary_GROUP_ID_STUDENT_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        student_id = int(parts[4])
+
+        await show_course_entry_microtopics_summary(callback, state, group_id, student_id)
+
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_course_entry_microtopics_detailed(callback: CallbackQuery, state: FSMContext, group_id: int, student_id: int):
+    """Показать детальную статистику по микротемам входного теста курса"""
+    from database import CourseEntryTestResultRepository, StudentRepository, GroupRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента и группу
+        student = await StudentRepository.get_by_id(student_id)
+        group = await GroupRepository.get_by_id(group_id)
+
+        if not student or not group:
+            await callback.message.edit_text(
+                "❌ Студент или группа не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста
+        test_result = await CourseEntryTestResultRepository.get_by_student_and_subject(
+            student_id, group.subject_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест курса по предмету {group.subject.name}",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await CourseEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Формируем детальную статистику
+        result_text = f"📊 Детальная статистика входного теста курса\n\n"
+        result_text += f"👤 {student.user.name}\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+        result_text += "📈 % правильных ответов по микротемам:\n"
+
+        if microtopic_stats:
+            for microtopic_num in sorted(microtopic_stats.keys()):
+                stats = microtopic_stats[microtopic_num]
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                percentage = stats['percentage']
+
+                # Определяем эмодзи статуса
+                if percentage >= 80:
+                    status = "✅"
+                elif percentage <= 40:
+                    status = "❌"
+                else:
+                    status = "⚠️"
+
+                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+        else:
+            result_text += "Нет данных по микротемам\n"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики входного теста: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_course_entry_microtopics_summary(callback: CallbackQuery, state: FSMContext, group_id: int, student_id: int):
+    """Показать сводку по сильным/слабым темам входного теста курса"""
+    from database import CourseEntryTestResultRepository, StudentRepository, GroupRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента и группу
+        student = await StudentRepository.get_by_id(student_id)
+        group = await GroupRepository.get_by_id(group_id)
+
+        if not student or not group:
+            await callback.message.edit_text(
+                "❌ Студент или группа не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста
+        test_result = await CourseEntryTestResultRepository.get_by_student_and_subject(
+            student_id, group.subject_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест курса по предмету {group.subject.name}",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await CourseEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Определяем сильные и слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        for microtopic_num, stats in microtopic_stats.items():
+            microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+            percentage = stats['percentage']
+
+            if percentage >= 80:
+                strong_topics.append(microtopic_name)
+            elif percentage <= 40:
+                weak_topics.append(microtopic_name)
+
+        # Формируем сводку
+        result_text = f"💪 Сводка по входному тесту курса\n\n"
+        result_text += f"👤 {student.user.name}\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+
+        if strong_topics:
+            result_text += "🟢 Сильные темы (≥80%):\n"
+            for topic in strong_topics:
+                result_text += f"• {topic}\n"
+
+        if weak_topics:
+            if strong_topics:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not strong_topics and not weak_topics:
+            result_text += "⚠️ Все темы находятся в среднем диапазоне (41-79%)"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении сводки входного теста: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении сводки",
+            reply_markup=get_back_kb()
+        )

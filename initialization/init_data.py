@@ -17,6 +17,8 @@ from initialization.admin_roles import add_admin_roles
 from initialization.student_assignments import assign_students_to_courses
 from initialization.month_tests import add_test_month_tests
 from initialization.update_points import update_all_student_points
+from initialization.course_entry_test_data import create_course_entry_test_results
+from database.init_shop_data import init_shop_items
 
 
 async def add_initial_data():
@@ -59,11 +61,19 @@ async def add_initial_data():
         # 8. Добавление тестовых тестов месяца
         print("\n🗓️ Добавление тестовых тестов месяца...")
         await add_test_month_tests(created_subjects)
-        
-        # 9. Обновление баллов и уровней студентов
+
+        # 9. Создание результатов входных тестов курса
+        print("\n📊 Создание результатов входных тестов курса...")
+        await create_course_entry_test_results()
+
+        # 10. Обновление баллов и уровней студентов
         print("\n🔄 Обновление баллов и уровней студентов...")
         await update_all_student_points()
-        
+
+        # 11. Инициализация товаров магазина
+        print("\n🛒 Инициализация товаров магазина...")
+        await init_shop_items()
+
         print("\n✅ Инициализация данных завершена успешно!")
         
     except Exception as e:

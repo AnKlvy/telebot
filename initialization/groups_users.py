@@ -142,7 +142,7 @@ async def create_groups_and_users(created_subjects):
 
         # Студенты
         students_data = [
-            {"telegram_id": 333444555, "name": "Муханбетжан Олжас", "groups": ["PY-1"], "tariff": "premium"},
+            {"telegram_id": 333444555, "name": "Муханбетжан Олжас", "groups": ["PY-1", "М-2"], "tariff": "premium"},
             {"telegram_id": 666777888, "name": "Аружан Ахметова", "groups": ["М-1"], "tariff": "standard"},
             {"telegram_id": 999000111, "name": "Бекзат Сериков", "groups": ["PY-2"], "tariff": "premium"},
             {"telegram_id": 222333444, "name": "Динара Жанибекова", "groups": ["JS-1"], "tariff": "standard"},
@@ -161,17 +161,22 @@ async def create_groups_and_users(created_subjects):
                     user_id=user.id,
                     tariff=student_data["tariff"]
                 )
+                print(f"      ✅ Профиль студента создан (Student ID: {student.id})")
+            else:
+                # Получаем существующего студента
+                student = await StudentRepository.get_by_user_id(user.id)
+                print(f"      ⚠️ Student '{student_data['name']}' уже существует (ID: {student.id})")
 
-                # Привязываем к группам
-                group_ids = []
-                for group_name in student_data["groups"]:
-                    if group_name in created_groups:
-                        group_ids.append(created_groups[group_name].id)
+            # Привязываем к группам (для новых и существующих студентов)
+            group_ids = []
+            for group_name in student_data["groups"]:
+                if group_name in created_groups:
+                    group_ids.append(created_groups[group_name].id)
 
-                if group_ids:
-                    await StudentRepository.set_groups(student.id, group_ids)
-                    group_names = ", ".join(student_data["groups"])
-                    print(f"      ✅ Добавлен в группы: {group_names} (Student ID: {student.id})")
+            if group_ids:
+                await StudentRepository.set_groups(student.id, group_ids)
+                group_names = ", ".join(student_data["groups"])
+                print(f"      ✅ Обновлены группы: {group_names} (Student ID: {student.id})")
 
         print(f"👥 Создание групп и пользователей завершено!")
 

@@ -118,6 +118,7 @@ class Student(Base):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
     tariff = Column(String(50), nullable=True)  # 'standard' или 'premium'
     points = Column(Integer, default=0)
+    coins = Column(Integer, default=0)  # Монеты для покупок в магазине
     level = Column(String(50), default='Новичок')
     created_at = Column(DateTime, server_default=func.now())
 
@@ -424,3 +425,99 @@ class QuestionResult(Base):
     homework_result = relationship("HomeworkResult", back_populates="question_results")
     question = relationship("Question", backref="results")
     selected_answer = relationship("AnswerOption", backref="question_results")
+
+
+# Модель результата входного теста курса
+class CourseEntryTestResult(Base):
+    __tablename__ = 'course_entry_test_results'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    total_questions = Column(Integer, nullable=False, default=30)  # Всегда 30 вопросов
+    correct_answers = Column(Integer, nullable=False, default=0)
+    score_percentage = Column(Integer, nullable=False, default=0)  # Процент правильных ответов
+    completed_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="course_entry_test_results")
+    subject = relationship("Subject", backref="course_entry_test_results")
+    question_results = relationship("CourseEntryQuestionResult", back_populates="test_result", cascade="all, delete-orphan")
+
+    # Уникальность: один результат входного теста курса на студента/предмет
+    __table_args__ = (
+        UniqueConstraint('student_id', 'subject_id', name='unique_course_entry_test_per_student_subject'),
+    )
+
+
+# Модель результата ответа на вопрос входного теста курса
+class CourseEntryQuestionResult(Base):
+    __tablename__ = 'course_entry_question_results'
+
+    id = Column(Integer, primary_key=True)
+    test_result_id = Column(Integer, ForeignKey('course_entry_test_results.id', ondelete='CASCADE'), nullable=False)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)  # Ссылка на исходный вопрос
+    selected_answer_id = Column(Integer, ForeignKey('answer_options.id', ondelete='SET NULL'), nullable=True)
+    is_correct = Column(Boolean, nullable=False)
+    time_spent = Column(Integer, nullable=True)  # Время в секундах
+    microtopic_number = Column(Integer, nullable=True)  # Номер микротемы для статистики
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    test_result = relationship("CourseEntryTestResult", back_populates="question_results")
+    question = relationship("Question", backref="course_entry_results")
+    selected_answer = relationship("AnswerOption", backref="course_entry_results")
+
+
+
+
+
+
+
+# Модель товара в магазине
+class ShopItem(Base):
+    __tablename__ = 'shop_items'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    price = Column(Integer, nullable=False)  # Цена в монетах
+    item_type = Column(String(50), nullable=False)  # 'bonus_test', 'pdf', 'money', 'other'
+    is_active = Column(Boolean, default=True)  # Активен ли товар
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    purchases = relationship("StudentPurchase", back_populates="item", cascade="all, delete-orphan")
+
+
+# Модель покупки студента
+class StudentPurchase(Base):
+    __tablename__ = 'student_purchases'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    item_id = Column(Integer, ForeignKey('shop_items.id', ondelete='CASCADE'), nullable=False)
+    price_paid = Column(Integer, nullable=False)  # Цена на момент покупки
+    is_used = Column(Boolean, default=False)  # Использован ли товар (для бонусных тестов)
+    purchased_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="purchases")
+    item = relationship("ShopItem", back_populates="purchases")
+
+
+# Модель покупки бонусного теста студентом
+class StudentBonusTest(Base):
+    __tablename__ = 'student_bonus_tests'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    bonus_test_id = Column(Integer, ForeignKey('bonus_tests.id', ondelete='CASCADE'), nullable=False)
+    price_paid = Column(Integer, nullable=False)  # Цена на момент покупки
+    is_used = Column(Boolean, default=False)  # Пройден ли тест
+    purchased_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="bonus_tests")
+    bonus_test = relationship("BonusTest", backref="student_purchases")

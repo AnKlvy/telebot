@@ -14,13 +14,13 @@ def get_tests_statistics_menu_kb() -> InlineKeyboardMarkup:
             ])
 
 def get_groups_kb(test_type: str) -> InlineKeyboardMarkup:
-    """Клавиатура с группами для статистики тестов"""
+    """Клавиатура с группами для статистики тестов (старая версия для совместимости)"""
     # В реальном приложении группы будут загружаться из базы данных
     groups = [
         {"id": "geo_intensive", "name": "Интенсив. География"},
         {"id": "math_intensive", "name": "Интенсив. Математика"}
     ]
-    
+
     buttons = []
     for group in groups:
         buttons.append([
@@ -29,10 +29,27 @@ def get_groups_kb(test_type: str) -> InlineKeyboardMarkup:
                 callback_data=f"{test_type}_group_{group['id']}"
             )
         ])
-    
+
     # Добавляем кнопку "Назад"
     buttons.extend(get_main_menu_back_button())
-    
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def get_curator_groups_kb(test_type: str, groups: list) -> InlineKeyboardMarkup:
+    """Клавиатура с группами куратора для статистики тестов"""
+    buttons = []
+    for group in groups:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{group.name} ({group.subject.name if group.subject else 'Без предмета'})",
+                callback_data=f"{test_type}_group_{group.id}"
+            )
+        ])
+
+    # Добавляем кнопку "Назад"
+    buttons.extend(get_main_menu_back_button())
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_month_kb(test_type: str, group_id: str) -> InlineKeyboardMarkup:

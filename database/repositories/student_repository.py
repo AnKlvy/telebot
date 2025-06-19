@@ -453,3 +453,52 @@ class StudentRepository:
 
             await session.commit()
             return True
+
+    @staticmethod
+    async def get_balance(student_id: int) -> dict:
+        """Получить баланс студента (баллы и монеты)"""
+        async with get_db_session() as session:
+            student = await session.get(Student, student_id)
+            if not student:
+                return {"points": 0, "coins": 0}
+            return {"points": student.points, "coins": student.coins}
+
+    @staticmethod
+    async def exchange_points_to_coins(student_id: int, points_amount: int) -> bool:
+        """Обменять баллы на монеты (1:1)"""
+        async with get_db_session() as session:
+            student = await session.get(Student, student_id)
+            if not student or student.points < points_amount:
+                return False
+
+            student.points -= points_amount
+            student.coins += points_amount
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def spend_coins(student_id: int, coins_amount: int) -> bool:
+        """Потратить монеты"""
+        async with get_db_session() as session:
+            student = await session.get(Student, student_id)
+            if not student or student.coins < coins_amount:
+                return False
+
+            student.coins -= coins_amount
+
+            await session.commit()
+            return True
+
+    @staticmethod
+    async def add_coins(student_id: int, coins_amount: int) -> bool:
+        """Добавить монеты студенту"""
+        async with get_db_session() as session:
+            student = await session.get(Student, student_id)
+            if not student:
+                return False
+
+            student.coins += coins_amount
+
+            await session.commit()
+            return True
