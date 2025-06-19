@@ -44,7 +44,17 @@ class KeyboardManager:
             # Проверяем, нужно ли обновлять клавиатуру
             current_role = self._user_keyboards.get(user_id)
             if current_role == role:
-                logging.debug(f"Клавиатура для пользователя {user_id} уже установлена для роли {role}")
+                from aiogram.types import MenuButtonDefault
+                await bot.set_chat_menu_button(
+                    chat_id=user_id,
+                    menu_button=MenuButtonDefault()
+                )
+                message = await bot.send_message(
+                    chat_id=user_id,
+                    text="⚙️",  # Минимальное сообщение
+                    reply_markup=self.admin_keyboard
+                )
+                logging.info(f"Клавиатура для пользователя {user_id} уже установлена для роли {role}")
                 return True
             
             if role == "admin":
@@ -54,7 +64,13 @@ class KeyboardManager:
                     text="🔑 Добро пожаловать, админ! Клавиатура активирована.",
                     reply_markup=self.admin_keyboard
                 )
-                logging.info(f"✅ Клавиатура админа установлена для пользователя {user_id}")
+
+                from aiogram.types import MenuButtonDefault
+                await bot.set_chat_menu_button(
+                    chat_id=user_id,
+                    menu_button=MenuButtonDefault()
+                )
+                logging.info(f"✅ Клавиатура админа установлена для пользователя {user_id} (без сообщения)")
             else:
                 # Просто обновить клавиатуру через set_chat_menu_button
                 from aiogram.types import MenuButtonDefault
