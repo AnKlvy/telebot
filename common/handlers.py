@@ -37,8 +37,6 @@ async def keyboard_admin_handler(message: Message, state: FSMContext, user_role:
     if user_role == "admin":
         from admin.handlers.main import show_admin_main_menu
         await show_admin_main_menu(message, user_role=user_role)
-    else:
-        await message.answer("❌ У вас нет доступа к панели администратора")
 
 @router.message(F.text == "менеджер")
 async def keyboard_manager_handler(message: Message, state: FSMContext, user_role: str = None):
@@ -47,8 +45,6 @@ async def keyboard_manager_handler(message: Message, state: FSMContext, user_rol
     if user_role in ["admin", "manager"]:
         from manager.handlers.main import show_manager_main_menu
         await show_manager_main_menu(message, user_role=user_role)
-    else:
-        await message.answer("❌ У вас нет доступа к панели менеджера")
 
 @router.message(F.text == "преподаватель")
 async def keyboard_teacher_handler(message: Message, state: FSMContext, user_role: str = None):
@@ -57,8 +53,6 @@ async def keyboard_teacher_handler(message: Message, state: FSMContext, user_rol
     if user_role in ["admin", "teacher"]:
         from teacher.handlers.main import show_teacher_main_menu
         await show_teacher_main_menu(message, user_role=user_role)
-    else:
-        await message.answer("❌ У вас нет доступа к панели преподавателя")
 
 @router.message(F.text == "куратор")
 async def keyboard_curator_handler(message: Message, state: FSMContext, user_role: str = None):
@@ -67,8 +61,6 @@ async def keyboard_curator_handler(message: Message, state: FSMContext, user_rol
     if user_role in ["admin", "curator"]:
         from curator.handlers.main import show_curator_main_menu
         await show_curator_main_menu(message, user_role=user_role)
-    else:
-        await message.answer("❌ У вас нет доступа к панели куратора")
 
 @router.message(F.text == "старт")
 async def keyboard_start_handler(message: Message, state: FSMContext, user_role: str = None):
