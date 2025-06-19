@@ -47,12 +47,22 @@ async def create_groups_and_users(created_subjects):
         for group_data in groups_data:
             subject_name = group_data["subject"]
             if subject_name in created_subjects:
-                group = await GroupRepository.create(
-                    name=group_data["name"],
-                    subject_id=created_subjects[subject_name].id
-                )
-                created_groups[group.name] = group
-                print(f"   ✅ Группа '{group.name}' создана для предмета '{subject_name}' (ID: {group.id})")
+                try:
+                    group = await GroupRepository.create(
+                        name=group_data["name"],
+                        subject_id=created_subjects[subject_name].id
+                    )
+                    created_groups[group.name] = group
+                    print(f"   ✅ Группа '{group.name}' создана для предмета '{subject_name}' (ID: {group.id})")
+                except ValueError as e:
+                    # Группа уже существует, получаем её из базы
+                    existing_groups = await GroupRepository.get_by_subject(created_subjects[subject_name].id)
+                    existing_group = next((g for g in existing_groups if g.name == group_data["name"]), None)
+                    if existing_group:
+                        created_groups[existing_group.name] = existing_group
+                        print(f"   ⚠️ Группа '{existing_group.name}' уже существует для предмета '{subject_name}' (ID: {existing_group.id})")
+                    else:
+                        print(f"   ❌ Ошибка при создании группы '{group_data['name']}': {e}")
 
         # Создание пользователей
         print("👤 Создание пользователей...")
@@ -64,6 +74,7 @@ async def create_groups_and_users(created_subjects):
         managers_data = [
             {"telegram_id": 111222333, "name": "Алия Сейтова"},
             {"telegram_id": 444555666, "name": "Данияр Жумабеков"},
+            {"telegram_id": 7265679697, "name": "Медина Махамбет"},
         ]
 
         for manager_data in managers_data:

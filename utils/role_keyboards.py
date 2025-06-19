@@ -76,8 +76,8 @@ class RoleKeyboardsManager:
         keyboard = self._role_keyboards.get(role, self._role_keyboards["new_user"])
 
         try:
-            # Отправляем клавиатуру с минимальным сообщением
-            await message.answer("🎛️", reply_markup=keyboard)
+            # Устанавливаем клавиатуру без отправки сообщения
+            # Клавиатура будет установлена при следующем сообщении пользователя
             return True
 
         except Exception as e:
