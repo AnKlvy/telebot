@@ -184,14 +184,16 @@ class Lesson(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     # Связи
     subject = relationship("Subject", backref="lessons")
+    course = relationship("Course", backref="lessons")
 
-    # Уникальность: одно название урока на предмет
+    # Уникальность: одно название урока на курс и предмет
     __table_args__ = (
-        UniqueConstraint('name', 'subject_id', name='unique_lesson_per_subject'),
+        UniqueConstraint('name', 'subject_id', 'course_id', name='unique_lesson_per_course_subject'),
     )
 
 

@@ -6,11 +6,19 @@ from database import (
 )
 
 
-async def create_lessons_and_homework(created_subjects):
+async def create_lessons_and_homework(created_subjects, created_courses):
     """Создание уроков и домашних заданий"""
     try:
         print("📝 Создание уроков и домашних заданий...")
-        
+
+        # Получаем первый курс для привязки уроков (можно изменить логику)
+        if not created_courses:
+            print("❌ Нет созданных курсов для привязки уроков")
+            return {}
+
+        default_course = created_courses[0]  # Используем первый курс как основной
+        print(f"📚 Привязываем уроки к курсу: {default_course.name}")
+
         # Данные для уроков и ДЗ по предметам
         lessons_data = {
             "Python": [
@@ -1008,7 +1016,8 @@ async def create_lessons_and_homework(created_subjects):
                     # Создаем урок
                     lesson = await LessonRepository.create(
                         name=lesson_data["name"],
-                        subject_id=subject.id
+                        subject_id=subject.id,
+                        course_id=default_course.id
                     )
                     print(f"      ✅ Урок '{lesson.name}' создан (ID: {lesson.id})")
                 except ValueError as e:
@@ -1176,7 +1185,8 @@ async def create_lessons_and_homework(created_subjects):
                 # Создаем урок
                 lesson = await LessonRepository.create(
                     name=hw_data["lesson_name"],
-                    subject_id=subject.id
+                    subject_id=subject.id,
+                    course_id=default_course.id
                 )
             except ValueError:
                 # Урок уже существует, получаем его

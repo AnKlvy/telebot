@@ -76,8 +76,9 @@ async def process_view_action(callback: CallbackQuery, callback_data: LessonCall
             
         # Получаем предметы для курса
         subjects = await SubjectRepository.get_by_course(course_id)
-        
-        await state.update_data(course_id=course_id, course_name=course.name)
+
+        # Очищаем данные о предмете при выборе нового курса
+        await state.update_data(course_id=course_id, course_name=course.name, subject_id=None, subject_name=None)
         await state.set_state(ManagerLessonStates.select_subject)
         await callback.message.edit_text(
             text=f"Выберите предмет из курса {course.name}:",
@@ -93,8 +94,8 @@ async def process_view_action(callback: CallbackQuery, callback_data: LessonCall
             )
             return
             
-        # Получаем уроки для предмета
-        lessons = await LessonRepository.get_by_subject(subject_id)
+        # Получаем уроки для предмета и курса
+        lessons = await LessonRepository.get_by_subject_and_course(subject_id, course_id)
         
         await state.update_data(
             subject_id=subject_id,
@@ -121,7 +122,9 @@ async def back_to_select_subject(callback: CallbackQuery, state: FSMContext):
     if course_id:
         # Получаем предметы для курса
         subjects = await SubjectRepository.get_by_course(course_id)
-        
+
+        # Очищаем данные о предмете при возврате к выбору предмета
+        await state.update_data(subject_id=None, subject_name=None)
         await state.set_state(ManagerLessonStates.select_subject)
         await callback.message.edit_text(
             text=f"Выберите предмет из курса {course_name}:",
@@ -172,10 +175,10 @@ async def process_lesson_name(message: Message, state: FSMContext):
     
     try:
         # Создаем урок в базе данных
-        lesson = await LessonRepository.create(new_lesson_name, subject_id)
-        
+        lesson = await LessonRepository.create(new_lesson_name, subject_id, data['course_id'])
+
         # Получаем обновленный список уроков
-        lessons = await LessonRepository.get_by_subject(subject_id)
+        lessons = await LessonRepository.get_by_subject_and_course(subject_id, data['course_id'])
         
         await state.set_state(ManagerLessonStates.lessons_list)
         await message.answer(
@@ -234,7 +237,7 @@ async def process_delete_lesson(callback: CallbackQuery, callback_data: LessonCa
     
     if success:
         # Получаем обновленный список уроков
-        lessons = await LessonRepository.get_by_subject(subject_id)
+        lessons = await LessonRepository.get_by_subject_and_course(subject_id, data['course_id'])
         
         await state.set_state(ManagerLessonStates.lessons_list)
         await callback.message.edit_text(

@@ -47,18 +47,19 @@ class LessonRepository:
             return list(result.scalars().all())
 
     @staticmethod
-    async def create(name: str, subject_id: int) -> Lesson:
+    async def create(name: str, subject_id: int, course_id: int) -> Lesson:
         """Создать новый урок"""
         async with get_db_session() as session:
-            # Проверяем, существует ли уже такой урок для данного предмета
+            # Проверяем, существует ли уже такой урок для данного курса и предмета
             existing = await session.execute(
                 select(Lesson).where(
                     Lesson.name == name,
-                    Lesson.subject_id == subject_id
+                    Lesson.subject_id == subject_id,
+                    Lesson.course_id == course_id
                 )
             )
             if existing.scalar_one_or_none():
-                raise ValueError(f"Урок '{name}' уже существует для данного предмета")
+                raise ValueError(f"Урок '{name}' уже существует для данного курса и предмета")
 
             # Проверяем, существует ли предмет
             subject_exists = await session.execute(
@@ -67,7 +68,15 @@ class LessonRepository:
             if not subject_exists.scalar_one_or_none():
                 raise ValueError(f"Предмет с ID {subject_id} не найден")
 
-            lesson = Lesson(name=name, subject_id=subject_id)
+            # Проверяем, существует ли курс
+            from database.models import Course
+            course_exists = await session.execute(
+                select(Course).where(Course.id == course_id)
+            )
+            if not course_exists.scalar_one_or_none():
+                raise ValueError(f"Курс с ID {course_id} не найден")
+
+            lesson = Lesson(name=name, subject_id=subject_id, course_id=course_id)
             session.add(lesson)
             await session.commit()
             await session.refresh(lesson)
@@ -86,16 +95,17 @@ class LessonRepository:
                 return None
 
             if name is not None:
-                # Проверяем уникальность нового названия в рамках предмета
+                # Проверяем уникальность нового названия в рамках курса и предмета
                 existing = await session.execute(
                     select(Lesson).where(
                         Lesson.name == name,
                         Lesson.subject_id == lesson.subject_id,
+                        Lesson.course_id == lesson.course_id,
                         Lesson.id != lesson_id
                     )
                 )
                 if existing.scalar_one_or_none():
-                    raise ValueError(f"Урок '{name}' уже существует для данного предмета")
+                    raise ValueError(f"Урок '{name}' уже существует для данного курса и предмета")
                 
                 lesson.name = name
 
@@ -115,7 +125,7 @@ class LessonRepository:
 
     @staticmethod
     async def get_by_name_and_subject(name: str, subject_id: int) -> Optional[Lesson]:
-        """Получить урок по названию и предмету"""
+        """Получить урок по названию и предмету (устаревший метод)"""
         async with get_db_session() as session:
             result = await session.execute(
                 select(Lesson)
@@ -123,6 +133,36 @@ class LessonRepository:
                 .where(
                     Lesson.name == name,
                     Lesson.subject_id == subject_id
+                )
+            )
+            return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_by_subject_and_course(subject_id: int, course_id: int) -> List[Lesson]:
+        """Получить все уроки по предмету и курсу"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Lesson)
+                .options(selectinload(Lesson.subject), selectinload(Lesson.course))
+                .where(
+                    Lesson.subject_id == subject_id,
+                    Lesson.course_id == course_id
+                )
+                .order_by(Lesson.name)
+            )
+            return result.scalars().all()
+
+    @staticmethod
+    async def get_by_name_subject_and_course(name: str, subject_id: int, course_id: int) -> Optional[Lesson]:
+        """Получить урок по названию, предмету и курсу"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Lesson)
+                .options(selectinload(Lesson.subject), selectinload(Lesson.course))
+                .where(
+                    Lesson.name == name,
+                    Lesson.subject_id == subject_id,
+                    Lesson.course_id == course_id
                 )
             )
             return result.scalar_one_or_none()
