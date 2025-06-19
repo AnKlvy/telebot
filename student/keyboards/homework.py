@@ -76,13 +76,17 @@ async def get_subjects_kb(course_id: int = None, user_id: int = None) -> InlineK
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-async def get_lessons_kb(subject_id: int = None) -> InlineKeyboardMarkup:
+async def get_lessons_kb(subject_id: int = None, course_id: int = None) -> InlineKeyboardMarkup:
     """Клавиатура выбора урока с реальными данными из БД"""
     try:
-        if subject_id:
+        if subject_id and course_id:
+            # Получаем уроки для конкретного предмета и курса
+            lessons = await LessonRepository.get_by_subject_and_course(subject_id, course_id)
+        elif subject_id:
+            # Для обратной совместимости - получаем все уроки предмета
             lessons = await LessonRepository.get_by_subject(subject_id)
         else:
-            # Если предмет не указан, показываем все уроки (для обратной совместимости)
+            # Если ничего не указано, показываем все уроки
             lessons = await LessonRepository.get_all()
 
         buttons = []

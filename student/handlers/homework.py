@@ -62,6 +62,7 @@ async def choose_lesson(callback: CallbackQuery, state: FSMContext):
 
     user_data = await state.get_data()
     course_name = user_data.get("course_name", "")
+    course_id = user_data.get("course_id")
 
     await state.update_data(subject_id=subject.id, subject_name=subject.name)
 
@@ -69,7 +70,7 @@ async def choose_lesson(callback: CallbackQuery, state: FSMContext):
         f"📚 Курс: {course_name}\n"
         f"📖 Предмет: {subject.name}\n\n"
         "Выбери урок, по которому хочешь пройти домашнее задание:",
-        reply_markup=await get_lessons_kb(subject.id)
+        reply_markup=await get_lessons_kb(subject.id, course_id)
     )
     await state.set_state(HomeworkStates.lesson)
 
