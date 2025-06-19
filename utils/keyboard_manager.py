@@ -56,11 +56,11 @@ class KeyboardManager:
                 )
                 logging.info(f"✅ Клавиатура админа установлена для пользователя {user_id}")
             else:
-                # Все остальные роли - убираем клавиатуру
-                await bot.send_message(
+                # Просто обновить клавиатуру через set_chat_menu_button
+                from aiogram.types import MenuButtonDefault
+                await bot.set_chat_menu_button(
                     chat_id=user_id,
-                    text="👤 Клавиатура убрана.",
-                    reply_markup=self.remove_keyboard
+                    menu_button=MenuButtonDefault()
                 )
                 logging.info(f"✅ Клавиатура убрана для пользователя {user_id} (роль: {role})")
             
