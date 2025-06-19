@@ -15,7 +15,7 @@ _global_cache_updated = False
 _database_available = None  # None = не проверено, True = доступна, False = недоступна
 _cache_lock = asyncio.Lock()  # Блокировка для безопасного обновления кэша
 _last_cache_update = 0  # Время последнего обновления кэша
-CACHE_TTL = 20
+CACHE_TTL = 300
 REDIS_CACHE_KEY = "user_roles_cache"
 
 class RoleMiddleware(BaseMiddleware):
