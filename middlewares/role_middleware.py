@@ -7,6 +7,7 @@ import time
 import logging
 from utils.redis_manager import RedisManager
 from utils.config import REDIS_ENABLED
+from utils.role_keyboards import role_keyboards_manager
 
 # Глобальный кэш ролей (общий для всех экземпляров middleware)
 _global_role_cache = {}
@@ -196,6 +197,13 @@ class RoleMiddleware(BaseMiddleware):
         # Логирование для отладки
         logging.debug(f"MIDDLEWARE: User {user_id} -> Role: {role}")
 
+        # Устанавливаем клавиатуру для пользователя (только для сообщений, не для callback)
+        if isinstance(event, Message):
+            try:
+                await role_keyboards_manager.set_keyboard_for_user(event, role)
+            except Exception as e:
+                logging.error(f"❌ Ошибка установки клавиатуры для пользователя {user_id}: {e}")
+
         # Добавляем роль в данные события
         data["user_role"] = role
         data["user_id"] = user_id
@@ -274,3 +282,21 @@ async def clear_role_cache():
                 logging.info("🗑️ Кэш ролей очищен из Redis")
         except Exception as e:
             logging.error(f"❌ Ошибка очистки Redis кэша: {e}")
+
+    # Также очищаем кэш клавиатур
+    role_keyboards_manager.clear_cache()
+
+
+async def update_user_keyboard(message, new_role: str):
+    """
+    Обновить клавиатуру для пользователя при изменении его роли
+
+    Args:
+        message: Объект сообщения
+        new_role: Новая роль пользователя
+    """
+    try:
+        await role_keyboards_manager.set_keyboard_for_user(message, new_role)
+        logging.info(f"✅ Клавиатура обновлена для пользователя {message.from_user.id} с новой ролью '{new_role}'")
+    except Exception as e:
+        logging.error(f"❌ Ошибка обновления клавиатуры для пользователя {message.from_user.id}: {e}")

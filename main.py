@@ -50,27 +50,9 @@ async def setup_commands(dp: Dispatcher):
         from database import get_db_session, User
         from sqlalchemy import select, func
 
-        # Команда /start доступна всем
+        # Регистрируем только команду /start для всех пользователей
         dp.message.register(start_command, CommandStart())
-
-        # Проверяем, есть ли админы в системе
-        async with get_db_session() as session:
-            result = await session.execute(
-                select(func.count(User.id)).where(User.role == 'admin')
-            )
-            admin_count = result.scalar()
-
-            if admin_count > 0:
-                # Если есть админы, регистрируем все команды ролей
-                # Доступ к ним будет контролироваться проверками внутри функций
-                dp.message.register(show_student_main_menu, Command("student"))
-                dp.message.register(show_admin_main_menu, Command("admin"))
-                dp.message.register(show_manager_main_menu, Command("manager"))
-                dp.message.register(show_curator_main_menu, Command("curator"))
-                dp.message.register(show_teacher_main_menu, Command("teacher"))
-                logging.info(f"✅ Зарегистрированы все команды ролей (админов в системе: {admin_count})")
-            else:
-                logging.warning("⚠️ В системе нет админов - команды ролей не зарегистрированы")
+        logging.info("✅ Зарегистрирована команда /start")
 
     except Exception as e:
         logging.error(f"❌ Ошибка настройки команд: {e}")

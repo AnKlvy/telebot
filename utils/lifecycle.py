@@ -34,19 +34,21 @@ async def on_startup(bot: Bot) -> None:
         except Exception as e:
             logging.error(f"❌ Ошибка подключения к Redis: {e}")
 
-    # Устанавливаем команды бота
+    # Сначала очищаем все существующие команды
+    try:
+        await bot.delete_my_commands()
+        logging.info("🗑️ Старые команды удалены")
+    except Exception as e:
+        logging.error(f"❌ Ошибка удаления старых команд: {e}")
+
+    # Устанавливаем только команду /start для всех пользователей
     commands = [
-        BotCommand(command="start", description="Запустить бота"),
-        BotCommand(command="admin", description="Панель администратора"),
-        BotCommand(command="curator", description="Меню куратора"),
-        BotCommand(command="teacher", description="Меню преподавателя"),
-        BotCommand(command="manager", description="Меню менеджера"),
-        BotCommand(command="student", description="Меню студента")
+        BotCommand(command="start", description="🏠 Главное меню")
     ]
-    
+
     try:
         await bot.set_my_commands(commands)
-        logging.info("✅ Команды бота установлены")
+        logging.info("✅ Команда /start установлена")
     except Exception as e:
         logging.error(f"❌ Ошибка установки команд: {e}")
     
