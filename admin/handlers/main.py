@@ -119,6 +119,24 @@ async def admin_managers_menu(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_admin_entity_menu_kb("менеджер", "менеджера", "manager")
     )
 
+# Команда для обновления клавиатуры админа
+@router.message(F.text == "/update_keyboard")
+async def admin_update_own_keyboard(message: Message, user_role: str = None):
+    """Обновить клавиатуру для админа"""
+    if user_role != "admin":
+        return
+
+    try:
+        from utils.keyboard_manager import update_user_keyboard_after_role_change
+        await update_user_keyboard_after_role_change(message.from_user.id, "admin")
+
+        await message.answer(
+            "✅ Ваша клавиатура обновлена!",
+            reply_markup=get_admin_main_menu_kb()
+        )
+    except Exception as e:
+        await message.answer(f"❌ Ошибка обновления клавиатуры: {e}")
+
 # Все функции админ-панели реализованы!
 
 # Кураторы и преподаватели теперь реализованы в staff.py

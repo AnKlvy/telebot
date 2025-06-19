@@ -310,18 +310,15 @@ async def add_student(name: str, telegram_id: int, tariff: str, course_ids: list
                 print(f"⚠️ DEBUG: Не удалось добавить студента к группам: {group_ids}")
 
         # Принудительно обновляем кэш ролей
-        from middlewares.role_middleware import force_update_role_cache, update_user_menu
+        from middlewares.role_middleware import force_update_role_cache
         await force_update_role_cache()
 
-        # Обновляем кнопки меню для пользователя
+        # Обновляем клавиатуру для пользователя
         try:
-            from aiogram import Bot
-            from utils.config import TOKEN
-            bot = Bot(token=TOKEN)
-            await update_user_menu(bot, telegram_id, 'student')
-            await bot.session.close()
+            from utils.keyboard_manager import update_user_keyboard_after_role_change
+            await update_user_keyboard_after_role_change(telegram_id, 'student')
         except Exception as menu_error:
-            print(f"⚠️ Ошибка обновления кнопок меню: {menu_error}")
+            print(f"⚠️ Ошибка обновления клавиатуры: {menu_error}")
 
         return True
     except Exception as e:
@@ -417,18 +414,15 @@ async def add_curator(name: str, telegram_id: int, course_id: int, subject_id: i
                 print(f"⚠️ DEBUG: Не удалось добавить куратора в группу (group_id: {group_id})")
 
         # Принудительно обновляем кэш ролей
-        from middlewares.role_middleware import force_update_role_cache, update_user_menu
+        from middlewares.role_middleware import force_update_role_cache
         await force_update_role_cache()
 
-        # Обновляем кнопки меню для пользователя
+        # Обновляем клавиатуру для пользователя
         try:
-            from aiogram import Bot
-            from utils.config import TOKEN
-            bot = Bot(token=TOKEN)
-            await update_user_menu(bot, telegram_id, 'curator')
-            await bot.session.close()
+            from utils.keyboard_manager import update_user_keyboard_after_role_change
+            await update_user_keyboard_after_role_change(telegram_id, 'curator')
         except Exception as menu_error:
-            print(f"⚠️ Ошибка обновления кнопок меню: {menu_error}")
+            print(f"⚠️ Ошибка обновления клавиатуры: {menu_error}")
 
         return True
     except Exception as e:
@@ -497,18 +491,15 @@ async def add_teacher(name: str, telegram_id: int, course_id: int, subject_id: i
                 print(f"⚠️ DEBUG: Не удалось добавить преподавателя в группу (group_id: {group_id})")
 
         # Принудительно обновляем кэш ролей
-        from middlewares.role_middleware import force_update_role_cache, update_user_menu
+        from middlewares.role_middleware import force_update_role_cache
         await force_update_role_cache()
 
-        # Обновляем кнопки меню для пользователя
+        # Обновляем клавиатуру для пользователя
         try:
-            from aiogram import Bot
-            from utils.config import TOKEN
-            bot = Bot(token=TOKEN)
-            await update_user_menu(bot, telegram_id, 'teacher')
-            await bot.session.close()
+            from utils.keyboard_manager import update_user_keyboard_after_role_change
+            await update_user_keyboard_after_role_change(telegram_id, 'teacher')
         except Exception as menu_error:
-            print(f"⚠️ Ошибка обновления кнопок меню: {menu_error}")
+            print(f"⚠️ Ошибка обновления клавиатуры: {menu_error}")
 
         return True
     except Exception as e:
@@ -565,18 +556,15 @@ async def add_manager(name: str, telegram_id: int) -> bool:
         print(f"🔍 DEBUG: Создан профиль менеджера (ID: {manager.id})")
 
         # Принудительно обновляем кэш ролей
-        from middlewares.role_middleware import force_update_role_cache, update_user_menu
+        from middlewares.role_middleware import force_update_role_cache
         await force_update_role_cache()
 
-        # Обновляем кнопки меню для пользователя
+        # Обновляем клавиатуру для пользователя
         try:
-            from aiogram import Bot
-            from utils.config import TOKEN
-            bot = Bot(token=TOKEN)
-            await update_user_menu(bot, telegram_id, 'manager')
-            await bot.session.close()
+            from utils.keyboard_manager import update_user_keyboard_after_role_change
+            await update_user_keyboard_after_role_change(telegram_id, 'manager')
         except Exception as menu_error:
-            print(f"⚠️ Ошибка обновления кнопок меню: {menu_error}")
+            print(f"⚠️ Ошибка обновления клавиатуры: {menu_error}")
 
         return True
     except Exception as e:

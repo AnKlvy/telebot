@@ -24,41 +24,12 @@ class RoleKeyboardsManager:
                 resize_keyboard=True,
                 persistent=True
             ),
-            "manager": ReplyKeyboardMarkup(
-                keyboard=[
-                    [KeyboardButton(text="менеджер")]
-                ],
-                resize_keyboard=True,
-                persistent=True
-            ),
-            "curator": ReplyKeyboardMarkup(
-                keyboard=[
-                    [KeyboardButton(text="куратор")]
-                ],
-                resize_keyboard=True,
-                persistent=True
-            ),
-            "teacher": ReplyKeyboardMarkup(
-                keyboard=[
-                    [KeyboardButton(text="преподаватель")]
-                ],
-                resize_keyboard=True,
-                persistent=True
-            ),
-            "student": ReplyKeyboardMarkup(
-                keyboard=[
-                    [KeyboardButton(text="ученик")]
-                ],
-                resize_keyboard=True,
-                persistent=True
-            ),
-            "new_user": ReplyKeyboardMarkup(
-                keyboard=[
-                    [KeyboardButton(text="старт")]
-                ],
-                resize_keyboard=True,
-                persistent=True
-            )
+            # Для всех остальных ролей - убираем клавиатуру
+            "manager": None,
+            "curator": None,
+            "teacher": None,
+            "student": None,
+            "new_user": None
         }
     
     async def set_keyboard_for_user(self, message, role: str) -> bool:
@@ -72,12 +43,18 @@ class RoleKeyboardsManager:
         Returns:
             bool: True если клавиатура была установлена
         """
-        # Получаем клавиатуру для роли
-        keyboard = self._role_keyboards.get(role, self._role_keyboards["new_user"])
+        from aiogram.types import ReplyKeyboardRemove
 
         try:
-            # Устанавливаем клавиатуру без отправки сообщения
-            # Клавиатура будет установлена при следующем сообщении пользователя
+            # Только админы получают клавиатуру с кнопками
+            if role == "admin":
+                keyboard = self._role_keyboards.get("admin")
+                await message.answer("🔄 Роль обновлена", reply_markup=keyboard)
+            else:
+                # Для всех остальных ролей убираем клавиатуру
+                await message.answer("🔄 Роль обновлена", reply_markup=ReplyKeyboardRemove())
+
+            logging.info(f"✅ Клавиатура установлена для пользователя {message.from_user.id}, роль: {role}")
             return True
 
         except Exception as e:
@@ -115,14 +92,38 @@ class RoleKeyboardsManager:
     def get_keyboard_for_role(self, role: str) -> ReplyKeyboardMarkup:
         """
         Получить клавиатуру для роли
-        
+
         Args:
             role: Роль пользователя
-            
+
         Returns:
             ReplyKeyboardMarkup: Клавиатура для роли
         """
-        return self._role_keyboards.get(role, self._role_keyboards["new_user"])
+        if role == "admin":
+            return self._role_keyboards.get("admin")
+        else:
+            from aiogram.types import ReplyKeyboardRemove
+            return ReplyKeyboardRemove()
+
+    def get_pending_keyboard(self):
+        """Получить подготовленную клавиатуру"""
+        return getattr(self, '_pending_keyboard', None)
+
+    def should_update_keyboard(self, user_id: int, role: str) -> bool:
+        """Проверить, нужно ли обновлять клавиатуру для пользователя"""
+        if not hasattr(self, '_user_keyboards'):
+            self._user_keyboards = {}
+
+        current_role = self._user_keyboards.get(user_id)
+        return current_role != role
+
+    def get_reply_markup_for_role(self, role: str):
+        """Получить reply_markup для роли (для использования в обработчиках)"""
+        if role == "admin":
+            return self._role_keyboards.get("admin")
+        else:
+            from aiogram.types import ReplyKeyboardRemove
+            return ReplyKeyboardRemove()
     
     def clear_cache(self):
         """Кэш не используется, но метод оставлен для совместимости"""

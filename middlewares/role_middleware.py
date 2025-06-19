@@ -15,7 +15,7 @@ _global_cache_updated = False
 _database_available = None  # None = не проверено, True = доступна, False = недоступна
 _cache_lock = asyncio.Lock()  # Блокировка для безопасного обновления кэша
 _last_cache_update = 0  # Время последнего обновления кэша
-CACHE_TTL = 300  # Время жизни кэша в секундах (5 минут)
+CACHE_TTL = 20
 REDIS_CACHE_KEY = "user_roles_cache"
 
 class RoleMiddleware(BaseMiddleware):
@@ -197,13 +197,6 @@ class RoleMiddleware(BaseMiddleware):
         # Логирование для отладки
         logging.debug(f"MIDDLEWARE: User {user_id} -> Role: {role}")
 
-        # Устанавливаем клавиатуру для пользователя (только для сообщений, не для callback)
-        if isinstance(event, Message):
-            try:
-                await role_keyboards_manager.set_keyboard_for_user(event, role)
-            except Exception as e:
-                logging.error(f"❌ Ошибка установки клавиатуры для пользователя {user_id}: {e}")
-
         # Добавляем роль в данные события
         data["user_role"] = role
         data["user_id"] = user_id
@@ -300,3 +293,38 @@ async def update_user_keyboard(message, new_role: str):
         logging.info(f"✅ Клавиатура обновлена для пользователя {message.from_user.id} с новой ролью '{new_role}'")
     except Exception as e:
         logging.error(f"❌ Ошибка обновления клавиатуры для пользователя {message.from_user.id}: {e}")
+
+
+async def update_user_menu(bot, telegram_id: int, new_role: str):
+    """
+    Обновить меню пользователя через бота
+
+    Args:
+        bot: Экземпляр бота
+        telegram_id: Telegram ID пользователя
+        new_role: Новая роль пользователя
+    """
+    try:
+        # Создаем фиктивное сообщение для обновления клавиатуры
+        from aiogram.types import User, Chat, Message
+
+        # Отправляем сообщение пользователю с обновленной клавиатурой
+        from aiogram.types import ReplyKeyboardRemove
+
+        if new_role == "admin":
+            keyboard = role_keyboards_manager.get_keyboard_for_role("admin")
+            await bot.send_message(
+                chat_id=telegram_id,
+                text="🔄 Ваша роль обновлена до админа. Клавиатура активирована.",
+                reply_markup=keyboard
+            )
+        else:
+            await bot.send_message(
+                chat_id=telegram_id,
+                text="🔄 Ваша роль обновлена. Клавиатура убрана.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+
+        logging.info(f"✅ Меню обновлено для пользователя {telegram_id} с ролью '{new_role}'")
+    except Exception as e:
+        logging.error(f"❌ Ошибка обновления меню для пользователя {telegram_id}: {e}")

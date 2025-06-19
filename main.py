@@ -33,6 +33,13 @@ from middlewares.performance_middleware import PerformanceMiddleware
 
 async def start_command(message, user_role: str):
     """Обработчик команды /start, перенаправляющий на соответствующие функции"""
+    # Устанавливаем клавиатуру для пользователя в зависимости от роли
+    try:
+        from utils.keyboard_manager import keyboard_manager
+        await keyboard_manager.set_keyboard_for_role(message.bot, message.from_user.id, user_role)
+    except Exception as e:
+        logging.error(f"❌ Ошибка установки клавиатуры в /start: {e}")
+
     if user_role == "admin":
         await show_admin_main_menu(message, user_role=user_role)
     elif user_role == "manager":
