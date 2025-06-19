@@ -22,9 +22,7 @@ from .bonus_answer_option_repository import BonusAnswerOptionRepository
 from .homework_result_repository import HomeworkResultRepository
 from .question_result_repository import QuestionResultRepository
 from .course_entry_test_result_repository import CourseEntryTestResultRepository
-from .course_entry_test_result_repository import CourseEntryTestResultRepository
-from .course_entry_test_result_repository import CourseEntryTestResultRepository
-from .course_entry_test_result_repository import CourseEntryTestResultRepository
+from .month_entry_test_result_repository import MonthEntryTestResultRepository
 from .shop_item_repository import ShopItemRepository
 from .student_purchase_repository import StudentPurchaseRepository
 from .student_bonus_test_repository import StudentBonusTestRepository
@@ -51,6 +49,7 @@ __all__ = [
     'HomeworkResultRepository',
     'QuestionResultRepository',
     'CourseEntryTestResultRepository',
+    'MonthEntryTestResultRepository',
     'ShopItemRepository',
     'StudentPurchaseRepository',
     'StudentBonusTestRepository'

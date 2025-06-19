@@ -9,7 +9,8 @@ from common.tests_statistics.handlers import (
     show_month_control_groups, show_month_control_months, show_month_control_statistics,
     show_ent_groups, show_ent_students, show_ent_statistics,
     show_tests_comparison,
-    show_course_entry_detailed_microtopics, show_course_entry_summary_microtopics
+    show_course_entry_detailed_microtopics, show_course_entry_summary_microtopics,
+    show_month_entry_detailed_microtopics, show_month_entry_summary_microtopics
 )
 
 def get_transitions_handlers(states_group, role):
@@ -157,6 +158,19 @@ def register_test_statistics_handlers(router, states_group, role):
         from common.tests_statistics.handlers import show_month_entry_student_statistics
         await show_month_entry_student_statistics(callback, state)
         # Остаемся в том же состоянии
+        await state.set_state(states_group.month_entry_result)
+
+    # Добавляем обработчики для детальной аналитики входного теста месяца
+    @router.callback_query(states_group.month_entry_result, F.data.startswith("month_entry_detailed_"))
+    async def role_show_month_entry_detailed_handler(callback: CallbackQuery, state: FSMContext):
+        logger.info(f"Вызвана функция show_month_entry_detailed для пользователя {callback.from_user.id}")
+        await show_month_entry_detailed_microtopics(callback, state)
+        await state.set_state(states_group.month_entry_result)
+
+    @router.callback_query(states_group.month_entry_result, F.data.startswith("month_entry_summary_"))
+    async def role_show_month_entry_summary_handler(callback: CallbackQuery, state: FSMContext):
+        logger.info(f"Вызвана функция show_month_entry_summary для пользователя {callback.from_user.id}")
+        await show_month_entry_summary_microtopics(callback, state)
         await state.set_state(states_group.month_entry_result)
     
     # Контрольный тест месяца

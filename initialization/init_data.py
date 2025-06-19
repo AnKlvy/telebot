@@ -18,6 +18,7 @@ from initialization.student_assignments import assign_students_to_courses
 from initialization.month_tests import add_test_month_tests
 from initialization.update_points import update_all_student_points
 from initialization.course_entry_test_data import create_course_entry_test_results
+from initialization.month_entry_test_data import create_month_entry_test_results
 from database.init_shop_data import init_shop_items
 
 
@@ -66,11 +67,15 @@ async def add_initial_data():
         print("\n📊 Создание результатов входных тестов курса...")
         await create_course_entry_test_results()
 
-        # 10. Обновление баллов и уровней студентов
+        # 10. Создание результатов входных тестов месяца
+        print("\n📊 Создание результатов входных тестов месяца...")
+        await create_month_entry_test_results()
+
+        # 11. Обновление баллов и уровней студентов
         print("\n🔄 Обновление баллов и уровней студентов...")
         await update_all_student_points()
 
-        # 11. Инициализация товаров магазина
+        # 12. Инициализация товаров магазина
         print("\n🛒 Инициализация товаров магазина...")
         await init_shop_items()
 

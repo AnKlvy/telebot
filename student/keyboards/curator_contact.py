@@ -1,17 +1,25 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
+from typing import List
 from common.keyboards import get_main_menu_back_button
 
 
-def get_curator_subjects_kb() -> InlineKeyboardMarkup:
+async def get_curator_subjects_kb(subjects: List) -> InlineKeyboardMarkup:
     """Клавиатура выбора предмета для связи с куратором"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📗 Химия", callback_data="curator_chem")],
-        [InlineKeyboardButton(text="📘 Биология", callback_data="curator_bio")],
-        [InlineKeyboardButton(text="📕 История Казахстана", callback_data="curator_kz")],
-        [InlineKeyboardButton(text="📐 Матемграмотность", callback_data="curator_mathlit")],
-        *get_main_menu_back_button()
-    ])
+    buttons = []
+
+    # Сортируем предметы по имени для консистентности
+    sorted_subjects = sorted(subjects, key=lambda s: s.name)
+
+    for subject in sorted_subjects:
+        buttons.append([
+            InlineKeyboardButton(
+                text=subject.name,
+                callback_data=f"curator_{subject.id}"
+            )
+        ])
+
+    buttons.extend(get_main_menu_back_button())
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_back_to_curator_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата к выбору предмета куратора"""

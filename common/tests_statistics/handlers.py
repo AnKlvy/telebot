@@ -17,6 +17,7 @@ from common.statistics import (
     format_test_comparison
 )
 from ..keyboards import get_main_menu_back_button
+from ..utils import check_if_id_in_callback_data
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -46,10 +47,16 @@ async def show_course_entry_groups(callback: CallbackQuery, state: FSMContext):
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_course_entry_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
 
-    # Получаем группы куратора из базы данных
-    from database import CuratorRepository, UserRepository
+    # Определяем роль пользователя по состоянию
+    role = "curator"  # По умолчанию
+    if current_state and "Teacher" in current_state:
+        role = "teacher"
+    elif current_state and "Curator" in current_state:
+        role = "curator"
 
-    # Получаем куратора по telegram_id
+    # Получаем группы в зависимости от роли
+    from database import CuratorRepository, TeacherRepository, UserRepository
+
     user = await UserRepository.get_by_telegram_id(callback.from_user.id)
     if not user:
         await callback.message.edit_text(
@@ -58,17 +65,26 @@ async def show_course_entry_groups(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    curator = await CuratorRepository.get_by_user_id(user.id)
-    if not curator:
-        await callback.message.edit_text(
-            "❌ Профиль куратора не найден",
-            reply_markup=get_back_kb()
-        )
-        return
+    groups = []
 
-    # Получаем группы куратора
-    curator_groups = await CuratorRepository.get_curator_groups(curator.id)
-    if not curator_groups:
+    # Проверяем роль и получаем соответствующие группы
+    if role == "curator":
+        # Получаем профиль куратора по user_id
+        curator = await CuratorRepository.get_by_user_id(user.id)
+        if curator:
+            groups = await CuratorRepository.get_curator_groups(curator.id)
+        else:
+            logger.info(f"Пользователь {user.name} не является куратором")
+
+    elif role == "teacher":
+        # Получаем профиль учителя по user_id
+        teacher = await TeacherRepository.get_by_user_id(user.id)
+        if teacher:
+            groups = await TeacherRepository.get_teacher_groups(teacher.id)
+        else:
+            logger.info(f"Пользователь {user.name} не является учителем")
+
+    if not groups:
         await callback.message.edit_text(
             "❌ У вас нет назначенных групп",
             reply_markup=get_back_kb()
@@ -77,7 +93,7 @@ async def show_course_entry_groups(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики входного теста курса:",
-        reply_markup=await get_curator_groups_kb("course_entry", curator_groups)
+        reply_markup=await get_curator_groups_kb("course_entry", groups)
     )
 
 @router.callback_query(F.data.startswith("course_entry_group_"))
@@ -87,7 +103,7 @@ async def show_course_entry_statistics(callback: CallbackQuery, state: FSMContex
     logger.info(f"ВЫЗОВ: show_course_entry_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
 
     try:
-        group_id = int(callback.data.replace("course_entry_group_", ""))
+        group_id = int(await check_if_id_in_callback_data("course_entry_group_", callback, state, "group_id"))
         await show_course_entry_test_statistics(callback, state, group_id)
     except ValueError:
         await callback.message.edit_text(
@@ -119,9 +135,54 @@ async def show_month_entry_groups(callback: CallbackQuery, state: FSMContext):
     """Показать группы для входного теста месяца"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_month_entry_groups, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
+
+    # Определяем роль пользователя по состоянию
+    role = "curator"  # По умолчанию
+    if current_state and "Teacher" in current_state:
+        role = "teacher"
+    elif current_state and "Curator" in current_state:
+        role = "curator"
+
+    # Получаем группы в зависимости от роли
+    from database import CuratorRepository, TeacherRepository, UserRepository
+
+    user = await UserRepository.get_by_telegram_id(callback.from_user.id)
+    if not user:
+        await callback.message.edit_text(
+            "❌ Пользователь не найден в системе",
+            reply_markup=get_back_kb()
+        )
+        return
+
+    groups = []
+
+    # Проверяем роль и получаем соответствующие группы
+    if role == "curator":
+        # Получаем профиль куратора по user_id
+        curator = await CuratorRepository.get_by_user_id(user.id)
+        if curator:
+            groups = await CuratorRepository.get_curator_groups(curator.id)
+        else:
+            logger.info(f"Пользователь {user.name} не является куратором")
+
+    elif role == "teacher":
+        # Получаем профиль учителя по user_id
+        teacher = await TeacherRepository.get_by_user_id(user.id)
+        if teacher:
+            groups = await TeacherRepository.get_teacher_groups(teacher.id)
+        else:
+            logger.info(f"Пользователь {user.name} не является учителем")
+
+    if not groups:
+        await callback.message.edit_text(
+            "❌ У вас нет назначенных групп",
+            reply_markup=get_back_kb()
+        )
+        return
+
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики входного теста месяца:",
-        reply_markup=get_groups_kb("month_entry")
+        reply_markup=await get_curator_groups_kb("month_entry", groups)
     )
 
 @router.callback_query(F.data.startswith("month_entry_group_"))
@@ -129,12 +190,15 @@ async def show_month_entry_months(callback: CallbackQuery, state: FSMContext):
     """Показать месяцы для входного теста месяца"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_month_entry_months, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
-    group_id = await get_group_id_from_callback_or_state(callback, state, "month_entry_group_")
-    
-    await callback.message.edit_text(
-        "Выберите месяц для просмотра статистики входного теста:",
-        reply_markup=get_month_kb("month_entry", group_id)
-    )
+
+    try:
+        group_id = int(await check_if_id_in_callback_data("month_entry_group_", callback, state, "group_id"))
+        await show_month_entry_test_months(callback, state, group_id)
+    except ValueError:
+        await callback.message.edit_text(
+            "❌ Ошибка: неверный ID группы",
+            reply_markup=get_back_kb()
+        )
 
 @router.callback_query(F.data.startswith("back_to_month_entry_groups"))
 async def back_to_month_entry_groups(callback: CallbackQuery, state: FSMContext):
@@ -148,23 +212,37 @@ async def show_month_entry_statistics(callback: CallbackQuery, state: FSMContext
     """Показать статистику входного теста месяца"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_month_entry_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
-    # Формат: month_entry_month_GROUP_ID_MONTH_ID
-    parts = callback.data.split("_")
-    group_id = parts[3]
-    month_id = parts[4]
-    await show_test_students_statistics(callback, state, "month_entry", group_id, month_id)
+
+    try:
+        # Формат: month_entry_month_GROUP_ID_MONTH_TEST_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        month_test_id = int(parts[4])
+        await show_month_entry_test_statistics(callback, state, group_id, month_test_id)
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
 
 @router.callback_query(F.data.startswith("month_entry_student_"))
 async def show_month_entry_student_statistics(callback: CallbackQuery, state: FSMContext):
     """Показать статистику входного теста месяца для конкретного ученика"""
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_month_entry_student_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
-    # Формат: month_entry_student_GROUP_ID_MONTH_ID_STUDENT_ID
-    parts = callback.data.split("_")
-    group_id = parts[3]
-    month_id = parts[4]
-    student_id = parts[5]
-    await show_student_test_statistics(callback, state, "month_entry", student_id, group_id, month_id)
+
+    try:
+        # Формат: month_entry_student_GROUP_ID_MONTH_TEST_ID_STUDENT_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        month_test_id = int(parts[4])
+        student_id = int(parts[5])
+        await show_month_entry_student_detail(callback, state, group_id, month_test_id, student_id)
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
 
 # Обработчики для контрольного теста месяца
 @router.callback_query(F.data == "stats_month_control_test")
@@ -791,6 +869,483 @@ async def show_course_entry_microtopics_summary(callback: CallbackQuery, state: 
 
     except Exception as e:
         logger.error(f"Ошибка при получении сводки входного теста: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении сводки",
+            reply_markup=get_back_kb()
+        )
+
+
+# Функции для входного теста месяца
+async def show_month_entry_test_months(callback: CallbackQuery, state: FSMContext, group_id: int):
+    """Показать доступные тесты месяца для группы"""
+    from database import GroupRepository, MonthTestRepository
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    try:
+        # Получаем группу
+        group = await GroupRepository.get_by_id(group_id)
+        if not group:
+            await callback.message.edit_text(
+                "❌ Группа не найдена",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем все тесты месяца для предмета группы
+        all_month_tests = await MonthTestRepository.get_all()
+        group_month_tests = [mt for mt in all_month_tests if mt.subject_id == group.subject_id]
+
+        if not group_month_tests:
+            await callback.message.edit_text(
+                f"❌ Для предмета {group.subject.name} пока нет созданных тестов месяца",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Создаем кнопки для каждого теста месяца
+        buttons = []
+        for month_test in group_month_tests:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=month_test.name,
+                    callback_data=f"month_entry_month_{group_id}_{month_test.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            f"Выберите тест месяца для просмотра статистики:\n\n📗 {group.subject.name}\nГруппа: {group.name}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении тестов месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении тестов месяца",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_month_entry_test_statistics(callback: CallbackQuery, state: FSMContext, group_id: int, month_test_id: int):
+    """Показать статистику входного теста месяца для группы"""
+    from database import MonthEntryTestResultRepository, GroupRepository, MonthTestRepository
+
+    try:
+        # Получаем группу и тест месяца
+        group = await GroupRepository.get_by_id(group_id)
+        month_test = await MonthTestRepository.get_by_id(month_test_id)
+
+        if not group or not month_test:
+            await callback.message.edit_text(
+                "❌ Группа или тест месяца не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по группе и тесту месяца
+        stats = await MonthEntryTestResultRepository.get_statistics_by_group_and_month_test(group_id, month_test_id)
+
+        # Формируем текст сообщения
+        result_text = f"📊 Статистика входного теста месяца\n\n"
+        result_text += f"📗 {stats['subject_name']}\n"
+        result_text += f"Группа: {stats['group_name']}\n"
+        result_text += f"Тест: {stats['month_test_name']}\n\n"
+
+        # Показываем прошедших тест
+        result_text += "✅ Прошли тест:\n"
+        if stats['completed']:
+            for i, student in enumerate(stats['completed'], 1):
+                # Находим результат теста для этого студента
+                test_result = next((tr for tr in stats['test_results'] if tr.student.id == student.id), None)
+                percentage = f" ({test_result.score_percentage}%)" if test_result else ""
+                result_text += f"{i}. {student.user.name}{percentage}\n"
+        else:
+            result_text += "Пока никто не прошел тест\n"
+
+        result_text += "\n❌ Не прошли тест:\n"
+        if stats['not_completed']:
+            for i, student in enumerate(stats['not_completed'], 1):
+                result_text += f"{i}. {student.user.name}\n"
+        else:
+            result_text += "Все студенты прошли тест\n"
+
+        # Добавляем кнопки для просмотра детальной статистики по ученикам
+        buttons = []
+        for test_result in stats.get('test_results', []):
+            student = test_result.student
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"📊 {student.user.name} ({test_result.score_percentage}%)",
+                    callback_data=f"month_entry_student_{group_id}_{month_test_id}_{student.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении статистики входного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_month_entry_student_detail(callback: CallbackQuery, state: FSMContext, group_id: int, month_test_id: int, student_id: int):
+    """Показать детальную статистику входного теста месяца для студента"""
+    from database import MonthEntryTestResultRepository, StudentRepository, GroupRepository, MonthTestRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента, группу и тест месяца
+        student = await StudentRepository.get_by_id(student_id)
+        group = await GroupRepository.get_by_id(group_id)
+        month_test = await MonthTestRepository.get_by_id(month_test_id)
+
+        if not student or not group or not month_test:
+            await callback.message.edit_text(
+                "❌ Студент, группа или тест месяца не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста студента
+        test_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            student_id, month_test_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест месяца '{month_test.name}'",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Формируем краткую информацию
+        result_text = f"📊 Результат входного теста месяца\n\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+        result_text += "Выберите тип аналитики:"
+
+        # Создаем кнопки для детальной аналитики
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        buttons = [
+            [InlineKeyboardButton(
+                text="📊 Проценты по микротемам",
+                callback_data=f"month_entry_detailed_{group_id}_{month_test_id}_{student_id}"
+            )],
+            [InlineKeyboardButton(
+                text="💪 Сильные/слабые темы",
+                callback_data=f"month_entry_summary_{group_id}_{month_test_id}_{student_id}"
+            )]
+        ]
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики студента: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики студента",
+            reply_markup=get_back_kb()
+        )
+
+
+# Функции для обработчиков детальной аналитики входного теста месяца (вызываются из register_handlers.py)
+async def show_month_entry_detailed_microtopics(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам входного теста месяца"""
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_detailed_microtopics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
+
+    try:
+        # Формат: month_entry_detailed_GROUP_ID_MONTH_TEST_ID_STUDENT_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        month_test_id = int(parts[4])
+        student_id = int(parts[5])
+
+        await show_month_entry_microtopics_detailed(callback, state, group_id, month_test_id, student_id)
+
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_month_entry_summary_microtopics(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным/слабым темам входного теста месяца"""
+    current_state = await state.get_state()
+    logger.info(f"ВЫЗОВ: show_month_entry_summary_microtopics, user_id={callback.from_user.id}, текущее состояние={current_state}, callback_data={callback.data}")
+
+    try:
+        # Формат: month_entry_summary_GROUP_ID_MONTH_TEST_ID_STUDENT_ID
+        parts = callback.data.split("_")
+        group_id = int(parts[3])
+        month_test_id = int(parts[4])
+        student_id = int(parts[5])
+
+        await show_month_entry_microtopics_summary(callback, state, group_id, month_test_id, student_id)
+
+    except (ValueError, IndexError):
+        await callback.message.edit_text(
+            "❌ Ошибка: неверные параметры",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_month_entry_microtopics_detailed(callback: CallbackQuery, state: FSMContext, group_id: int, month_test_id: int, student_id: int):
+    """Показать детальную статистику по микротемам входного теста месяца"""
+    from database import MonthEntryTestResultRepository, StudentRepository, GroupRepository, MonthTestRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента, группу и тест месяца
+        student = await StudentRepository.get_by_id(student_id)
+        group = await GroupRepository.get_by_id(group_id)
+        month_test = await MonthTestRepository.get_by_id(month_test_id)
+
+        if not student or not group or not month_test:
+            await callback.message.edit_text(
+                "❌ Студент, группа или тест месяца не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста
+        test_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            student_id, month_test_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест месяца '{month_test.name}'",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Формируем детальную статистику
+        result_text = f"📊 Детальная статистика входного теста месяца\n\n"
+        result_text += f"👤 {student.user.name}\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+        result_text += "📈 % правильных ответов по микротемам:\n"
+
+        if microtopic_stats:
+            for microtopic_num in sorted(microtopic_stats.keys()):
+                stats = microtopic_stats[microtopic_num]
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                percentage = stats['percentage']
+
+                # Определяем эмодзи статуса
+                if percentage >= 80:
+                    status = "✅"
+                elif percentage <= 40:
+                    status = "❌"
+                else:
+                    status = "⚠️"
+
+                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+        else:
+            result_text += "Нет данных по микротемам\n"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики входного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_month_entry_microtopics_summary(callback: CallbackQuery, state: FSMContext, group_id: int, month_test_id: int, student_id: int):
+    """Показать сводку по сильным/слабым темам входного теста месяца"""
+    from database import MonthEntryTestResultRepository, StudentRepository, GroupRepository, MonthTestRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента, группу и тест месяца
+        student = await StudentRepository.get_by_id(student_id)
+        group = await GroupRepository.get_by_id(group_id)
+        month_test = await MonthTestRepository.get_by_id(month_test_id)
+
+        if not student or not group or not month_test:
+            await callback.message.edit_text(
+                "❌ Студент, группа или тест месяца не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста
+        test_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            student_id, month_test_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест месяца '{month_test.name}'",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Определяем сильные и слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        for microtopic_num, stats in microtopic_stats.items():
+            microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+            percentage = stats['percentage']
+
+            if percentage >= 80:
+                strong_topics.append(microtopic_name)
+            elif percentage <= 40:
+                weak_topics.append(microtopic_name)
+
+        # Формируем сводку
+        result_text = f"💪 Сводка по входному тесту месяца\n\n"
+        result_text += f"👤 {student.user.name}\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+
+        if strong_topics:
+            result_text += "🟢 Сильные темы (≥80%):\n"
+            for topic in strong_topics:
+                result_text += f"• {topic}\n"
+
+        if weak_topics:
+            if strong_topics:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not strong_topics and not weak_topics:
+            result_text += "⚠️ Все темы находятся в среднем диапазоне (41-79%)"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении сводки входного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении сводки",
+            reply_markup=get_back_kb()
+        )
+
+
+async def show_month_entry_microtopics_summary(callback: CallbackQuery, state: FSMContext, group_id: int, month_test_id: int, student_id: int):
+    """Показать сводку по сильным/слабым темам входного теста месяца"""
+    from database import MonthEntryTestResultRepository, StudentRepository, GroupRepository, MonthTestRepository, MicrotopicRepository
+
+    try:
+        # Получаем студента, группу и тест месяца
+        student = await StudentRepository.get_by_id(student_id)
+        group = await GroupRepository.get_by_id(group_id)
+        month_test = await MonthTestRepository.get_by_id(month_test_id)
+
+        if not student or not group or not month_test:
+            await callback.message.edit_text(
+                "❌ Студент, группа или тест месяца не найдены",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем результат теста
+        test_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            student_id, month_test_id
+        )
+
+        if not test_result:
+            await callback.message.edit_text(
+                f"❌ {student.user.name} еще не проходил входной тест месяца '{month_test.name}'",
+                reply_markup=get_back_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        microtopics = await MicrotopicRepository.get_by_subject(group.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Определяем сильные и слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        for microtopic_num, stats in microtopic_stats.items():
+            microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+            percentage = stats['percentage']
+
+            if percentage >= 80:
+                strong_topics.append(microtopic_name)
+            elif percentage <= 40:
+                weak_topics.append(microtopic_name)
+
+        # Формируем сводку
+        result_text = f"💪 Сводка по входному тесту месяца\n\n"
+        result_text += f"👤 {student.user.name}\n"
+        result_text += f"📗 {group.subject.name}:\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+
+        if strong_topics:
+            result_text += "🟢 Сильные темы (≥80%):\n"
+            for topic in strong_topics:
+                result_text += f"• {topic}\n"
+
+        if weak_topics:
+            if strong_topics:
+                result_text += "\n"
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in weak_topics:
+                result_text += f"• {topic}\n"
+
+        if not strong_topics and not weak_topics:
+            result_text += "⚠️ Все темы находятся в среднем диапазоне (41-79%)"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении сводки входного теста месяца: {e}")
         await callback.message.edit_text(
             "❌ Ошибка при получении сводки",
             reply_markup=get_back_kb()

@@ -216,3 +216,28 @@ class CuratorRepository:
                 await session.commit()
 
             return True
+
+    @staticmethod
+    async def get_curators_for_student_subject(student_id: int, subject_id: int) -> List[Curator]:
+        """Получить кураторов для студента по конкретному предмету"""
+        async with get_db_session() as session:
+            from ..models import student_groups, curator_groups
+
+            # Получаем кураторов через связи: студент -> группы -> кураторы
+            result = await session.execute(
+                select(Curator)
+                .options(
+                    selectinload(Curator.user),
+                    selectinload(Curator.groups).selectinload(Group.subject)
+                )
+                .join(curator_groups, Curator.id == curator_groups.c.curator_id)
+                .join(Group, curator_groups.c.group_id == Group.id)
+                .join(student_groups, Group.id == student_groups.c.group_id)
+                .where(
+                    student_groups.c.student_id == student_id,
+                    Group.subject_id == subject_id
+                )
+                .distinct()
+            )
+
+            return list(result.scalars().all())

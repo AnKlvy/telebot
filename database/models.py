@@ -298,7 +298,8 @@ class MonthTest(Base):
     __tablename__ = 'month_tests'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)  # Название месяца (Сентябрь, Октябрь и т.д.)
+    name = Column(String(255), nullable=False)  # Название теста
+    test_type = Column(String(50), nullable=False, default='entry')  # 'entry' или 'control'
     course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
     subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
@@ -308,9 +309,9 @@ class MonthTest(Base):
     subject = relationship("Subject", backref="month_tests")
     microtopics = relationship("MonthTestMicrotopic", back_populates="month_test", cascade="all, delete-orphan")
 
-    # Уникальность: один тест месяца на курс/предмет/месяц
+    # Уникальность: один тест месяца на курс/предмет/название/тип
     __table_args__ = (
-        UniqueConstraint('name', 'course_id', 'subject_id', name='unique_month_test_per_course_subject'),
+        UniqueConstraint('name', 'test_type', 'course_id', 'subject_id', name='unique_month_test_per_course_subject_type'),
     )
 
 
@@ -468,6 +469,49 @@ class CourseEntryQuestionResult(Base):
     test_result = relationship("CourseEntryTestResult", back_populates="question_results")
     question = relationship("Question", backref="course_entry_results")
     selected_answer = relationship("AnswerOption", backref="course_entry_results")
+
+
+# Модель результата входного теста месяца
+class MonthEntryTestResult(Base):
+    __tablename__ = 'month_entry_test_results'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    month_test_id = Column(Integer, ForeignKey('month_tests.id', ondelete='CASCADE'), nullable=False)
+    total_questions = Column(Integer, nullable=False)  # Количество вопросов (3 * количество микротем)
+    correct_answers = Column(Integer, nullable=False, default=0)
+    score_percentage = Column(Integer, nullable=False, default=0)  # Процент правильных ответов
+    completed_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="month_entry_test_results")
+    month_test = relationship("MonthTest", backref="month_entry_test_results")
+    question_results = relationship("MonthEntryQuestionResult", back_populates="test_result", cascade="all, delete-orphan")
+
+    # Уникальность: один результат входного теста месяца на студента/тест
+    __table_args__ = (
+        UniqueConstraint('student_id', 'month_test_id', name='unique_month_entry_test_per_student_test'),
+    )
+
+
+# Модель результата ответа на вопрос входного теста месяца
+class MonthEntryQuestionResult(Base):
+    __tablename__ = 'month_entry_question_results'
+
+    id = Column(Integer, primary_key=True)
+    test_result_id = Column(Integer, ForeignKey('month_entry_test_results.id', ondelete='CASCADE'), nullable=False)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)  # Ссылка на исходный вопрос
+    selected_answer_id = Column(Integer, ForeignKey('answer_options.id', ondelete='SET NULL'), nullable=True)
+    is_correct = Column(Boolean, nullable=False)
+    time_spent = Column(Integer, nullable=True)  # Время в секундах
+    microtopic_number = Column(Integer, nullable=True)  # Номер микротемы для статистики
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    test_result = relationship("MonthEntryTestResult", back_populates="question_results")
+    question = relationship("Question", backref="month_entry_results")
+    selected_answer = relationship("AnswerOption", backref="month_entry_results")
 
 
 
