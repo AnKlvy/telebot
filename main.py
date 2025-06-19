@@ -53,18 +53,10 @@ async def start_command(message, user_role: str):
 
 async def setup_commands(dp: Dispatcher):
     """Настройка команд бота"""
-    try:
-        from database import get_db_session, User
-        from sqlalchemy import select, func
 
-        # Регистрируем только команду /start для всех пользователей
-        dp.message.register(start_command, CommandStart())
-        logging.info("✅ Зарегистрирована команда /start")
+    dp.message.register(start_command, CommandStart())
+    logging.info("✅ Зарегистрирована команда /start")
 
-    except Exception as e:
-        logging.error(f"❌ Ошибка настройки команд: {e}")
-        # В случае ошибки регистрируем только базовую команду
-        dp.message.register(start_command, CommandStart())
 
 async def main() -> None:
     """Главная функция запуска бота"""
