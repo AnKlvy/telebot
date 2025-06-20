@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List
 
-from common.keyboards import get_main_menu_back_button
+from common.keyboards import get_main_menu_back_button, back_to_main_button
 
 
 async def get_test_subjects_kb(test_type: str, user_id: int = None) -> InlineKeyboardMarkup:
@@ -18,52 +18,32 @@ async def get_test_subjects_kb(test_type: str, user_id: int = None) -> InlineKey
             from database import SubjectRepository
             subjects_db = await SubjectRepository.get_by_user_id(user_id)
 
-            # Преобразуем в нужный формат с сопоставлением названий
-            subject_mapping = {
-                "История Казахстана": "kz",
-                "Математическая грамотность": "mathlit",
-                "Математика": "math",
-                "География": "geo",
-                "Биология": "bio",
-                "Химия": "chem",
-                "Информатика": "inf",
-                "Всемирная история": "world",
-                "Python": "python",
-                "JavaScript": "js",
-                "Java": "java",
-                "Физика": "physics"
-            }
-
             subjects = []
             for subject_db in subjects_db:
-                subject_id = subject_mapping.get(subject_db.name, subject_db.name.lower())
-                subjects.append({"id": subject_id, "name": subject_db.name})
+                # Используем реальный ID предмета из БД
+                subjects.append({
+                    "id": str(subject_db.id),  # Используем реальный ID
+                    "name": subject_db.name
+                })
 
         except Exception as e:
             print(f"Ошибка при получении предметов студента: {e}")
-            # Fallback на все предметы
-            subjects = [
-                {"id": "kz", "name": "История Казахстана"},
-                {"id": "mathlit", "name": "Математическая грамотность"},
-                {"id": "math", "name": "Математика"},
-                {"id": "geo", "name": "География"},
-                {"id": "bio", "name": "Биология"},
-                {"id": "chem", "name": "Химия"},
-                {"id": "inf", "name": "Информатика"},
-                {"id": "world", "name": "Всемирная история"}
-            ]
+            # Fallback к пустому списку
+            subjects = []
     else:
-        # Все предметы (для обратной совместимости)
-        subjects = [
-            {"id": "kz", "name": "История Казахстана"},
-            {"id": "mathlit", "name": "Математическая грамотность"},
-            {"id": "math", "name": "Математика"},
-            {"id": "geo", "name": "География"},
-            {"id": "bio", "name": "Биология"},
-            {"id": "chem", "name": "Химия"},
-            {"id": "inf", "name": "Информатика"},
-            {"id": "world", "name": "Всемирная история"}
-        ]
+        # Получаем все предметы из БД (для обратной совместимости)
+        try:
+            from database import SubjectRepository
+            subjects_db = await SubjectRepository.get_all()
+            subjects = []
+            for subject_db in subjects_db:
+                subjects.append({
+                    "id": str(subject_db.id),
+                    "name": subject_db.name
+                })
+        except Exception as e:
+            print(f"Ошибка при получении всех предметов: {e}")
+            subjects = []
 
     buttons = []
     for subject in subjects:
@@ -102,24 +82,13 @@ async def get_month_test_kb(test_type: str, subject_id: str, user_id: int = None
             if user:
                 student = await StudentRepository.get_by_user_id(user.id)
                 if student:
-                    # Преобразуем subject_id в название предмета
-                    subject_mapping = {
-                        "kz": "История Казахстана",
-                        "mathlit": "Математическая грамотность",
-                        "math": "Математика",
-                        "geo": "География",
-                        "bio": "Биология",
-                        "chem": "Химия",
-                        "inf": "Информатика",
-                        "world": "Всемирная история",
-                        "python": "Python",
-                        "js": "JavaScript",
-                        "java": "Java",
-                        "physics": "Физика"
-                    }
-
-                    subject_name = subject_mapping.get(subject_id, subject_id)
-                    subject = await SubjectRepository.get_by_name(subject_name)
+                    # Получаем предмет по ID (теперь subject_id - это реальный ID из БД)
+                    try:
+                        subject_id_int = int(subject_id)
+                        subject = await SubjectRepository.get_by_id(subject_id_int)
+                    except (ValueError, TypeError):
+                        # Если subject_id не число, пытаемся найти по имени
+                        subject = await SubjectRepository.get_by_name(subject_id)
 
                     if subject:
                         # Получаем курсы студента
@@ -157,25 +126,13 @@ async def get_month_test_kb(test_type: str, subject_id: str, user_id: int = None
         ])
 
     # Добавляем кнопку "Назад"
-    back_action = "back_to_month_entry_subjects" if test_type == "month_entry" else "back_to_month_control_subjects"
-    buttons.append([
-        InlineKeyboardButton(
-            text="◀️ Назад",
-            callback_data=back_action
-        )
-    ])
+    # back_action = "back_to_month_entry_subjects" if test_type == "month_entry" else "back_to_month_control_subjects"
+    buttons.extend(
+        get_main_menu_back_button()
+    )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_test_answers_kb() -> InlineKeyboardMarkup:
-    """Клавиатура с вариантами ответов на вопрос теста"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="A", callback_data="answer_A")],
-        [InlineKeyboardButton(text="B", callback_data="answer_B")],
-        [InlineKeyboardButton(text="C", callback_data="answer_C")],
-        [InlineKeyboardButton(text="D", callback_data="answer_D")],
-        *get_main_menu_back_button()
-    ])
 
 def get_back_to_test_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню тестов"""

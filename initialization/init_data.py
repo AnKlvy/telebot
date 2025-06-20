@@ -22,7 +22,7 @@ from initialization.course_entry_test_data import create_course_entry_test_resul
 from initialization.month_entry_test_data import create_month_entry_test_results
 from initialization.month_control_tests import create_month_control_tests, create_month_control_test_results
 from initialization.trial_ent_data import init_trial_ent_data
-from database.init_shop_data import init_shop_items
+from initialization.init_shop_data import init_shop_items
 
 
 async def add_initial_data():

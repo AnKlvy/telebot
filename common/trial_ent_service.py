@@ -113,34 +113,38 @@ class TrialEntService:
 
     @staticmethod
     async def generate_trial_ent_questions(
-        required_subjects: List[str], 
+        required_subjects: List[str],
         profile_subjects: List[str]
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Сгенерировать вопросы для пробного ЕНТ"""
         all_questions = []
         total_questions = 0
-        
-        # Добавляем обязательные предметы
+        question_number = 1
+
+        # Добавляем обязательные предметы (вопросы идут по порядку предметов)
         for subject_code in required_subjects:
             count = TrialEntService.QUESTION_COUNTS.get(subject_code, 0)
             if count > 0:
                 questions = await TrialEntService.get_random_questions_for_subject(subject_code, count)
+                # Добавляем номера вопросов по порядку
+                for question in questions:
+                    question["number"] = question_number
+                    question_number += 1
                 all_questions.extend(questions)
                 total_questions += len(questions)
-        
-        # Добавляем профильные предметы
+
+        # Добавляем профильные предметы (вопросы идут по порядку предметов)
         for subject_code in profile_subjects:
             count = TrialEntService.QUESTION_COUNTS.get(subject_code, 0)
             if count > 0:
                 questions = await TrialEntService.get_random_questions_for_subject(subject_code, count)
+                # Добавляем номера вопросов по порядку
+                for question in questions:
+                    question["number"] = question_number
+                    question_number += 1
                 all_questions.extend(questions)
                 total_questions += len(questions)
-        
-        # Перемешиваем вопросы и добавляем номера
-        random.shuffle(all_questions)
-        for i, question in enumerate(all_questions, 1):
-            question["number"] = i
-        
+
         return all_questions, total_questions
 
     @staticmethod

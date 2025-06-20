@@ -34,6 +34,13 @@ async def on_startup(bot: Bot) -> None:
         except Exception as e:
             logging.error(f"❌ Ошибка подключения к Redis: {e}")
 
+    # Очищаем зависшие состояния quiz после перезагрузки
+    try:
+        from common.quiz_registrator import cleanup_orphaned_quiz_states
+        await cleanup_orphaned_quiz_states()
+    except Exception as e:
+        logging.error(f"❌ Ошибка очистки зависших состояний quiz: {e}")
+
     # Сначала очищаем все существующие команды
     try:
         await bot.delete_my_commands()

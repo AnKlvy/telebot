@@ -33,16 +33,25 @@ async def generate_month_test_questions(month_test_id: int):
             logger.error(f"Тест месяца с ID {month_test_id} не найден")
             return []
 
-        # Получаем микротемы теста
-        microtopics = await month_test.get_microtopics()
-        if not microtopics:
+        # Получаем связи микротем с тестом месяца
+        month_test_microtopics = month_test.microtopics
+        if not month_test_microtopics:
             logger.error(f"У теста месяца {month_test_id} нет микротем")
             return []
 
+        # Получаем объекты микротем по номерам
+        microtopic_numbers = [mtm.microtopic_number for mtm in month_test_microtopics]
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
+        test_microtopics = [mt for mt in microtopics if mt.number in microtopic_numbers]
+
+        if not test_microtopics:
+            logger.error(f"Не найдены микротемы для теста месяца {month_test_id}")
+            return []
+
         all_questions = []
-        
+
         # Для каждой микротемы берем 3 случайных вопроса из домашних заданий
-        for microtopic in microtopics:
+        for microtopic in test_microtopics:
             questions = await QuestionRepository.get_random_questions_by_microtopic(
                 microtopic_number=microtopic.number,
                 subject_id=month_test.subject_id,

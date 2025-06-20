@@ -9,8 +9,7 @@ from .states import StudentTestsStates
 from .keyboards import (
     get_test_subjects_kb,
     get_month_test_kb,
-    get_back_to_test_kb,
-    get_test_answers_kb
+    get_back_to_test_kb
 )
 from .menu import show_tests_menu
 from .course_entry_handlers import handle_course_entry_test_real
@@ -54,7 +53,7 @@ async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext)
     """Показать предметы для входного теста курса"""
     await callback.message.edit_text(
         "Выберите предмет для входного теста курса:",
-        reply_markup=get_test_subjects_kb("course_entry")
+        reply_markup=await get_test_subjects_kb("course_entry", user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_group_entry)
 
@@ -72,7 +71,7 @@ async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста месяца"""
     await callback.message.edit_text(
         "Выберите предмет для входного теста месяца:",
-        reply_markup=get_test_subjects_kb("month_entry")
+        reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_group_entry)
 
@@ -85,7 +84,7 @@ async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext)
     # Показываем доступные месяцы для выбранного предмета
     await callback.message.edit_text(
         f"Выберите месяц для входного теста:",
-        reply_markup=get_month_test_kb(subject_id, "month_entry")
+        reply_markup=await get_month_test_kb("month_entry", subject_id, user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_month_entry)
 
@@ -93,11 +92,11 @@ async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext)
 @router.callback_query(StudentTestsStates.select_month_entry, F.data.startswith("month_entry_"))
 async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для входного теста месяца"""
-    # Парсим данные: month_entry_subject_testid
+    # Парсим данные: month_entry_subject_test_testid
     parts = callback.data.replace("month_entry_", "").split("_")
-    if len(parts) >= 2:
+    if len(parts) >= 3 and parts[1] == "test":
         subject_id = parts[0]
-        test_id = int(parts[1])
+        test_id = int(parts[2])
         await handle_month_entry_test_by_id(callback, state, subject_id, test_id)
     else:
         await callback.message.edit_text(
@@ -112,7 +111,7 @@ async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext
     """Показать предметы для контрольного теста месяца"""
     await callback.message.edit_text(
         "Выберите предмет для контрольного теста месяца:",
-        reply_markup=get_test_subjects_kb("month_control")
+        reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_group_control)
 
@@ -125,7 +124,7 @@ async def handle_month_control_subject(callback: CallbackQuery, state: FSMContex
     # Показываем доступные месяцы для выбранного предмета
     await callback.message.edit_text(
         f"Выберите месяц для контрольного теста:",
-        reply_markup=get_month_test_kb(subject_id, "month_control")
+        reply_markup=await get_month_test_kb("month_control", subject_id, user_id=callback.from_user.id)
     )
     await state.set_state(StudentTestsStates.select_month_control)
 
@@ -133,11 +132,11 @@ async def handle_month_control_subject(callback: CallbackQuery, state: FSMContex
 @router.callback_query(StudentTestsStates.select_month_control, F.data.startswith("month_control_"))
 async def handle_month_control_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для контрольного теста месяца"""
-    # Парсим данные: month_control_subject_testid
+    # Парсим данные: month_control_subject_test_testid
     parts = callback.data.replace("month_control_", "").split("_")
-    if len(parts) >= 2:
+    if len(parts) >= 3 and parts[1] == "test":
         subject_id = parts[0]
-        test_id = int(parts[1])
+        test_id = int(parts[2])
         await handle_month_control_test_by_id(callback, state, test_id)
     else:
         await callback.message.edit_text(

@@ -43,27 +43,16 @@ async def handle_course_entry_test_real(callback: CallbackQuery, state: FSMConte
             )
             return
 
-        # Преобразуем subject_id в реальный ID предмета
-        subject_mapping = {
-            "kz": "История Казахстана",
-            "mathlit": "Математическая грамотность",
-            "math": "Математика",
-            "geo": "География",
-            "bio": "Биология",
-            "chem": "Химия",
-            "inf": "Информатика",
-            "world": "Всемирная история",
-            "python": "Python",
-            "js": "JavaScript",
-            "java": "Java",
-            "physics": "Физика"
-        }
-
-        subject_name = subject_mapping.get(subject_id, subject_id)
-        subject = await SubjectRepository.get_by_name(subject_name)
+        # Получаем предмет по ID (теперь subject_id - это реальный ID из БД)
+        try:
+            subject_id_int = int(subject_id)
+            subject = await SubjectRepository.get_by_id(subject_id_int)
+        except (ValueError, TypeError):
+            # Если subject_id не число, пытаемся найти по имени (для обратной совместимости)
+            subject = await SubjectRepository.get_by_name(subject_id)
         if not subject:
             await callback.message.edit_text(
-                f"❌ Предмет '{subject_name}' не найден",
+                f"❌ Предмет не найден",
                 reply_markup=get_back_to_test_kb()
             )
             return
@@ -92,16 +81,16 @@ async def handle_course_entry_test_real(callback: CallbackQuery, state: FSMConte
 
         if not questions:
             await callback.message.edit_text(
-                f"❌ Нет доступных вопросов по предмету '{subject_name}'\n"
+                f"❌ Нет доступных вопросов по предмету '{subject.name}'\n"
                 "Возможно, вы не записаны на курсы с этим предметом или в курсах нет домашних заданий.",
                 reply_markup=get_back_to_test_kb()
             )
             return
 
-        logger.info(f"НАЙДЕНО ВОПРОСОВ: {len(questions)} для предмета {subject_name}")
+        logger.info(f"НАЙДЕНО ВОПРОСОВ: {len(questions)} для предмета {subject.name}")
 
         # Начинаем тест через quiz_registrator
-        await start_course_entry_test_with_quiz(callback, state, questions, student.id, subject.id, subject_name)
+        await start_course_entry_test_with_quiz(callback, state, questions, student.id, subject.id, subject.name)
 
     except Exception as e:
         logger.error(f"ОШИБКА в handle_course_entry_test_real: {e}")

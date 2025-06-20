@@ -50,12 +50,37 @@ def register_quiz_handlers(
     async def handle_quiz_poll_answer(poll: PollAnswer, state: FSMContext):
         """Универсальный обработчик ответа на вопрос"""
         logging.info(f"🔄 QUIZ: Получен ответ на опрос от пользователя {poll.user.id}")
-        
-        data = await state.get_data()
-        current_question_uuid = data.get("current_question_uuid")
+
+        try:
+            data = await state.get_data()
+            current_question_uuid = data.get("current_question_uuid")
+        except Exception as e:
+            logging.error(f"❌ QUIZ: Ошибка получения данных состояния: {e}")
+            await poll.bot.send_message(
+                poll.user.id,
+                "❌ Ошибка обработки ответа. Пожалуйста, начните тест заново."
+            )
+            return
         
         if not current_question_uuid or current_question_uuid not in active_questions:
             logging.warning(f"⚠️ QUIZ: Вопрос {current_question_uuid} не найден в активных")
+
+            # Проверяем, есть ли данные состояния
+            current_state = await state.get_state()
+            if current_state and data:
+                # Отправляем сообщение пользователю о том, что тест был прерван
+                try:
+                    await poll.bot.send_message(
+                        poll.user.id,
+                        "❌ Тест был прерван из-за перезагрузки системы.\n"
+                        "Пожалуйста, начните тест заново из меню."
+                    )
+                    # Очищаем состояние
+                    await state.clear()
+                    logging.info(f"🔄 QUIZ: Состояние очищено для пользователя {poll.user.id}")
+                except Exception as e:
+                    logging.error(f"❌ QUIZ: Ошибка при отправке сообщения о прерванном тесте: {e}")
+
             return
         
         # Отмечаем вопрос как отвеченный
@@ -117,7 +142,17 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
     data = await state.get_data()
     index = data.get("q_index", 0)
     questions = data.get("questions", [])
-    
+
+    # Проверяем валидность данных состояния
+    if not data or not questions:
+        logging.warning(f"⚠️ QUIZ: Некорректные данные состояния для пользователя {chat_id}")
+        await bot.send_message(
+            chat_id,
+            "❌ Данные теста потеряны. Пожалуйста, начните тест заново из меню."
+        )
+        await state.clear()
+        return
+
     if index >= len(questions):
         # Завершаем тест
         if finish_callback:
@@ -543,6 +578,17 @@ async def delete_message_safe(bot: Bot, chat_id: int, message_id: int) -> bool:
     except Exception as e:
         logging.debug(f"QUIZ: Не удалось удалить сообщение {message_id}: {e}")
         return False
+
+
+async def cleanup_orphaned_quiz_states():
+    """Очистка зависших состояний quiz после перезагрузки системы"""
+    try:
+        # Очищаем все активные вопросы (они потеряли актуальность после перезагрузки)
+        active_questions.clear()
+        completed_questions.clear()
+        logging.info("🧹 QUIZ: Очищены зависшие состояния quiz после перезагрузки")
+    except Exception as e:
+        logging.error(f"❌ QUIZ: Ошибка при очистке зависших состояний: {e}")
 
 
 async def cleanup_test_data(user_id: int):
