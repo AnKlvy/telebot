@@ -46,10 +46,7 @@ class BonusQuestionRepository(BaseQuestionRepository):
         """Получить все вопросы бонусного теста"""
         import logging
         questions = await self.get_by_parent(bonus_test_id)
-        logging.info(f"📋 BONUS_QUESTION_REPO: Получено {len(questions)} вопросов для бонусного теста {bonus_test_id}")
-        if questions:
-            for i, q in enumerate(questions):
-                logging.info(f"   {i+1}. ID: {q.id}, Текст: {q.text[:50]}..., Время: {q.time_limit}с")
+
         return questions
 
     async def get_next_order_number(self, bonus_test_id: int) -> int:

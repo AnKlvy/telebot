@@ -45,10 +45,7 @@ class BonusAnswerOptionRepository:
                 .order_by(BonusAnswerOption.order_number)
             )
             options = list(result.scalars().all())
-            logging.info(f"📋 BONUS_REPO: Получено {len(options)} вариантов ответов для бонусного вопроса {bonus_question_id}")
-            if options:
-                for i, opt in enumerate(options):
-                    logging.info(f"   {i+1}. {opt.text} ({'✅' if opt.is_correct else '❌'})")
+
             return options
 
     @staticmethod

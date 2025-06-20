@@ -49,7 +49,7 @@ def register_quiz_handlers(
     @router.poll_answer(test_state)
     async def handle_quiz_poll_answer(poll: PollAnswer, state: FSMContext):
         """Универсальный обработчик ответа на вопрос"""
-        logging.info(f"🔄 QUIZ: Получен ответ на опрос от пользователя {poll.user.id}")
+
 
         try:
             data = await state.get_data()
@@ -63,7 +63,7 @@ def register_quiz_handlers(
             return
         
         if not current_question_uuid or current_question_uuid not in active_questions:
-            logging.warning(f"⚠️ QUIZ: Вопрос {current_question_uuid} не найден в активных")
+
 
             # Проверяем, есть ли данные состояния
             current_state = await state.get_state()
@@ -77,7 +77,7 @@ def register_quiz_handlers(
                     )
                     # Очищаем состояние
                     await state.clear()
-                    logging.info(f"🔄 QUIZ: Состояние очищено для пользователя {poll.user.id}")
+
                 except Exception as e:
                     logging.error(f"❌ QUIZ: Ошибка при отправке сообщения о прерванном тесте: {e}")
 
@@ -85,7 +85,7 @@ def register_quiz_handlers(
         
         # Отмечаем вопрос как отвеченный
         active_questions[current_question_uuid]["answered"] = True
-        logging.info(f"✅ QUIZ: Ответ получен для вопроса UUID: {current_question_uuid}")
+
         
         # Если есть кастомный обработчик, вызываем его
         if poll_answer_handler:
@@ -97,7 +97,7 @@ def register_quiz_handlers(
     @router.poll(test_state)
     async def handle_quiz_poll_closed(poll: Poll, state: FSMContext, bot: Bot):
         """Резервный обработчик закрытия опроса"""
-        logging.info(f"🔔 QUIZ: Poll closed event: poll_id={poll.id}")
+
         
         try:
             data = await state.get_data()
@@ -105,26 +105,26 @@ def register_quiz_handlers(
             current_question_uuid = data.get("current_question_uuid")
             
             if current_state != test_state:
-                logging.info(f"❌ QUIZ: Неправильное состояние: {current_state}")
+
                 return
             
             # Проверяем, был ли уже дан ответ
             question_answered = data.get("question_answered", False)
             if question_answered:
-                logging.info("✅ QUIZ: Ответ уже был дан, пропускаем резервную обработку")
+
                 return
             
             # Проверяем активность основного таймера
             if current_question_uuid:
                 if current_question_uuid in active_questions:
-                    logging.info(f"🔄 QUIZ: Основной таймер активен для {current_question_uuid}")
+
                     return
                 
                 if current_question_uuid in completed_questions:
-                    logging.info(f"✅ QUIZ: Вопрос {current_question_uuid} уже обработан")
+
                     return
             
-            logging.warning(f"⚠️ QUIZ: РЕЗЕРВНАЯ ОБРАБОТКА ТАЙМАУТА для poll {poll.id}")
+
             
             # Если есть кастомный обработчик таймаута, вызываем его
             if timeout_handler:
@@ -145,7 +145,7 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
 
     # Проверяем валидность данных состояния
     if not data or not questions:
-        logging.warning(f"⚠️ QUIZ: Некорректные данные состояния для пользователя {chat_id}")
+
         await bot.send_message(
             chat_id,
             "❌ Данные теста потеряны. Пожалуйста, начните тест заново из меню."
@@ -166,21 +166,21 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
     # Проверяем, есть ли в данных состояния информация о бонусном тесте
     is_bonus_test = data.get("bonus_test_id") is not None
 
-    logging.info(f"📋 QUIZ: Определение типа теста - is_bonus_test: {is_bonus_test}, bonus_test_id: {data.get('bonus_test_id')}, question_id: {question_id}")
+
 
     if is_bonus_test:
         # Для бонусных тестов используем BonusAnswerOptionRepository
         answer_options = await BonusAnswerOptionRepository.get_by_bonus_question(question_id)
-        logging.info(f"📋 QUIZ: Получено {len(answer_options) if answer_options else 0} вариантов ответов для бонусного вопроса {question_id}")
+
     else:
         # Для обычных тестов используем AnswerOptionRepository
         answer_options = await AnswerOptionRepository.get_by_question(question_id)
-        logging.info(f"📋 QUIZ: Получено {len(answer_options) if answer_options else 0} вариантов ответов для обычного вопроса {question_id}")
+
 
     if not answer_options:
         error_msg = f"❌ QUIZ: Варианты ответов не найдены для вопроса ID {question_id}"
         logging.error(error_msg)
-        logging.error(f"📋 QUIZ: Данные вопроса: {question_data}")
+
         await bot.send_message(chat_id, "❌ Ошибка: варианты ответов не найдены")
         return
     
@@ -199,7 +199,7 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
     if correct_option_id is None:
         error_msg = f"❌ QUIZ: Правильный ответ не найден для вопроса ID {question_id}"
         logging.error(error_msg)
-        logging.error(f"📋 QUIZ: Варианты ответов: {[(opt.text, opt.is_correct) for opt in answer_options]}")
+
         await bot.send_message(chat_id, "❌ Ошибка: правильный ответ не найден")
         return
     
@@ -269,7 +269,7 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
         messages_to_delete=messages_to_delete
     )
     
-    logging.info(f"📝 QUIZ: Отправлен вопрос {index + 1}/{len(questions)} | UUID: {question_uuid} | Таймер: {question_data['time_limit']}с")
+
     
     # Запускаем надежный таймер для обработки таймаута
     asyncio.create_task(handle_question_timeout_reliable(
@@ -329,7 +329,7 @@ async def default_poll_answer_handler(poll: PollAnswer, state: FSMContext, quest
         question_results=question_results
     )
     
-    logging.info(f"📊 QUIZ: Ответ обработан: {'✅ правильно' if is_correct else '❌ неправильно'} | Время: {time_spent}с")
+
 
     # Получаем finish_callback из активного вопроса
     finish_callback = None
@@ -342,7 +342,7 @@ async def default_poll_answer_handler(poll: PollAnswer, state: FSMContext, quest
 
 async def default_timeout_handler(poll: Poll, state: FSMContext, bot: Bot, question_uuid: str):
     """Стандартный обработчик таймаута"""
-    logging.warning(f"⚠️ QUIZ: Стандартная обработка таймаута для {question_uuid}")
+
     
     data = await state.get_data()
     user_id = data.get("user_id")
@@ -401,23 +401,23 @@ async def default_timeout_handler(poll: Poll, state: FSMContext, bot: Bot, quest
 async def handle_question_timeout_reliable(question_uuid: str, timeout_seconds: int, finish_callback: Optional[Callable] = None):
     """Надежная обработка таймаута вопроса через уникальный UUID"""
     try:
-        logging.info(f"⏰ QUIZ: Запущен таймер для вопроса UUID: {question_uuid} на {timeout_seconds} секунд")
+
         await asyncio.sleep(timeout_seconds)
         
         # Проверяем, что вопрос еще активен
         if question_uuid not in active_questions:
-            logging.info(f"🔄 QUIZ: Вопрос {question_uuid} уже не активен, таймаут отменен")
+
             return
         
         question_info = active_questions[question_uuid]
         
         # Проверяем, был ли уже дан ответ
         if question_info["answered"]:
-            logging.info(f"✅ QUIZ: На вопрос {question_uuid} уже ответили, таймаут отменен")
+
             del active_questions[question_uuid]
             return
         
-        logging.info(f"⏰ QUIZ: ТАЙМАУТ! Обрабатываем истечение времени для вопроса {question_uuid}")
+
         
         # Обрабатываем таймаут
         await process_question_timeout_reliable(question_uuid, finish_callback)
@@ -449,7 +449,7 @@ async def process_question_timeout_reliable(question_uuid: str, finish_callback:
         current_question_id = data.get("current_question_id")
         question_start_time_str = data.get("question_start_time")
 
-        logging.info(f"⏰ QUIZ: Обработка таймаута: index={index}, question_id={current_question_id}")
+
 
         if index >= len(questions) or not current_question_id:
             logging.error(f"❌ QUIZ: Некорректные данные вопроса для {question_uuid}")
@@ -492,7 +492,7 @@ async def process_question_timeout_reliable(question_uuid: str, finish_callback:
             messages_to_delete.append(timeout_message.message_id)
             await state.update_data(messages_to_delete=messages_to_delete)
 
-            logging.info(f"📤 QUIZ: Отправлено сообщение о таймауте пользователю {chat_id}")
+
 
         # Переходим к следующему вопросу
         await state.update_data(
@@ -501,7 +501,7 @@ async def process_question_timeout_reliable(question_uuid: str, finish_callback:
             question_answered=False
         )
 
-        logging.info(f"➡️ QUIZ: Переход к следующему вопросу: {index + 1}")
+
 
         # Очищаем из активных вопросов
         del active_questions[question_uuid]
@@ -511,12 +511,12 @@ async def process_question_timeout_reliable(question_uuid: str, finish_callback:
 
         # Отправляем следующий вопрос или завершаем тест
         await send_next_question(chat_id, state, bot, finish_callback)
-        logging.info(f"✅ QUIZ: Обработка таймаута завершена для {question_uuid}")
+
 
     except Exception as e:
         logging.error(f"❌ QUIZ: Ошибка в process_question_timeout_reliable для {question_uuid}: {e}")
         import traceback
-        logging.error(f"📋 QUIZ: Traceback: {traceback.format_exc()}")
+
 
         # Очищаем из активных вопросов при ошибке
         if question_uuid in active_questions:
@@ -532,10 +532,10 @@ async def cleanup_test_messages(chat_id: int, data: dict, bot: Bot):
         messages_to_delete = data.get("messages_to_delete", [])
 
         if not messages_to_delete:
-            logging.info("🧹 QUIZ: Нет сообщений для удаления")
+
             return
 
-        logging.info(f"🧹 QUIZ: Начинаем удаление {len(messages_to_delete)} сообщений...")
+
 
         # Удаляем сообщения пакетами для ускорения
         deleted_count = 0
@@ -564,7 +564,7 @@ async def cleanup_test_messages(chat_id: int, data: dict, bot: Bot):
 
         end_time = time.time()
         duration = end_time - start_time
-        logging.info(f"🧹 QUIZ: Удалено {deleted_count} сообщений теста для пользователя {chat_id} за {duration:.2f} секунд")
+
 
     except Exception as e:
         logging.error(f"❌ QUIZ: Ошибка при удалении сообщений теста: {e}")
@@ -586,7 +586,7 @@ async def cleanup_orphaned_quiz_states():
         # Очищаем все активные вопросы (они потеряли актуальность после перезагрузки)
         active_questions.clear()
         completed_questions.clear()
-        logging.info("🧹 QUIZ: Очищены зависшие состояния quiz после перезагрузки")
+
     except Exception as e:
         logging.error(f"❌ QUIZ: Ошибка при очистке зависших состояний: {e}")
 
@@ -602,14 +602,14 @@ async def cleanup_test_data(user_id: int):
 
         for question_uuid in questions_to_remove:
             del active_questions[question_uuid]
-            logging.info(f"🧹 QUIZ: Очищен активный вопрос {question_uuid} для пользователя {user_id}")
+
 
         # Очищаем старые завершенные вопросы (оставляем только последние 100)
         if len(completed_questions) > 100:
             completed_list = list(completed_questions)
             completed_questions.clear()
             completed_questions.update(completed_list[-50:])
-            logging.info("🧹 QUIZ: Очищены старые завершенные вопросы")
+
 
     except Exception as e:
         logging.error(f"❌ QUIZ: Ошибка при очистке данных теста: {e}")
