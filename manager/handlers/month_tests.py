@@ -17,7 +17,6 @@ from manager.keyboards.month_tests import (
 from manager.keyboards.main import get_manager_main_menu_kb
 from common.keyboards import get_home_kb
 from database.repositories.month_test_repository import MonthTestRepository
-from database.repositories.month_test_microtopic_repository import MonthTestMicrotopicRepository
 from database.repositories.course_repository import CourseRepository
 from database.repositories.subject_repository import SubjectRepository
 from database.repositories.microtopic_repository import MicrotopicRepository
@@ -218,21 +217,22 @@ async def process_microtopics(message: Message, state: FSMContext):
     await state.set_state(ManagerMonthTestsStates.confirm_creation)
 
     await message.answer(
-        text=f"📋 Подтверждение создания теста:\n\n"
+        text=f"📋 Подтверждение создания тестов:\n\n"
              f"Курс: {course_name}\n"
              f"Предмет: {subject_name}\n"
              f"Месяц: {month_name}\n\n"
              f"Номера микротем: {numbers_text}\n\n"
-             f"Будет создана привязка для ОДНОГО теста с двумя типами:\n"
+             f"Будут автоматически созданы ДВА связанных теста:\n"
              f"• Входной тест месяца\n"
-             f"• Контрольный тест месяца\n\n"
-             f"При прохождении будут генерироваться случайные вопросы из ДЗ по указанным микротемам",
+             f"• Контрольный тест месяца (для сравнения результатов)\n\n"
+             f"При прохождении будут генерироваться случайные вопросы из ДЗ по указанным микротемам.\n"
+             f"Результаты тестов будут сравниваться для отслеживания прогресса студентов.",
         reply_markup=get_confirm_test_creation_kb()
     )
 
 @router.callback_query(StateFilter(ManagerMonthTestsStates.confirm_creation), F.data == "confirm_create_test")
 async def confirm_create_test(callback: CallbackQuery, state: FSMContext):
-    """Подтверждаем создание теста - привязываем микротемы к предмету"""
+    """Подтверждаем создание теста - создаем входной и контрольный тесты с привязкой микротем"""
     try:
         data = await state.get_data()
         course_id = data.get("course_id")
@@ -240,33 +240,28 @@ async def confirm_create_test(callback: CallbackQuery, state: FSMContext):
         month_name = data.get("month_name")
         microtopic_numbers = data.get("selected_microtopic_numbers", [])
 
-        # Создаем тест месяца в базе данных
-        month_test = await MonthTestRepository.create(
+        # Создаем входной и контрольный тесты месяца автоматически
+        entry_test, control_test = await MonthTestRepository.create_with_control_test(
             name=month_name,
             course_id=course_id,
-            subject_id=subject_id
+            subject_id=subject_id,
+            microtopic_numbers=microtopic_numbers
         )
-
-        # Добавляем связи с микротемами
-        for microtopic_number in microtopic_numbers:
-            await MonthTestMicrotopicRepository.create(
-                month_test_id=month_test.id,
-                microtopic_number=microtopic_number
-            )
 
         numbers_text = ", ".join([str(num) for num in sorted(microtopic_numbers)])
 
         await callback.message.edit_text(
-            text=f"✅ Тест месяца успешно создан!\n\n"
+            text=f"✅ Тесты месяца успешно созданы!\n\n"
                  f"📋 Привязка создана:\n"
                  f"Курс: {data.get('course_name')}\n"
                  f"Предмет: {data.get('subject_name')}\n"
                  f"Месяц: {month_name}\n"
                  f"Микротемы: {numbers_text}\n\n"
-                 f"Теперь студенты смогут проходить:\n"
-                 f"• Входной тест месяца\n"
-                 f"• Контрольный тест месяца\n\n"
-                 f"Вопросы будут генерироваться из ДЗ по этим микротемам",
+                 f"Автоматически созданы:\n"
+                 f"• Входной тест месяца (ID: {entry_test.id})\n"
+                 f"• Контрольный тест месяца (ID: {control_test.id})\n\n"
+                 f"Студенты смогут проходить оба теста, а результаты будут сравниваться.\n"
+                 f"Вопросы генерируются из ДЗ по указанным микротемам.",
             reply_markup=get_month_tests_menu_kb()
         )
         await state.set_state(ManagerMonthTestsStates.main)

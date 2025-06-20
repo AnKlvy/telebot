@@ -1182,6 +1182,346 @@ async def create_lessons_and_homework(created_subjects, created_courses):
                         }
                     ]
                 }
+            ],
+            "Биология": [
+                {
+                    "name": "Клеточная биология",
+                    "homework": "Строение клетки",
+                    "questions": [
+                        {
+                            "text": "Основная структурная единица всех живых организмов:",
+                            "microtopic": 1,  # Клетка
+                            "answers": [
+                                {"text": "Клетка", "is_correct": True},
+                                {"text": "Ткань", "is_correct": False},
+                                {"text": "Орган", "is_correct": False},
+                                {"text": "Организм", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Органоид, отвечающий за синтез белков:",
+                            "microtopic": 1,  # Клетка
+                            "answers": [
+                                {"text": "Рибосома", "is_correct": True},
+                                {"text": "Митохондрия", "is_correct": False},
+                                {"text": "Ядро", "is_correct": False},
+                                {"text": "Лизосома", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Энергетическая станция клетки:",
+                            "microtopic": 1,  # Клетка
+                            "answers": [
+                                {"text": "Митохондрия", "is_correct": True},
+                                {"text": "Хлоропласт", "is_correct": False},
+                                {"text": "Ядро", "is_correct": False},
+                                {"text": "Вакуоль", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Полупроницаемая оболочка клетки:",
+                            "microtopic": 1,  # Клетка
+                            "answers": [
+                                {"text": "Клеточная мембрана", "is_correct": True},
+                                {"text": "Клеточная стенка", "is_correct": False},
+                                {"text": "Цитоплазма", "is_correct": False},
+                                {"text": "Ядерная оболочка", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Центр управления клетки:",
+                            "microtopic": 1,  # Клетка
+                            "answers": [
+                                {"text": "Ядро", "is_correct": True},
+                                {"text": "Цитоплазма", "is_correct": False},
+                                {"text": "Рибосома", "is_correct": False},
+                                {"text": "Митохондрия", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Генетика",
+                    "homework": "Основы наследственности",
+                    "questions": [
+                        {
+                            "text": "Носитель наследственной информации:",
+                            "microtopic": 2,  # Генетика
+                            "answers": [
+                                {"text": "ДНК", "is_correct": True},
+                                {"text": "РНК", "is_correct": False},
+                                {"text": "Белок", "is_correct": False},
+                                {"text": "Липид", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Участок ДНК, кодирующий определенный признак:",
+                            "microtopic": 2,  # Генетика
+                            "answers": [
+                                {"text": "Ген", "is_correct": True},
+                                {"text": "Хромосома", "is_correct": False},
+                                {"text": "Аллель", "is_correct": False},
+                                {"text": "Локус", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Процесс передачи признаков от родителей потомству:",
+                            "microtopic": 2,  # Генетика
+                            "answers": [
+                                {"text": "Наследственность", "is_correct": True},
+                                {"text": "Изменчивость", "is_correct": False},
+                                {"text": "Адаптация", "is_correct": False},
+                                {"text": "Мутация", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Основатель генетики:",
+                            "microtopic": 2,  # Генетика
+                            "answers": [
+                                {"text": "Грегор Мендель", "is_correct": True},
+                                {"text": "Чарльз Дарвин", "is_correct": False},
+                                {"text": "Томас Морган", "is_correct": False},
+                                {"text": "Жан Ламарк", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Эволюция",
+                    "homework": "Теория эволюции",
+                    "questions": [
+                        {
+                            "text": "Автор теории эволюции путем естественного отбора:",
+                            "microtopic": 3,  # Эволюция
+                            "answers": [
+                                {"text": "Чарльз Дарвин", "is_correct": True},
+                                {"text": "Жан Ламарк", "is_correct": False},
+                                {"text": "Грегор Мендель", "is_correct": False},
+                                {"text": "Альфред Уоллес", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Движущая сила эволюции по Дарвину:",
+                            "microtopic": 3,  # Эволюция
+                            "answers": [
+                                {"text": "Естественный отбор", "is_correct": True},
+                                {"text": "Искусственный отбор", "is_correct": False},
+                                {"text": "Мутации", "is_correct": False},
+                                {"text": "Миграции", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Приспособление организмов к условиям среды:",
+                            "microtopic": 3,  # Эволюция
+                            "answers": [
+                                {"text": "Адаптация", "is_correct": True},
+                                {"text": "Мутация", "is_correct": False},
+                                {"text": "Селекция", "is_correct": False},
+                                {"text": "Дегенерация", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Экология",
+                    "homework": "Экосистемы",
+                    "questions": [
+                        {
+                            "text": "Наука о взаимоотношениях организмов с окружающей средой:",
+                            "microtopic": 4,  # Экология
+                            "answers": [
+                                {"text": "Экология", "is_correct": True},
+                                {"text": "Биология", "is_correct": False},
+                                {"text": "Зоология", "is_correct": False},
+                                {"text": "Ботаника", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Совокупность всех живых организмов и среды их обитания:",
+                            "microtopic": 4,  # Экология
+                            "answers": [
+                                {"text": "Экосистема", "is_correct": True},
+                                {"text": "Биосфера", "is_correct": False},
+                                {"text": "Популяция", "is_correct": False},
+                                {"text": "Сообщество", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Организмы, производящие органические вещества из неорганических:",
+                            "microtopic": 4,  # Экология
+                            "answers": [
+                                {"text": "Продуценты", "is_correct": True},
+                                {"text": "Консументы", "is_correct": False},
+                                {"text": "Редуценты", "is_correct": False},
+                                {"text": "Деструкторы", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Анатомия человека",
+                    "homework": "Системы органов",
+                    "questions": [
+                        {
+                            "text": "Главный орган кровеносной системы:",
+                            "microtopic": 5,  # Анатомия
+                            "answers": [
+                                {"text": "Сердце", "is_correct": True},
+                                {"text": "Легкие", "is_correct": False},
+                                {"text": "Печень", "is_correct": False},
+                                {"text": "Почки", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Орган газообмена у человека:",
+                            "microtopic": 5,  # Анатомия
+                            "answers": [
+                                {"text": "Легкие", "is_correct": True},
+                                {"text": "Сердце", "is_correct": False},
+                                {"text": "Печень", "is_correct": False},
+                                {"text": "Желудок", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Самая крупная железа в организме человека:",
+                            "microtopic": 5,  # Анатомия
+                            "answers": [
+                                {"text": "Печень", "is_correct": True},
+                                {"text": "Поджелудочная железа", "is_correct": False},
+                                {"text": "Щитовидная железа", "is_correct": False},
+                                {"text": "Надпочечники", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Центральная нервная система состоит из:",
+                            "microtopic": 5,  # Анатомия
+                            "answers": [
+                                {"text": "Головного и спинного мозга", "is_correct": True},
+                                {"text": "Нервов и нервных узлов", "is_correct": False},
+                                {"text": "Рецепторов и эффекторов", "is_correct": False},
+                                {"text": "Синапсов и дендритов", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Физиология",
+                    "homework": "Процессы жизнедеятельности",
+                    "questions": [
+                        {
+                            "text": "Процесс поглощения кислорода и выделения углекислого газа:",
+                            "microtopic": 6,  # Физиология
+                            "answers": [
+                                {"text": "Дыхание", "is_correct": True},
+                                {"text": "Пищеварение", "is_correct": False},
+                                {"text": "Кровообращение", "is_correct": False},
+                                {"text": "Выделение", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Жидкая соединительная ткань:",
+                            "microtopic": 6,  # Физиология
+                            "answers": [
+                                {"text": "Кровь", "is_correct": True},
+                                {"text": "Лимфа", "is_correct": False},
+                                {"text": "Плазма", "is_correct": False},
+                                {"text": "Сыворотка", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Основная функция эритроцитов:",
+                            "microtopic": 6,  # Физиология
+                            "answers": [
+                                {"text": "Перенос кислорода", "is_correct": True},
+                                {"text": "Защита от инфекций", "is_correct": False},
+                                {"text": "Свертывание крови", "is_correct": False},
+                                {"text": "Регуляция температуры", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Гормон, регулирующий уровень сахара в крови:",
+                            "microtopic": 6,  # Физиология
+                            "answers": [
+                                {"text": "Инсулин", "is_correct": True},
+                                {"text": "Адреналин", "is_correct": False},
+                                {"text": "Тироксин", "is_correct": False},
+                                {"text": "Кортизол", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Ботаника",
+                    "homework": "Растения",
+                    "questions": [
+                        {
+                            "text": "Процесс образования органических веществ из неорганических на свету:",
+                            "microtopic": 7,  # Ботаника
+                            "answers": [
+                                {"text": "Фотосинтез", "is_correct": True},
+                                {"text": "Дыхание", "is_correct": False},
+                                {"text": "Транспирация", "is_correct": False},
+                                {"text": "Хемосинтез", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Зеленый пигмент растений:",
+                            "microtopic": 7,  # Ботаника
+                            "answers": [
+                                {"text": "Хлорофилл", "is_correct": True},
+                                {"text": "Каротин", "is_correct": False},
+                                {"text": "Ксантофилл", "is_correct": False},
+                                {"text": "Антоциан", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Орган растения, обеспечивающий фотосинтез:",
+                            "microtopic": 7,  # Ботаника
+                            "answers": [
+                                {"text": "Лист", "is_correct": True},
+                                {"text": "Корень", "is_correct": False},
+                                {"text": "Стебель", "is_correct": False},
+                                {"text": "Цветок", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Зоология",
+                    "homework": "Животный мир",
+                    "questions": [
+                        {
+                            "text": "Животные, имеющие постоянную температуру тела:",
+                            "microtopic": 8,  # Зоология
+                            "answers": [
+                                {"text": "Теплокровные", "is_correct": True},
+                                {"text": "Холоднокровные", "is_correct": False},
+                                {"text": "Беспозвоночные", "is_correct": False},
+                                {"text": "Позвоночные", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Самый крупный отряд животных:",
+                            "microtopic": 8,  # Зоология
+                            "answers": [
+                                {"text": "Насекомые", "is_correct": True},
+                                {"text": "Млекопитающие", "is_correct": False},
+                                {"text": "Птицы", "is_correct": False},
+                                {"text": "Рыбы", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Животные, питающиеся только растительной пищей:",
+                            "microtopic": 8,  # Зоология
+                            "answers": [
+                                {"text": "Травоядные", "is_correct": True},
+                                {"text": "Хищники", "is_correct": False},
+                                {"text": "Всеядные", "is_correct": False},
+                                {"text": "Паразиты", "is_correct": False}
+                            ]
+                        }
+                    ]
+                }
             ]
         }
 

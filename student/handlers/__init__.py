@@ -8,6 +8,9 @@ from .curator_contact import router as curator_contact_router
 from .account import router as account_router
 from .homework_quiz import router as homework_quiz_router
 
+# Импортируем общие обработчики тестов
+from common.student_tests import router as student_tests_router
+
 router= main_router
 router.include_router(homework_router)
 router.include_router(progress_router)
@@ -17,5 +20,6 @@ router.include_router(trial_ent_router)
 router.include_router(curator_contact_router)
 router.include_router(account_router)
 router.include_router(homework_quiz_router)
+router.include_router(student_tests_router)  # Добавляем общие обработчики тестов
 
 __all__ = ["router"]

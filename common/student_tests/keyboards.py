@@ -123,7 +123,8 @@ async def get_month_test_kb(test_type: str, subject_id: str, user_id: int = None
 
                     if subject:
                         # Получаем курсы студента
-                        student_courses = await StudentRepository.get_courses(student.id)
+                        from database.repositories.course_repository import CourseRepository
+                        student_courses = await CourseRepository.get_by_student(student.id)
 
                         # Ищем тесты месяца для данного предмета в курсах студента
                         available_tests = []

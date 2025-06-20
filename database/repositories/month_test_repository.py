@@ -81,7 +81,7 @@ class MonthTestRepository:
             return result.scalar_one_or_none()
 
     @staticmethod
-    async def create(name: str, course_id: int, subject_id: int, test_type: str = 'entry') -> MonthTest:
+    async def create(name: str, course_id: int, subject_id: int, test_type: str = 'entry', parent_test_id: int = None) -> MonthTest:
         """Создать новый тест месяца"""
         async with get_db_session() as session:
             # Проверяем, существует ли уже такой тест
@@ -110,11 +110,20 @@ class MonthTestRepository:
             if not subject_exists.scalar_one_or_none():
                 raise ValueError(f"Предмет с ID {subject_id} не найден")
 
+            # Если указан parent_test_id, проверяем, что родительский тест существует
+            if parent_test_id is not None:
+                parent_test_exists = await session.execute(
+                    select(MonthTest).where(MonthTest.id == parent_test_id)
+                )
+                if not parent_test_exists.scalar_one_or_none():
+                    raise ValueError(f"Родительский тест с ID {parent_test_id} не найден")
+
             month_test = MonthTest(
                 name=name,
                 course_id=course_id,
                 subject_id=subject_id,
-                test_type=test_type
+                test_type=test_type,
+                parent_test_id=parent_test_id
             )
             session.add(month_test)
             await session.commit()
@@ -174,28 +183,21 @@ class MonthTestRepository:
         """
         from .month_test_microtopic_repository import MonthTestMicrotopicRepository
 
-        async with get_db_session() as session:
-            # Создаем входной тест
-            entry_test = await MonthTestRepository.create(name, course_id, subject_id, 'entry')
+        # Создаем входной тест
+        entry_test = await MonthTestRepository.create(name, course_id, subject_id, 'entry')
 
-            # Создаем контрольный тест с тем же названием
-            control_test = await MonthTestRepository.create(name, course_id, subject_id, 'control')
+        # Создаем контрольный тест с тем же названием и привязкой к входному
+        control_test = await MonthTestRepository.create(name, course_id, subject_id, 'control', entry_test.id)
 
-            # Устанавливаем связь контрольного теста с входным
-            control_test.parent_test_id = entry_test.id
-            session.add(control_test)
-            await session.commit()
-            await session.refresh(control_test)
+        # Если переданы микротемы, добавляем их к обоим тестам
+        if microtopic_numbers:
+            for microtopic_number in microtopic_numbers:
+                # Добавляем к входному тесту
+                await MonthTestMicrotopicRepository.create(entry_test.id, microtopic_number)
+                # Добавляем к контрольному тесту
+                await MonthTestMicrotopicRepository.create(control_test.id, microtopic_number)
 
-            # Если переданы микротемы, добавляем их к обоим тестам
-            if microtopic_numbers:
-                for microtopic_number in microtopic_numbers:
-                    # Добавляем к входному тесту
-                    await MonthTestMicrotopicRepository.create(entry_test.id, microtopic_number)
-                    # Добавляем к контрольному тесту
-                    await MonthTestMicrotopicRepository.create(control_test.id, microtopic_number)
-
-            return entry_test, control_test
+        return entry_test, control_test
 
     @staticmethod
     async def get_entry_tests() -> List[MonthTest]:
