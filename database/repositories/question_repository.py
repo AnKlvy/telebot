@@ -194,6 +194,38 @@ class QuestionRepository(BaseQuestionRepository):
             import random
             return random.sample(all_questions, max_questions)
 
+    @staticmethod
+    async def get_random_questions_by_microtopic(microtopic_number: int, subject_id: int, limit: int = 3) -> List[Question]:
+        """
+        Получить случайные вопросы по микротеме для тестов месяца
+
+        Args:
+            microtopic_number: Номер микротемы
+            subject_id: ID предмета
+            limit: Максимальное количество вопросов (по умолчанию 3)
+
+        Returns:
+            List[Question]: Список случайных вопросов по микротеме
+        """
+        async with get_db_session() as session:
+            # Получаем все вопросы по данной микротеме и предмету
+            result = await session.execute(
+                select(Question)
+                .options(
+                    selectinload(Question.homework),
+                    selectinload(Question.subject),
+                    selectinload(Question.answer_options)
+                )
+                .where(
+                    Question.subject_id == subject_id,
+                    Question.microtopic_number == microtopic_number
+                )
+                .order_by(func.random())  # Случайный порядок
+                .limit(limit)
+            )
+
+            return list(result.scalars().all())
+
 
 
     @staticmethod

@@ -35,7 +35,7 @@ def get_profile_subjects_kb() -> InlineKeyboardMarkup:
 def get_second_profile_subject_kb(first_subject: str) -> InlineKeyboardMarkup:
     """Клавиатура выбора второго профильного предмета"""
     buttons = []
-    
+
     # Словарь соответствия callback_data и названий предметов
     subjects = {
         "prof_sub_math": "Математика",
@@ -45,15 +45,22 @@ def get_second_profile_subject_kb(first_subject: str) -> InlineKeyboardMarkup:
         "prof_sub_inf": "Информатика",
         "prof_sub_world": "Всемирная история"
     }
-    
+
     # Добавляем все предметы, кроме уже выбранного
     for callback, name in subjects.items():
         if callback != first_subject:
             buttons.append([InlineKeyboardButton(text=name, callback_data=f"second_{callback}")])
-    
+
     buttons.extend(get_main_menu_back_button())
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_trial_ent_confirmation_kb() -> InlineKeyboardMarkup:
+    """Клавиатура подтверждения начала пробного ЕНТ"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Начать тест", callback_data="start_trial_ent_test")],
+        *get_main_menu_back_button()
+    ])
 
 
 

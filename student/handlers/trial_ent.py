@@ -10,7 +10,8 @@ from ..keyboards.trial_ent import (
     get_second_profile_subject_kb,
     get_after_trial_ent_kb,
     get_analytics_subjects_kb,
-    get_back_to_analytics_kb
+    get_back_to_analytics_kb,
+    get_trial_ent_confirmation_kb
 )
 from common.keyboards import get_main_menu_back_button
 # process_test_answer больше не используется, логика перенесена в homework_quiz.py
@@ -23,6 +24,7 @@ class TrialEntStates(StatesGroup):
     required_subjects = State()
     profile_subjects = State()
     second_profile_subject = State()
+    confirmation = State()  # Новое состояние для подтверждения начала теста
     test_in_progress = State()
     results = State()
     analytics_subjects = State()
@@ -112,16 +114,16 @@ async def process_second_profile_subject(callback: CallbackQuery, state: FSMCont
     ]
     await state.update_data(profile_subjects=profile_subjects)
     
-    # Переходим к началу теста
-    await start_trial_ent_test(callback, state)
+    # Переходим к показу информации о тесте
+    await show_trial_ent_confirmation(callback, state)
 
-async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
-    """Начало пробного ЕНТ"""
+async def show_trial_ent_confirmation(callback: CallbackQuery, state: FSMContext):
+    """Показать информацию о тесте и кнопку подтверждения"""
     user_data = await state.get_data()
     required_subjects = user_data.get("required_subjects", [])
     profile_subjects = user_data.get("profile_subjects", [])
 
-    # Генерируем вопросы из базы данных
+    # Генерируем вопросы для подсчета информации о тесте
     from common.trial_ent_service import TrialEntService
 
     try:
@@ -137,44 +139,119 @@ async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
             await state.set_state(TrialEntStates.main)
             return
 
-        # Подготавливаем данные для quiz_registrator
+        # Сохраняем вопросы в состоянии для последующего использования
         await state.update_data(
             questions=all_questions,
-            q_index=0,
-            score=0,
-            question_results=[],
-            user_id=callback.from_user.id,
-            required_subjects=required_subjects,
-            profile_subjects=profile_subjects,
-            messages_to_delete=[]
+            total_questions=total_questions
         )
 
-        # Удаляем текущее сообщение
-        try:
-            await callback.message.delete()
-        except:
-            pass
+        # Подсчитываем среднее время на вопрос
+        total_time = sum(q.get("time_limit", 60) for q in all_questions)
+        avg_time = total_time // len(all_questions) if all_questions else 60
 
-        # Запускаем тест через общий модуль
-        from common.quiz_registrator import send_next_question
-        await send_next_question(
-            chat_id=callback.from_user.id,
-            state=state,
-            bot=callback.bot,
-            finish_callback=finish_trial_ent_quiz
+        # Формируем список предметов
+        subject_info = []
+
+        # Обязательные предметы
+        for subject_code in required_subjects:
+            subject_name = TrialEntService.get_subject_name(subject_code)
+            count = TrialEntService.QUESTION_COUNTS.get(subject_code, 0)
+            subject_info.append(f"📚 {subject_name}: {count} вопросов")
+
+        # Профильные предметы
+        for subject_code in profile_subjects:
+            subject_name = TrialEntService.get_subject_name(subject_code)
+            count = TrialEntService.QUESTION_COUNTS.get(subject_code, 0)
+            subject_info.append(f"🎯 {subject_name}: {count} вопросов")
+
+        text = (
+            f"🎓 Пробный ЕНТ\n\n"
+            f"📋 Всего вопросов: {total_questions}\n"
+            f"⏱ Среднее время на вопрос: {avg_time} секунд\n\n"
+            f"📚 Выбранные предметы:\n" + "\n".join(subject_info) + "\n\n"
+            f"⚠️ Вопросы будут идти по порядку предметов.\n"
+            f"💡 Результаты сохранятся в вашей статистике.\n\n"
+            f"Готовы начать тест?"
         )
-        await state.set_state(TrialEntStates.test_in_progress)
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_trial_ent_confirmation_kb()
+        )
+        await state.set_state(TrialEntStates.confirmation)
 
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Ошибка при генерации вопросов пробного ЕНТ: {e}")
+        logger.error(f"Ошибка при подготовке информации о тесте: {e}")
 
         await callback.message.edit_text(
             "❌ Произошла ошибка при подготовке теста. Попробуйте позже.",
             reply_markup=get_trial_ent_start_kb()
         )
         await state.set_state(TrialEntStates.main)
+
+@router.callback_query(TrialEntStates.confirmation, F.data == "start_trial_ent_test")
+async def start_trial_ent_test(callback: CallbackQuery, state: FSMContext):
+    """Начало пробного ЕНТ после подтверждения"""
+    user_data = await state.get_data()
+    required_subjects = user_data.get("required_subjects", [])
+    profile_subjects = user_data.get("profile_subjects", [])
+    all_questions = user_data.get("questions", [])
+
+    # Проверяем, что вопросы уже загружены
+    if not all_questions:
+        # Если вопросы не загружены, генерируем их заново
+        from common.trial_ent_service import TrialEntService
+        try:
+            all_questions, total_questions = await TrialEntService.generate_trial_ent_questions(
+                required_subjects, profile_subjects
+            )
+            if not all_questions:
+                await callback.message.edit_text(
+                    "❌ Не удалось загрузить вопросы для теста. Попробуйте позже.",
+                    reply_markup=get_trial_ent_start_kb()
+                )
+                await state.set_state(TrialEntStates.main)
+                return
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка при генерации вопросов пробного ЕНТ: {e}")
+            await callback.message.edit_text(
+                "❌ Произошла ошибка при подготовке теста. Попробуйте позже.",
+                reply_markup=get_trial_ent_start_kb()
+            )
+            await state.set_state(TrialEntStates.main)
+            return
+
+    # Подготавливаем данные для quiz_registrator
+    await state.update_data(
+        questions=all_questions,
+        q_index=0,
+        score=0,
+        question_results=[],
+        user_id=callback.from_user.id,
+        required_subjects=required_subjects,
+        profile_subjects=profile_subjects,
+        messages_to_delete=[]
+    )
+
+    # Удаляем текущее сообщение
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # Запускаем тест через общий модуль
+    from common.quiz_registrator import send_next_question
+    await send_next_question(
+        chat_id=callback.from_user.id,
+        state=state,
+        bot=callback.bot,
+        finish_callback=finish_trial_ent_quiz
+    )
+    await state.set_state(TrialEntStates.test_in_progress)
 
 def get_subject_name(subject_code):
     """Получить название предмета по коду"""

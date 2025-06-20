@@ -10,6 +10,7 @@ STATE_TRANSITIONS = {
     TrialEntStates.required_subjects: TrialEntStates.main,
     TrialEntStates.profile_subjects: TrialEntStates.required_subjects,
     TrialEntStates.second_profile_subject: TrialEntStates.profile_subjects,
+    TrialEntStates.confirmation: TrialEntStates.main,
     TrialEntStates.test_in_progress: TrialEntStates.main,
     TrialEntStates.results: TrialEntStates.main,
     TrialEntStates.analytics_subjects: TrialEntStates.results,

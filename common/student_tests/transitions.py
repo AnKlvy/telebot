@@ -13,9 +13,9 @@ from common.student_tests.handlers import (
 # Словарь переходов между состояниями
 STATE_TRANSITIONS = {
     StudentTestsStates.select_group_entry: StudentTestsStates.main,
-    StudentTestsStates.select_month_entry: StudentTestsStates.main,
+    StudentTestsStates.select_month_entry: StudentTestsStates.select_group_entry,  # Возврат к выбору предметов
     StudentTestsStates.select_group_control: StudentTestsStates.main,
-    StudentTestsStates.select_month_control: StudentTestsStates.select_group_control,
+    StudentTestsStates.select_month_control: StudentTestsStates.select_group_control,  # Возврат к выбору предметов
     StudentTestsStates.test_in_progress: StudentTestsStates.main,
     StudentTestsStates.test_result: StudentTestsStates.main,
     StudentTestsStates.main: None  # None означает возврат в главное меню

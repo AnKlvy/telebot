@@ -327,37 +327,61 @@ async def handle_month_control_test_by_id(callback: CallbackQuery, state: FSMCon
 async def show_month_entry_test_statistics(callback: CallbackQuery, state: FSMContext, test_result):
     """Показать статистику уже пройденного входного теста месяца"""
     try:
-        # Получаем статистику по микротемам
-        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+        # Получаем полную информацию о тесте с загруженными связями
+        from database.repositories.month_entry_test_result_repository import MonthEntryTestResultRepository
+        full_test_result = await MonthEntryTestResultRepository.get_by_id(test_result.id)
 
-        # Получаем названия микротем
-        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
-        microtopic_names = {mt.number: mt.name for mt in microtopics}
+        if not full_test_result:
+            await callback.message.edit_text(
+                "❌ Результат теста не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
 
-        # Формируем текст результата (такой же как у куратора)
+        # Получаем предмет и тест месяца
+        from database.repositories.subject_repository import SubjectRepository
+        from database.repositories.month_test_repository import MonthTestRepository
+
+        subject = await SubjectRepository.get_by_id(full_test_result.month_test.subject_id)
+        month_test = await MonthTestRepository.get_by_id(full_test_result.month_test_id)
+
+        if not subject or not month_test:
+            await callback.message.edit_text(
+                "❌ Данные теста не найдены",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        # Формируем основной текст результата
         result_text = f"📊 Результат входного теста месяца\n\n"
-        result_text += f"📗 {test_result.month_test.subject.name}:\n"
-        result_text += f"Тест: {test_result.month_test.name}\n"
-        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n"
-        result_text += f"Процент: {test_result.score_percentage}%\n"
-        result_text += f"Дата прохождения: {test_result.completed_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+        result_text += f"📗 {subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {full_test_result.correct_answers} / {full_test_result.total_questions}\n"
+        result_text += f"Процент: {full_test_result.score_percentage}%\n"
+        result_text += f"Дата прохождения: {full_test_result.completed_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+        result_text += "Выберите тип аналитики:"
 
-        # Добавляем статистику по микротемам
-        if microtopic_stats:
-            result_text += "📈 Результаты по микротемам:\n"
-            for microtopic_num, stats in microtopic_stats.items():
-                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
-                percentage = stats['percentage']
-                status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
-                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+        # Создаем кнопки для детальной аналитики (как у куратора)
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        buttons = [
+            [InlineKeyboardButton(
+                text="📊 Проценты по микротемам",
+                callback_data=f"student_month_entry_detailed_{full_test_result.id}"
+            )],
+            [InlineKeyboardButton(
+                text="💪 Сильные/слабые темы",
+                callback_data=f"student_month_entry_summary_{full_test_result.id}"
+            )]
+        ]
+        buttons.extend(get_back_to_test_kb().inline_keyboard)
 
         await callback.message.edit_text(
             result_text,
-            reply_markup=get_back_to_test_kb()
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
         await state.set_state(StudentTestsStates.test_result)
 
-        logger.info(f"Показана статистика теста месяца для студента {test_result.student_id}")
+        logger.info(f"Показана статистика теста месяца для студента {full_test_result.student_id}")
 
     except Exception as e:
         logger.error(f"Ошибка при показе статистики теста месяца: {e}")
@@ -431,6 +455,107 @@ async def show_month_control_test_statistics(callback: CallbackQuery, state: FSM
 
     except Exception as e:
         logger.error(f"Ошибка при показе статистики контрольного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+# Специфичные обработчики навигации с фильтрами состояний
+@router.callback_query(StudentTestsStates.select_month_entry, F.data == "back_to_month_entry_subjects")
+async def back_to_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
+    """Возврат к выбору предметов для входного теста месяца"""
+    await callback.message.edit_text(
+        "Выберите предмет для входного теста месяца:",
+        reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
+    )
+    await state.set_state(StudentTestsStates.select_group_entry)
+
+
+@router.callback_query(StudentTestsStates.select_month_control, F.data == "back_to_month_control_subjects")
+async def back_to_month_control_subjects(callback: CallbackQuery, state: FSMContext):
+    """Возврат к выбору предметов для контрольного теста месяца"""
+    await callback.message.edit_text(
+        "Выберите предмет для контрольного теста месяца:",
+        reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
+    )
+    await state.set_state(StudentTestsStates.select_group_control)
+
+
+# Обработчики для возврата в меню тестов из состояния ошибки
+@router.callback_query(F.data == "back_to_tests")
+async def back_to_tests_universal(callback: CallbackQuery, state: FSMContext):
+    """Универсальный возврат в меню тестов"""
+    from .menu import show_tests_menu
+    await show_tests_menu(callback, state)
+
+
+# Обработчики детальной аналитики для студентов (как у куратора)
+@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_entry_detailed_"))
+async def show_student_month_entry_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам входного теста месяца для студента"""
+    try:
+        # Формат: student_month_entry_detailed_TEST_RESULT_ID
+        test_result_id = int(callback.data.split("_")[-1])
+
+        # Получаем результат теста
+        from database.repositories.month_entry_test_result_repository import MonthEntryTestResultRepository
+        test_result = await MonthEntryTestResultRepository.get_by_id(test_result_id)
+
+        if not test_result:
+            await callback.message.edit_text(
+                "❌ Результат теста не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        from database.repositories.microtopic_repository import MicrotopicRepository
+        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Получаем предмет и тест
+        from database.repositories.subject_repository import SubjectRepository
+        from database.repositories.month_test_repository import MonthTestRepository
+
+        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
+        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+
+        # Формируем детальную статистику
+        result_text = f"📊 Детальная статистика входного теста месяца\n\n"
+        result_text += f"📗 {subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+        result_text += "📈 % правильных ответов по микротемам:\n"
+
+        if microtopic_stats:
+            for microtopic_num in sorted(microtopic_stats.keys()):
+                stats = microtopic_stats[microtopic_num]
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                percentage = stats['percentage']
+
+                # Определяем эмодзи статуса
+                if percentage >= 80:
+                    status = "✅"
+                elif percentage <= 40:
+                    status = "❌"
+                else:
+                    status = "⚠️"
+
+                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+        else:
+            result_text += "Нет данных по микротемам\n"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_test_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики входного теста месяца: {e}")
         await callback.message.edit_text(
             "❌ Ошибка при получении статистики",
             reply_markup=get_back_to_test_kb()

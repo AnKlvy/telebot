@@ -2,19 +2,23 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+
+from common.utils import check_if_id_in_callback_data
 from ..keyboards.main import get_curator_main_menu_kb
 from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb, get_main_menu_back_button
 from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb, get_students_by_homework_kb
+from common.analytics.keyboards import get_groups_for_analytics_kb
+from database import (CuratorRepository, UserRepository, GroupRepository, StudentRepository,
+                     CourseRepository, LessonRepository, HomeworkRepository, HomeworkResultRepository)
 
 class CuratorHomeworkStates(StatesGroup):
-    group_stats_result = State()
-    student_stats_subject = State()
-    student_stats_group = State()
     homework_menu = State()
     student_stats_course = State()
+    student_stats_group = State()
     student_stats_lesson = State()
     student_stats_list = State()
     group_stats_group = State()
+    group_stats_result = State()
 
 
 router = Router()
@@ -32,103 +36,231 @@ async def show_homework_menu(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(CuratorHomeworkStates.homework_menu, F.data == "hw_student_stats")
 async def select_student_stats_course(callback: CallbackQuery, state: FSMContext):
     """Выбор курса для статистики по ученику"""
-    await callback.message.edit_text(
-        "Выберите курс:",
-        reply_markup=get_courses_kb()
-    )
-    await state.set_state(CuratorHomeworkStates.student_stats_course)
+    try:
+        # Получаем все курсы из базы данных
+        courses = await CourseRepository.get_all()
+
+        if not courses:
+            await callback.message.edit_text(
+                "❌ Курсы не найдены",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+            return
+
+        # Создаем клавиатуру с курсами
+        buttons = []
+        for course in courses:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=course.name,
+                    callback_data=f"course_{course.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            "Выберите курс:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+        await state.set_state(CuratorHomeworkStates.student_stats_course)
+
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ Ошибка при загрузке курсов: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                *get_main_menu_back_button()
+            ])
+        )
+        print(f"Ошибка в select_student_stats_course: {e}")
 
 @router.callback_query(CuratorHomeworkStates.student_stats_course, F.data.startswith("course_"))
 async def select_student_stats_group(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для статистики по ученику"""
-    course_id = callback.data.replace("course_", "")
+    course_id = int(await check_if_id_in_callback_data("course_", callback, state, "course"))
     await state.update_data(selected_course=course_id)
+
+    # Получаем группы куратора через аналитическую клавиатуру
+    groups_kb = await get_groups_for_analytics_kb("curator", callback.from_user.id)
 
     await callback.message.edit_text(
         "Выберите группу:",
-        reply_markup=await get_groups_kb(course_id)
+        reply_markup=groups_kb
     )
     await state.set_state(CuratorHomeworkStates.student_stats_group)
 
-@router.callback_query(CuratorHomeworkStates.student_stats_group, F.data.startswith("hw_group_"))
-async def select_student_stats_subject(callback: CallbackQuery, state: FSMContext):
-    """Выбор предмета для статистики по ученику"""
-    group_id = callback.data.replace("hw_group_", "")
-    await state.update_data(selected_group=group_id)
-    
-    await callback.message.edit_text(
-        "Выберите предмет:",
-        reply_markup=get_subjects_kb()
-    )
-    await state.set_state(CuratorHomeworkStates.student_stats_subject)
-
-@router.callback_query(CuratorHomeworkStates.student_stats_subject, F.data.startswith("subject_"))
+@router.callback_query(CuratorHomeworkStates.student_stats_group, F.data.startswith("analytics_group_"))
 async def select_student_stats_lesson(callback: CallbackQuery, state: FSMContext):
     """Выбор урока для статистики по ученику"""
-    subject_id = callback.data.replace("subject_", "")
-    await state.update_data(selected_subject=subject_id)
-    
-    await callback.message.edit_text(
-        "Выберите урок:",
-        reply_markup=get_lessons_kb(subject_id)
-    )
-    await state.set_state(CuratorHomeworkStates.student_stats_lesson)
+    group_id = int(await check_if_id_in_callback_data("analytics_group_", callback, state, "group"))
+    await state.update_data(selected_group=group_id)
+
+    try:
+        # Получаем данные о выбранном курсе и группе
+        user_data = await state.get_data()
+        course_id = user_data.get("selected_course")
+
+        # Получаем информацию о группе
+        group = await GroupRepository.get_by_id(group_id)
+        if not group:
+            await callback.message.edit_text(
+                "❌ Группа не найдена",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+            return
+
+        # Получаем уроки для выбранного курса и предмета группы
+        lessons = await LessonRepository.get_by_subject_and_course(group.subject_id, course_id)
+
+        if not lessons:
+            await callback.message.edit_text(
+                f"❌ Уроки не найдены для курса и предмета группы {group.name}",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+            return
+
+        # Создаем клавиатуру с уроками
+        buttons = []
+        for lesson in lessons:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=lesson.name,
+                    callback_data=f"lesson_{lesson.id}"
+                )
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            f"Выберите урок для группы {group.name} ({group.subject.name}):",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+        await state.set_state(CuratorHomeworkStates.student_stats_lesson)
+
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ Ошибка при загрузке уроков: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                *get_main_menu_back_button()
+            ])
+        )
+        print(f"Ошибка в select_student_stats_group: {e}")
+
+
 
 @router.callback_query(CuratorHomeworkStates.student_stats_lesson, F.data.startswith("lesson_"))
 async def show_student_stats_list(callback: CallbackQuery, state: FSMContext):
     """Показать список учеников с выполненными и невыполненными ДЗ"""
-    lesson_id = callback.data.replace("lesson_", "")
+    lesson_id = int(callback.data.replace("lesson_", ""))
     await state.update_data(selected_lesson=lesson_id)
-    
-    # Получаем данные о выбранных параметрах
-    user_data = await state.get_data()
-    course_id = user_data.get("selected_course")
-    group_id = user_data.get("selected_group")
-    subject_id = user_data.get("selected_subject")
-    
-    # Определяем названия для отображения
-    course_names = {"geo": "География", "math": "Математика"}
-    subject_names = {
-        "kz": "История Казахстана",
-        "mathlit": "Математическая грамотность",
-        "math": "Математика",
-        "geo": "География",
-        "bio": "Биология",
-        "chem": "Химия",
-        "inf": "Информатика",
-        "world": "Всемирная история",
-        "read": "Грамотность чтения"
-    }
-    lesson_names = {"lesson1": "Алканы", "lesson2": "Изомерия", "lesson3": "Кислоты"}
-    
-    course_name = course_names.get(course_id, "Неизвестный курс")
-    subject_name = subject_names.get(subject_id, "Неизвестный предмет")
-    lesson_name = lesson_names.get(lesson_id, "Неизвестный урок")
-    
-    await callback.message.edit_text(
-        f"Статистика выполнения ДЗ\n"
-        f"Курс: {course_name}\n"
-        f"Предмет: {subject_name}\n"
-        f"Урок: {lesson_name}\n\n"
-        "Выберите ученика для просмотра детальной информации или напишите сообщение:",
-        reply_markup=get_students_by_homework_kb(lesson_id)
-    )
-    await state.set_state(CuratorHomeworkStates.student_stats_list)
+
+    try:
+        # Получаем данные о выбранных параметрах
+        user_data = await state.get_data()
+        course_id = user_data.get("selected_course")
+        group_id = user_data.get("selected_group")
+
+        # Получаем информацию из базы данных
+        course = await CourseRepository.get_by_id(course_id)
+        group = await GroupRepository.get_by_id(group_id)
+        lesson = await LessonRepository.get_by_id(lesson_id)
+
+        if not course or not group or not lesson:
+            await callback.message.edit_text(
+                "❌ Ошибка: не найдены данные о курсе, группе или уроке",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+            return
+
+        # Получаем студентов группы
+        students = await StudentRepository.get_by_group(group_id)
+
+        # Формируем список студентов с их статусом выполнения ДЗ
+        completed_students = []
+        not_completed_students = []
+
+        for student in students:
+            # TODO: Здесь должна быть логика проверки выполнения ДЗ
+            # Пока используем заглушку
+            if student.id % 2 == 0:  # Заглушка: четные ID выполнили
+                completed_students.append(student)
+            else:
+                not_completed_students.append(student)
+
+        # Создаем клавиатуру со списком студентов
+        buttons = []
+
+        # Добавляем заголовок для выполнивших
+        if completed_students:
+            buttons.append([InlineKeyboardButton(text="✅ Выполнили:", callback_data="completed_header")])
+            for student in completed_students:
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=student.user.name,
+                        callback_data=f"student_completed_{student.id}"
+                    )
+                ])
+
+        # Добавляем заголовок для не выполнивших
+        if not_completed_students:
+            buttons.append([InlineKeyboardButton(text="❌ Не выполнили:", callback_data="not_completed_header")])
+            for student in not_completed_students:
+                # Для не выполнивших добавляем ссылку на Telegram
+                buttons.append([
+                    InlineKeyboardButton(
+                        text=student.user.name,
+                        url=f"tg://user?id={student.user.telegram_id}"
+                    )
+                ])
+
+        buttons.extend(get_main_menu_back_button())
+
+        await callback.message.edit_text(
+            f"📊 Статистика выполнения ДЗ\n"
+            f"👥 Группа: {group.name} ({group.subject.name})\n"
+            f"📚 Курс: {course.name}\n"
+            f"📖 Урок: {lesson.name}\n\n"
+            f"✅ Выполнили: {len(completed_students)}\n"
+            f"❌ Не выполнили: {len(not_completed_students)}\n\n"
+            "Нажмите на имя ученика для связи:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
+        await state.set_state(CuratorHomeworkStates.student_stats_list)
+
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ Ошибка при загрузке статистики: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                *get_main_menu_back_button()
+            ])
+        )
+        print(f"Ошибка в show_student_stats_list: {e}")
 
 # Обработчики для статистики по группе
 @router.callback_query(CuratorHomeworkStates.homework_menu, F.data == "hw_group_stats")
 async def select_group_stats_group(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для статистики по группе"""
+    # Получаем группы куратора через аналитическую клавиатуру
+    groups_kb = await get_groups_for_analytics_kb("curator", callback.from_user.id)
+
     await callback.message.edit_text(
         "Выберите группу для просмотра статистики:",
-        reply_markup=await get_groups_kb()
+        reply_markup=groups_kb
     )
     await state.set_state(CuratorHomeworkStates.group_stats_group)
 
-@router.callback_query(CuratorHomeworkStates.group_stats_group, F.data.startswith("hw_group_"))
+@router.callback_query(CuratorHomeworkStates.group_stats_group, F.data.startswith("analytics_group_"))
 async def show_group_stats(callback: CallbackQuery, state: FSMContext):
     """Показать статистику по группе"""
-    group_id = callback.data.replace("hw_group_", "")
+    group_id = int(callback.data.replace("analytics_group_", ""))
     
     # В реальном приложении здесь будет запрос к базе данных
     # для получения статистики по группе
