@@ -82,3 +82,26 @@ class ShopItemRepository:
             )
             await session.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def update_content(item_id: int, content: str = None, file_path: str = None, contact_info: str = None) -> bool:
+        """Обновить контент товара"""
+        async with get_db_session() as session:
+            update_values = {}
+            if content is not None:
+                update_values['content'] = content
+            if file_path is not None:
+                update_values['file_path'] = file_path
+            if contact_info is not None:
+                update_values['contact_info'] = contact_info
+
+            if not update_values:
+                return False
+
+            result = await session.execute(
+                update(ShopItem)
+                .where(ShopItem.id == item_id)
+                .values(**update_values)
+            )
+            await session.commit()
+            return result.rowcount > 0

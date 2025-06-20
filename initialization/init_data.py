@@ -12,13 +12,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from initialization.courses_subjects import create_courses_and_subjects
 from initialization.groups_users import create_groups_and_users
 from initialization.lessons_homework import create_lessons_and_homework
-from initialization.test_data import add_test_homework_results, create_results_for_andrey
+from initialization.test_data import add_test_homework_results, create_results_for_andrey, \
+    add_javascript_homework_results
 from initialization.admin_roles import add_admin_roles
 from initialization.student_assignments import assign_students_to_courses
 from initialization.month_tests import add_test_month_tests
 from initialization.update_points import update_all_student_points
 from initialization.course_entry_test_data import create_course_entry_test_results
 from initialization.month_entry_test_data import create_month_entry_test_results
+from initialization.month_control_tests import create_month_control_tests, create_month_control_test_results
+from initialization.trial_ent_data import init_trial_ent_data
 from database.init_shop_data import init_shop_items
 
 
@@ -54,7 +57,11 @@ async def add_initial_data():
 
         print("\n🎯 Создание результатов для Андрея...")
         await create_results_for_andrey()
-        
+
+        # 6. Добавление результатов ДЗ по JavaScript
+        print("\n📊 Добавление результатов ДЗ по JavaScript...")
+        await add_javascript_homework_results()
+
         # 7. Привязка студентов к курсам
         print("\n🔗 Привязка студентов к курсам...")
         await assign_students_to_courses(created_subjects, course_ent, course_it)
@@ -71,13 +78,25 @@ async def add_initial_data():
         print("\n📊 Создание результатов входных тестов месяца...")
         await create_month_entry_test_results()
 
-        # 11. Обновление баллов и уровней студентов
+        # 11. Создание контрольных тестов месяца
+        print("\n📊 Создание контрольных тестов месяца...")
+        await create_month_control_tests()
+
+        # 12. Создание результатов контрольных тестов месяца
+        print("\n📊 Создание результатов контрольных тестов месяца...")
+        await create_month_control_test_results()
+
+        # 13. Обновление баллов и уровней студентов
         print("\n🔄 Обновление баллов и уровней студентов...")
         await update_all_student_points()
 
-        # 12. Инициализация товаров магазина
+        # 14. Инициализация товаров магазина
         print("\n🛒 Инициализация товаров магазина...")
         await init_shop_items()
+
+        # 15. Инициализация данных пробного ЕНТ
+        print("\n🎯 Инициализация данных пробного ЕНТ...")
+        await init_trial_ent_data()
 
         print("\n✅ Инициализация данных завершена успешно!")
         

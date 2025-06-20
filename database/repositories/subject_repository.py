@@ -33,6 +33,17 @@ class SubjectRepository:
                 .where(Subject.id == subject_id)
             )
             return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_by_name(name: str) -> Optional[Subject]:
+        """Получить предмет по названию"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Subject)
+                .options(selectinload(Subject.courses))
+                .where(Subject.name == name)
+            )
+            return result.scalar_one_or_none()
     
     @staticmethod
     async def get_by_course(course_id: int) -> List[Subject]:

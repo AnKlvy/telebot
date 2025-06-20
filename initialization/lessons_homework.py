@@ -335,6 +335,188 @@ async def create_lessons_and_homework(created_subjects, created_courses):
                     ]
                 }
             ],
+            "JavaScript": [
+                {
+                    "name": "Основы JavaScript",
+                    "homework": "Основы JavaScript",
+                    "questions": [
+                        {
+                            "text": "Как объявить переменную в JavaScript?",
+                            "microtopic": 1,  # Переменные
+                            "answers": [
+                                {"text": "let x = 5", "is_correct": True},
+                                {"text": "variable x = 5", "is_correct": False},
+                                {"text": "x := 5", "is_correct": False},
+                                {"text": "declare x = 5", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Какой тип данных имеет значение 'Hello'?",
+                            "microtopic": 1,  # Переменные
+                            "answers": [
+                                {"text": "string", "is_correct": True},
+                                {"text": "text", "is_correct": False},
+                                {"text": "char", "is_correct": False},
+                                {"text": "varchar", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как проверить тип переменной в JavaScript?",
+                            "microtopic": 1,  # Переменные
+                            "answers": [
+                                {"text": "typeof variable", "is_correct": True},
+                                {"text": "type(variable)", "is_correct": False},
+                                {"text": "variable.type", "is_correct": False},
+                                {"text": "gettype(variable)", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Функции в JavaScript",
+                    "homework": "Функции в JavaScript",
+                    "questions": [
+                        {
+                            "text": "Как объявить функцию в JavaScript?",
+                            "microtopic": 2,  # Функции
+                            "answers": [
+                                {"text": "function myFunc() {}", "is_correct": True},
+                                {"text": "def myFunc():", "is_correct": False},
+                                {"text": "func myFunc() {}", "is_correct": False},
+                                {"text": "method myFunc() {}", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как вызвать функцию с именем 'test'?",
+                            "microtopic": 2,  # Функции
+                            "answers": [
+                                {"text": "test()", "is_correct": True},
+                                {"text": "call test()", "is_correct": False},
+                                {"text": "run test", "is_correct": False},
+                                {"text": "execute test()", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Что такое стрелочная функция?",
+                            "microtopic": 2,  # Функции
+                            "answers": [
+                                {"text": "() => {}", "is_correct": True},
+                                {"text": "-> {}", "is_correct": False},
+                                {"text": "=> {}", "is_correct": False},
+                                {"text": "function() => {}", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Объекты и массивы",
+                    "homework": "Объекты и массивы",
+                    "questions": [
+                        {
+                            "text": "Как создать массив в JavaScript?",
+                            "microtopic": 3,  # Объекты
+                            "answers": [
+                                {"text": "[1, 2, 3]", "is_correct": True},
+                                {"text": "{1, 2, 3}", "is_correct": False},
+                                {"text": "(1, 2, 3)", "is_correct": False},
+                                {"text": "array(1, 2, 3)", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как создать объект в JavaScript?",
+                            "microtopic": 3,  # Объекты
+                            "answers": [
+                                {"text": "{name: 'John', age: 30}", "is_correct": True},
+                                {"text": "[name: 'John', age: 30]", "is_correct": False},
+                                {"text": "(name: 'John', age: 30)", "is_correct": False},
+                                {"text": "object(name: 'John', age: 30)", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как получить длину массива?",
+                            "microtopic": 4,  # Массивы
+                            "answers": [
+                                {"text": "array.length", "is_correct": True},
+                                {"text": "array.size", "is_correct": False},
+                                {"text": "len(array)", "is_correct": False},
+                                {"text": "array.count", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "DOM и события",
+                    "homework": "DOM и события",
+                    "questions": [
+                        {
+                            "text": "Как найти элемент по ID?",
+                            "microtopic": 5,  # DOM
+                            "answers": [
+                                {"text": "document.getElementById('id')", "is_correct": True},
+                                {"text": "document.findById('id')", "is_correct": False},
+                                {"text": "document.getElement('id')", "is_correct": False},
+                                {"text": "getElementById('id')", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как добавить обработчик события клика?",
+                            "microtopic": 6,  # События
+                            "answers": [
+                                {"text": "element.addEventListener('click', function)", "is_correct": True},
+                                {"text": "element.onClick(function)", "is_correct": False},
+                                {"text": "element.addClick(function)", "is_correct": False},
+                                {"text": "element.on('click', function)", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как изменить текст элемента?",
+                            "microtopic": 5,  # DOM
+                            "answers": [
+                                {"text": "element.textContent = 'новый текст'", "is_correct": True},
+                                {"text": "element.text = 'новый текст'", "is_correct": False},
+                                {"text": "element.setText('новый текст')", "is_correct": False},
+                                {"text": "element.content = 'новый текст'", "is_correct": False}
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Асинхронность",
+                    "homework": "Промисы и async/await",
+                    "questions": [
+                        {
+                            "text": "Что такое Promise в JavaScript?",
+                            "microtopic": 7,  # Асинхронность
+                            "answers": [
+                                {"text": "Объект для работы с асинхронными операциями", "is_correct": True},
+                                {"text": "Функция обратного вызова", "is_correct": False},
+                                {"text": "Синхронная операция", "is_correct": False},
+                                {"text": "Тип данных", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Как использовать async/await?",
+                            "microtopic": 7,  # Асинхронность
+                            "answers": [
+                                {"text": "async function() { await promise }", "is_correct": True},
+                                {"text": "function async() { wait promise }", "is_correct": False},
+                                {"text": "async() { await promise }", "is_correct": False},
+                                {"text": "function() async { await promise }", "is_correct": False}
+                            ]
+                        },
+                        {
+                            "text": "Что делает метод fetch()?",
+                            "microtopic": 9,  # Fetch
+                            "answers": [
+                                {"text": "Выполняет HTTP-запросы", "is_correct": True},
+                                {"text": "Получает элементы DOM", "is_correct": False},
+                                {"text": "Создает массивы", "is_correct": False},
+                                {"text": "Обрабатывает события", "is_correct": False}
+                            ]
+                        }
+                    ]
+                }
+            ],
             "Математика": [
                 {
                     "name": "Алгебра",

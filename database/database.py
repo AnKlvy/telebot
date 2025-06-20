@@ -32,6 +32,9 @@ async def init_database():
     # Выполняем миграцию кураторов и групп
     await migrate_curator_groups()
 
+    # Выполняем миграцию товаров магазина
+    await migrate_shop_items()
+
     print("✅ База данных инициализирована")
 
 
@@ -87,6 +90,39 @@ async def migrate_curator_groups():
         except Exception as e:
             await session.rollback()
             print(f"⚠️ Миграция пропущена или завершена с ошибкой: {e}")
+
+
+async def migrate_shop_items():
+    """Миграция таблицы shop_items - добавление новых полей"""
+    async with async_session() as session:
+        try:
+            # Проверяем, существует ли поле content
+            result = await session.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'shop_items' AND column_name = 'content'
+            """))
+
+            if result.fetchone():
+                # Миграция уже выполнена
+                return
+
+            print("🔄 Выполняем миграцию таблицы shop_items...")
+
+            # Добавляем новые поля
+            await session.execute(text("""
+                ALTER TABLE shop_items
+                ADD COLUMN content TEXT,
+                ADD COLUMN file_path VARCHAR(500),
+                ADD COLUMN contact_info TEXT
+            """))
+
+            await session.commit()
+            print("✅ Миграция shop_items завершена: добавлены поля content, file_path, contact_info")
+
+        except Exception as e:
+            await session.rollback()
+            print(f"⚠️ Миграция shop_items пропущена или завершена с ошибкой: {e}")
 
 
 # Функция для получения сессии базы данных

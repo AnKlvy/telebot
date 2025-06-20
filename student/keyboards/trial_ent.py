@@ -55,17 +55,7 @@ def get_second_profile_subject_kb(first_subject: str) -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_test_answers_kb() -> InlineKeyboardMarkup:
-    """Клавиатура с вариантами ответов на вопрос теста"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="A", callback_data="answer_A")],
-        [InlineKeyboardButton(text="B", callback_data="answer_B")],
-        [InlineKeyboardButton(text="C", callback_data="answer_C")],
-        [InlineKeyboardButton(text="D", callback_data="answer_D")],
-        # Пустая строка для визуального разделения
-        # [InlineKeyboardButton(text="\u200B", callback_data="separator")],
-        [InlineKeyboardButton(text="❌ Завершить тест", callback_data="end_trial_ent")]
-    ])
+
 
 def get_after_trial_ent_kb() -> InlineKeyboardMarkup:
     """Клавиатура после завершения пробного ЕНТ"""

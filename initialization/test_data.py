@@ -303,3 +303,161 @@ async def create_results_for_andrey():
 
     except Exception as e:
         print(f"   ❌ Ошибка при создании результатов для Андрея: {e}")
+
+
+async def add_javascript_homework_results():
+    """Добавление результатов ДЗ по JavaScript для студентов"""
+    try:
+        print("📊 Создание результатов ДЗ по JavaScript...")
+
+        # Получаем всех студентов
+        students = await StudentRepository.get_all()
+        if not students:
+            print("   ❌ Не найдены студенты")
+            return
+
+        # Получаем ДЗ по JavaScript
+        homeworks = await HomeworkRepository.get_all()
+        js_homeworks = []
+        for hw in homeworks:
+            if hw.subject and hw.subject.name == "JavaScript":
+                js_homeworks.append(hw)
+
+        if not js_homeworks:
+            print("   ❌ Не найдены ДЗ по JavaScript")
+            return
+
+        print(f"   📚 Найдено {len(js_homeworks)} ДЗ по JavaScript")
+
+        question_repo = QuestionRepository()
+        created_results_count = 0
+
+        # Создаем результаты для студентов, которые изучают JavaScript
+        for student in students:
+            # Проверяем, изучает ли студент JavaScript
+            studies_js = False
+            if student.groups:
+                for group in student.groups:
+                    if group.subject and group.subject.name == "JavaScript":
+                        studies_js = True
+                        break
+
+            if not studies_js:
+                continue
+
+            print(f"📊 Создаем результаты по JavaScript для '{student.user.name}':")
+
+            # Проверяем, есть ли уже результаты по JavaScript
+            existing_js_results = []
+            existing_results = await HomeworkResultRepository.get_by_student(student.id)
+            for result in existing_results:
+                if result.homework.subject and result.homework.subject.name == "JavaScript":
+                    existing_js_results.append(result)
+
+            if existing_js_results:
+                print(f"   ⚠️ У студента уже есть {len(existing_js_results)} результатов по JavaScript")
+                continue
+
+            import random
+
+            # Определяем количество ДЗ для выполнения
+            if student.user.telegram_id == 955518340:  # Андрей Климов
+                num_homeworks = len(js_homeworks)  # Все ДЗ
+                student_homeworks = js_homeworks
+                is_excellent_student = True
+            elif student.user.telegram_id == 333444555:  # Муханбетжан Олжас
+                num_homeworks = len(js_homeworks)  # Все ДЗ
+                student_homeworks = js_homeworks
+                is_excellent_student = True
+            else:
+                # Случайное количество ДЗ
+                num_homeworks = random.randint(1, len(js_homeworks))
+                student_homeworks = random.sample(js_homeworks, num_homeworks)
+                is_excellent_student = False
+
+            print(f"   📚 Выполняет {num_homeworks} из {len(js_homeworks)} ДЗ по JavaScript")
+
+            for homework in student_homeworks:
+                try:
+                    # Получаем вопросы для этого ДЗ
+                    homework_questions = await question_repo.get_by_homework(homework.id)
+                    if not homework_questions:
+                        continue
+
+                    # Симулируем разные уровни успеха
+                    if is_excellent_student:
+                        success_rate = random.choice([0.9, 0.95, 1.0, 1.0, 1.0])
+                    else:
+                        success_rate = random.choice([0.5, 0.7, 0.8, 0.9, 1.0])
+
+                    total_questions = len(homework_questions)
+                    correct_answers = int(total_questions * success_rate)
+
+                    # Баллы начисляются только при 100% результате
+                    points_earned = total_questions * 3 if success_rate == 1.0 else 0
+                    points_awarded = success_rate == 1.0
+
+                    # Создаем результат ДЗ
+                    homework_result = await HomeworkResultRepository.create(
+                        student_id=student.id,
+                        homework_id=homework.id,
+                        total_questions=total_questions,
+                        correct_answers=correct_answers,
+                        points_earned=points_earned,
+                        is_first_attempt=True,
+                        points_awarded=points_awarded
+                    )
+
+                    created_results_count += 1
+
+                    # Создаем результаты для каждого вопроса
+                    question_results_data = []
+                    correct_count = 0
+
+                    for question in homework_questions:
+                        # Получаем варианты ответов для вопроса
+                        answer_options = await AnswerOptionRepository.get_by_question(question.id)
+                        if not answer_options:
+                            continue
+
+                        # Определяем правильность ответа
+                        is_correct = correct_count < correct_answers
+                        if is_correct:
+                            # Выбираем правильный ответ
+                            selected_answer = next((opt for opt in answer_options if opt.is_correct), None)
+                            correct_count += 1
+                        else:
+                            # Выбираем случайный неправильный ответ
+                            wrong_answers = [opt for opt in answer_options if not opt.is_correct]
+                            selected_answer = random.choice(wrong_answers) if wrong_answers else answer_options[0]
+
+                        # Случайное время ответа
+                        time_spent = random.randint(5, 25)
+
+                        question_results_data.append({
+                            'question_id': question.id,
+                            'selected_answer_id': selected_answer.id if selected_answer else None,
+                            'is_correct': is_correct,
+                            'time_spent': time_spent,
+                            'microtopic_number': question.microtopic_number
+                        })
+
+                    # Создаем результаты вопросов
+                    if question_results_data:
+                        await QuestionResultRepository.create_multiple(
+                            homework_result.id,
+                            question_results_data
+                        )
+
+                    percentage = round((correct_answers / total_questions * 100), 1) if total_questions > 0 else 0
+                    print(f"      ✅ ДЗ '{homework.name}': {correct_answers}/{total_questions} ({percentage}%) - {points_earned} баллов")
+
+                except Exception as e:
+                    print(f"      ❌ Ошибка при создании результата для ДЗ '{homework.name}': {e}")
+                    continue
+
+        print(f"📊 Создание результатов по JavaScript завершено!")
+        print(f"   ✅ Создано результатов ДЗ: {created_results_count}")
+
+    except Exception as e:
+        print(f"❌ Ошибка при добавлении результатов ДЗ по JavaScript: {e}")

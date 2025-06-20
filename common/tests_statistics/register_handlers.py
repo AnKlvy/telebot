@@ -10,7 +10,8 @@ from common.tests_statistics.handlers import (
     show_ent_groups, show_ent_students, show_ent_statistics,
     show_tests_comparison,
     show_course_entry_detailed_microtopics, show_course_entry_summary_microtopics,
-    show_month_entry_detailed_microtopics, show_month_entry_summary_microtopics
+    show_month_entry_detailed_microtopics, show_month_entry_summary_microtopics,
+    show_month_control_detailed_microtopics, show_month_control_summary_microtopics
 )
 
 def get_transitions_handlers(states_group, role):
@@ -196,9 +197,27 @@ def register_test_statistics_handlers(router, states_group, role):
     @router.callback_query(states_group.month_control_result, F.data.startswith("month_control_student_"))
     async def role_show_month_control_student_statistics_handler(callback: CallbackQuery, state: FSMContext):
         logger.info(f"Вызвана функция show_month_control_student_statistics для пользователя {callback.from_user.id}")
-        await show_tests_comparison(callback, state)
+        from common.tests_statistics.handlers import show_month_control_student_statistics
+        await show_month_control_student_statistics(callback, state)
         # Остаемся в том же состоянии
         await state.set_state(states_group.month_control_result)
+
+    # Добавляем обработчики для детальной аналитики контрольного теста месяца
+    @router.callback_query(states_group.month_control_result, F.data.startswith("month_control_detailed_"))
+    async def role_show_month_control_detailed_handler(callback: CallbackQuery, state: FSMContext):
+        logger.info(f"Вызвана функция show_month_control_detailed для пользователя {callback.from_user.id}")
+        await show_month_control_detailed_microtopics(callback, state)
+        await state.set_state(states_group.month_control_result)
+
+    @router.callback_query(states_group.month_control_result, F.data.startswith("month_control_summary_"))
+    async def role_show_month_control_summary_handler(callback: CallbackQuery, state: FSMContext):
+        logger.info(f"Вызвана функция show_month_control_summary для пользователя {callback.from_user.id}")
+        await show_month_control_summary_microtopics(callback, state)
+        await state.set_state(states_group.month_control_result)
+
+
+
+
     
     # Пробное ЕНТ
     @router.callback_query(states_group.main, F.data == "stats_ent_test")

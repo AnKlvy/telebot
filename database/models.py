@@ -302,12 +302,16 @@ class MonthTest(Base):
     test_type = Column(String(50), nullable=False, default='entry')  # 'entry' или 'control'
     course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
     subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+    parent_test_id = Column(Integer, ForeignKey('month_tests.id', ondelete='CASCADE'), nullable=True)  # Для контрольных тестов
     created_at = Column(DateTime, server_default=func.now())
 
     # Связи
     course = relationship("Course", backref="month_tests")
     subject = relationship("Subject", backref="month_tests")
     microtopics = relationship("MonthTestMicrotopic", back_populates="month_test", cascade="all, delete-orphan")
+
+    # Связь для контрольных тестов
+    parent_test = relationship("MonthTest", remote_side=[id], backref="control_tests")
 
     # Уникальность: один тест месяца на курс/предмет/название/тип
     __table_args__ = (
@@ -514,6 +518,49 @@ class MonthEntryQuestionResult(Base):
     selected_answer = relationship("AnswerOption", backref="month_entry_results")
 
 
+# Модель результата контрольного теста месяца
+class MonthControlTestResult(Base):
+    __tablename__ = 'month_control_test_results'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    month_test_id = Column(Integer, ForeignKey('month_tests.id', ondelete='CASCADE'), nullable=False)
+    total_questions = Column(Integer, nullable=False)  # Количество вопросов (3 * количество микротем)
+    correct_answers = Column(Integer, nullable=False, default=0)
+    score_percentage = Column(Integer, nullable=False, default=0)  # Процент правильных ответов
+    completed_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="month_control_test_results")
+    month_test = relationship("MonthTest", backref="month_control_test_results")
+    question_results = relationship("MonthControlQuestionResult", back_populates="test_result", cascade="all, delete-orphan")
+
+    # Уникальность: один результат контрольного теста месяца на студента/тест
+    __table_args__ = (
+        UniqueConstraint('student_id', 'month_test_id', name='unique_month_control_test_per_student_test'),
+    )
+
+
+# Модель результата ответа на вопрос контрольного теста месяца
+class MonthControlQuestionResult(Base):
+    __tablename__ = 'month_control_question_results'
+
+    id = Column(Integer, primary_key=True)
+    test_result_id = Column(Integer, ForeignKey('month_control_test_results.id', ondelete='CASCADE'), nullable=False)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)  # Ссылка на исходный вопрос
+    selected_answer_id = Column(Integer, ForeignKey('answer_options.id', ondelete='SET NULL'), nullable=True)
+    is_correct = Column(Boolean, nullable=False)
+    time_spent = Column(Integer, nullable=True)  # Время в секундах
+    microtopic_number = Column(Integer, nullable=True)  # Номер микротемы для статистики
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    test_result = relationship("MonthControlTestResult", back_populates="question_results")
+    question = relationship("Question", backref="month_control_results")
+    selected_answer = relationship("AnswerOption", backref="month_control_results")
+
+
 
 
 
@@ -528,6 +575,9 @@ class ShopItem(Base):
     description = Column(Text, nullable=True)
     price = Column(Integer, nullable=False)  # Цена в монетах
     item_type = Column(String(50), nullable=False)  # 'bonus_test', 'pdf', 'money', 'other'
+    content = Column(Text, nullable=True)  # Реальный контент товара (текст задания, ссылки, инструкции)
+    file_path = Column(String(500), nullable=True)  # Путь к файлу (для PDF и других файлов)
+    contact_info = Column(Text, nullable=True)  # Контактная информация (для консультаций, получения призов)
     is_active = Column(Boolean, default=True)  # Активен ли товар
     created_at = Column(DateTime, server_default=func.now())
 
@@ -549,6 +599,45 @@ class StudentPurchase(Base):
     # Связи
     student = relationship("Student", backref="purchases")
     item = relationship("ShopItem", back_populates="purchases")
+
+
+# Модель результата пробного ЕНТ
+class TrialEntResult(Base):
+    __tablename__ = 'trial_ent_results'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id', ondelete='CASCADE'), nullable=False)
+    # Выбранные предметы (JSON строка с кодами предметов)
+    required_subjects = Column(Text, nullable=False)  # JSON: ["kz", "mathlit"] или ["kz"] или ["mathlit"]
+    profile_subjects = Column(Text, nullable=False)   # JSON: ["math", "geo"] или [] или ["bio", "chem"]
+    total_questions = Column(Integer, nullable=False)
+    correct_answers = Column(Integer, nullable=False, default=0)
+    completed_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    student = relationship("Student", backref="trial_ent_results")
+    question_results = relationship("TrialEntQuestionResult", back_populates="test_result", cascade="all, delete-orphan")
+
+
+# Модель результата ответа на вопрос пробного ЕНТ
+class TrialEntQuestionResult(Base):
+    __tablename__ = 'trial_ent_question_results'
+
+    id = Column(Integer, primary_key=True)
+    test_result_id = Column(Integer, ForeignKey('trial_ent_results.id', ondelete='CASCADE'), nullable=False)
+    question_id = Column(Integer, ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)  # Ссылка на исходный вопрос
+    selected_answer_id = Column(Integer, ForeignKey('answer_options.id', ondelete='SET NULL'), nullable=True)
+    is_correct = Column(Boolean, nullable=False)
+    subject_code = Column(String(20), nullable=False)  # kz, mathlit, math, geo, bio, chem, inf, world
+    time_spent = Column(Integer, nullable=True)  # Время в секундах
+    microtopic_number = Column(Integer, nullable=True)  # Номер микротемы для статистики
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Связи
+    test_result = relationship("TrialEntResult", back_populates="question_results")
+    question = relationship("Question", backref="trial_ent_results")
+    selected_answer = relationship("AnswerOption", backref="trial_ent_results")
 
 
 # Модель покупки бонусного теста студентом

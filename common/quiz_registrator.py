@@ -17,7 +17,7 @@ import uuid
 from typing import Dict, Set, Callable, Optional, Any
 
 from database import (
-    QuestionRepository, AnswerOptionRepository
+    QuestionRepository, AnswerOptionRepository, BonusAnswerOptionRepository
 )
 
 # Глобальный словарь для отслеживания активных вопросов
@@ -127,9 +127,21 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
     question_data = questions[index]
     question_id = question_data['id']
     
-    # Получаем варианты ответов для вопроса
-    answer_options = await AnswerOptionRepository.get_by_question(question_id)
+    # Определяем тип теста и получаем варианты ответов
+    # Проверяем, есть ли в данных состояния информация о бонусном тесте
+    is_bonus_test = data.get("bonus_test_id") is not None
+
+    if is_bonus_test:
+        # Для бонусных тестов используем BonusAnswerOptionRepository
+        answer_options = await BonusAnswerOptionRepository.get_by_bonus_question(question_id)
+    else:
+        # Для обычных тестов используем AnswerOptionRepository
+        answer_options = await AnswerOptionRepository.get_by_question(question_id)
+
     if not answer_options:
+        error_msg = f"❌ QUIZ: Варианты ответов не найдены для вопроса ID {question_id}"
+        logging.error(error_msg)
+        logging.error(f"📋 QUIZ: Данные вопроса: {question_data}")
         await bot.send_message(chat_id, "❌ Ошибка: варианты ответов не найдены")
         return
     
@@ -146,6 +158,9 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
             correct_option_id = i
     
     if correct_option_id is None:
+        error_msg = f"❌ QUIZ: Правильный ответ не найден для вопроса ID {question_id}"
+        logging.error(error_msg)
+        logging.error(f"📋 QUIZ: Варианты ответов: {[(opt.text, opt.is_correct) for opt in answer_options]}")
         await bot.send_message(chat_id, "❌ Ошибка: правильный ответ не найден")
         return
     
@@ -471,6 +486,9 @@ async def process_question_timeout_reliable(question_uuid: str, finish_callback:
 
 async def cleanup_test_messages(chat_id: int, data: dict, bot: Bot):
     """Удаление всех сообщений теста"""
+    import time
+    start_time = time.time()
+
     try:
         messages_to_delete = data.get("messages_to_delete", [])
 
@@ -478,19 +496,49 @@ async def cleanup_test_messages(chat_id: int, data: dict, bot: Bot):
             logging.info("🧹 QUIZ: Нет сообщений для удаления")
             return
 
-        deleted_count = 0
-        for message_id in messages_to_delete:
-            try:
-                await bot.delete_message(chat_id=chat_id, message_id=message_id)
-                deleted_count += 1
-                await asyncio.sleep(0.1)
-            except Exception as e:
-                logging.debug(f"QUIZ: Не удалось удалить сообщение {message_id}: {e}")
+        logging.info(f"🧹 QUIZ: Начинаем удаление {len(messages_to_delete)} сообщений...")
 
-        logging.info(f"🧹 QUIZ: Удалено {deleted_count} сообщений теста для пользователя {chat_id}")
+        # Удаляем сообщения пакетами для ускорения
+        deleted_count = 0
+        batch_size = 10
+
+        for i in range(0, len(messages_to_delete), batch_size):
+            batch = messages_to_delete[i:i + batch_size]
+
+            # Создаем задачи для параллельного удаления
+            tasks = []
+            for message_id in batch:
+                task = asyncio.create_task(delete_message_safe(bot, chat_id, message_id))
+                tasks.append(task)
+
+            # Ждем завершения всех задач в пакете
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Подсчитываем успешные удаления
+            for result in results:
+                if result is True:
+                    deleted_count += 1
+
+            # Небольшая задержка между пакетами для избежания rate limit
+            if i + batch_size < len(messages_to_delete):
+                await asyncio.sleep(0.05)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        logging.info(f"🧹 QUIZ: Удалено {deleted_count} сообщений теста для пользователя {chat_id} за {duration:.2f} секунд")
 
     except Exception as e:
         logging.error(f"❌ QUIZ: Ошибка при удалении сообщений теста: {e}")
+
+
+async def delete_message_safe(bot: Bot, chat_id: int, message_id: int) -> bool:
+    """Безопасное удаление сообщения"""
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        return True
+    except Exception as e:
+        logging.debug(f"QUIZ: Не удалось удалить сообщение {message_id}: {e}")
+        return False
 
 
 async def cleanup_test_data(user_id: int):

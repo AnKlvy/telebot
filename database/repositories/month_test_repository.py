@@ -81,7 +81,7 @@ class MonthTestRepository:
             return result.scalar_one_or_none()
 
     @staticmethod
-    async def create(name: str, course_id: int, subject_id: int) -> MonthTest:
+    async def create(name: str, course_id: int, subject_id: int, test_type: str = 'entry') -> MonthTest:
         """Создать новый тест месяца"""
         async with get_db_session() as session:
             # Проверяем, существует ли уже такой тест
@@ -89,11 +89,12 @@ class MonthTestRepository:
                 select(MonthTest).where(
                     MonthTest.name == name,
                     MonthTest.course_id == course_id,
-                    MonthTest.subject_id == subject_id
+                    MonthTest.subject_id == subject_id,
+                    MonthTest.test_type == test_type
                 )
             )
             if existing.scalar_one_or_none():
-                raise ValueError(f"Тест месяца '{name}' уже существует для данного курса и предмета")
+                raise ValueError(f"Тест месяца '{name}' типа '{test_type}' уже существует для данного курса и предмета")
 
             # Проверяем, существует ли курс
             course_exists = await session.execute(
@@ -112,7 +113,8 @@ class MonthTestRepository:
             month_test = MonthTest(
                 name=name,
                 course_id=course_id,
-                subject_id=subject_id
+                subject_id=subject_id,
+                test_type=test_type
             )
             session.add(month_test)
             await session.commit()
@@ -163,6 +165,88 @@ class MonthTestRepository:
             result = await session.execute(delete(MonthTest).where(MonthTest.subject_id == subject_id))
             await session.commit()
             return result.rowcount
+
+    @staticmethod
+    async def create_with_control_test(name: str, course_id: int, subject_id: int, microtopic_numbers: List[int] = None) -> tuple[MonthTest, MonthTest]:
+        """
+        Создать входной тест месяца и автоматически создать контрольный тест с теми же настройками
+        Возвращает кортеж (входной_тест, контрольный_тест)
+        """
+        from .month_test_microtopic_repository import MonthTestMicrotopicRepository
+
+        async with get_db_session() as session:
+            # Создаем входной тест
+            entry_test = await MonthTestRepository.create(name, course_id, subject_id, 'entry')
+
+            # Создаем контрольный тест с тем же названием
+            control_test = await MonthTestRepository.create(name, course_id, subject_id, 'control')
+
+            # Устанавливаем связь контрольного теста с входным
+            control_test.parent_test_id = entry_test.id
+            session.add(control_test)
+            await session.commit()
+            await session.refresh(control_test)
+
+            # Если переданы микротемы, добавляем их к обоим тестам
+            if microtopic_numbers:
+                for microtopic_number in microtopic_numbers:
+                    # Добавляем к входному тесту
+                    await MonthTestMicrotopicRepository.create(entry_test.id, microtopic_number)
+                    # Добавляем к контрольному тесту
+                    await MonthTestMicrotopicRepository.create(control_test.id, microtopic_number)
+
+            return entry_test, control_test
+
+    @staticmethod
+    async def get_entry_tests() -> List[MonthTest]:
+        """Получить только входные тесты месяца"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(MonthTest)
+                .options(
+                    selectinload(MonthTest.course),
+                    selectinload(MonthTest.subject),
+                    selectinload(MonthTest.microtopics)
+                )
+                .where(MonthTest.test_type == 'entry')
+                .order_by(MonthTest.created_at.desc())
+            )
+            return list(result.scalars().all())
+
+    @staticmethod
+    async def get_control_tests() -> List[MonthTest]:
+        """Получить только контрольные тесты месяца"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(MonthTest)
+                .options(
+                    selectinload(MonthTest.course),
+                    selectinload(MonthTest.subject),
+                    selectinload(MonthTest.microtopics),
+                    selectinload(MonthTest.parent_test)
+                )
+                .where(MonthTest.test_type == 'control')
+                .order_by(MonthTest.created_at.desc())
+            )
+            return list(result.scalars().all())
+
+    @staticmethod
+    async def get_control_test_by_entry_test(entry_test_id: int) -> Optional[MonthTest]:
+        """Получить контрольный тест по ID входного теста"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(MonthTest)
+                .options(
+                    selectinload(MonthTest.course),
+                    selectinload(MonthTest.subject),
+                    selectinload(MonthTest.microtopics)
+                )
+                .where(
+                    MonthTest.test_type == 'control',
+                    MonthTest.parent_test_id == entry_test_id
+                )
+            )
+            return result.scalar_one_or_none()
 
     @staticmethod
     async def delete_by_course(course_id: int) -> int:

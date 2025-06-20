@@ -1,18 +1,34 @@
-from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram import Router, F, Bot
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from ..keyboards.shop import get_shop_menu_kb, get_exchange_points_kb, get_back_to_shop_kb, get_bonus_catalog_kb, get_my_bonuses_kb
-from database import StudentRepository, ShopItemRepository, StudentPurchaseRepository, BonusTestRepository, StudentBonusTestRepository
-from common.navigation import log
 
-router = Router()
+from common.utils import check_if_id_in_callback_data
+from ..keyboards.shop import get_shop_menu_kb, get_exchange_points_kb, get_back_to_shop_kb, get_bonus_catalog_kb, get_my_bonuses_kb
+from database import StudentRepository, ShopItemRepository, StudentPurchaseRepository, BonusTestRepository, StudentBonusTestRepository, BonusQuestionRepository, BonusAnswerOptionRepository
+from common.navigation import log
+from common.quiz_registrator import register_quiz_handlers, send_next_question, cleanup_test_messages
+import logging
+import asyncio
 
 class ShopStates(StatesGroup):
     main = State()
     exchange = State()
     catalog = State()
     my_bonuses = State()
+    bonus_test_confirmation = State()
+    bonus_test_in_progress = State()
+
+router = Router()
+
+# Регистрируем общие quiz обработчики для бонусных тестов
+register_quiz_handlers(
+    router=router,
+    test_state=ShopStates.bonus_test_in_progress,
+    poll_answer_handler=None,  # Используем стандартный обработчик
+    timeout_handler=None,      # Используем стандартный обработчик
+    finish_handler=None        # Будем передавать в send_next_question
+)
 
 @router.callback_query(F.data == "shop")
 async def show_shop_menu(callback: CallbackQuery, state: FSMContext):
@@ -342,12 +358,25 @@ async def handle_no_points(callback: CallbackQuery, state: FSMContext):
     """Обработать случай отсутствия баллов"""
     await callback.answer("❌ Недостаточно баллов для обмена!", show_alert=True)
 
-@router.callback_query(F.data.startswith("use_bonus_"))
+@router.callback_query(F.data.startswith("use_bonus_") & ~F.data.startswith("use_bonus_test_"))
 async def use_bonus_item(callback: CallbackQuery, state: FSMContext):
     """Использовать бонусное задание (текстовое)"""
     await log("use_bonus_item", "student", state)
 
-    purchase_id = int(callback.data.replace("use_bonus_", ""))
+    # Проверяем, что это не бонусный тест
+    if callback.data.startswith("use_bonus_test_"):
+        return  # Пропускаем, это должен обработать другой обработчик
+
+    try:
+        # Простое извлечение ID из callback_data
+        purchase_id = int(callback.data.replace("use_bonus_", ""))
+    except (ValueError, TypeError) as e:
+        logging.error(f"Ошибка парсинга callback_data для обычного товара: '{callback.data}', ошибка: {e}")
+        await callback.message.edit_text(
+            f"❌ Ошибка: неверный ID покупки.\nCallback data: {callback.data}",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
 
     # Получаем покупку
     purchase = await StudentPurchaseRepository.get_purchase_by_id(purchase_id)
@@ -367,37 +396,28 @@ async def use_bonus_item(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    # Показываем бонусное задание в зависимости от типа
-    if purchase.item.item_type == "pdf":
-        content = f"📘 {purchase.item.name}\n\n"
+    # Показываем реальный контент из базы данных
+    content = f"🎁 {purchase.item.name}\n\n"
+
+    # Добавляем описание если есть
+    if purchase.item.description:
         content += f"📝 {purchase.item.description}\n\n"
-        content += "📄 Содержание PDF:\n"
-        content += "• Разбор типичных ошибок\n"
-        content += "• Примеры правильных решений\n"
-        content += "• Рекомендации по подготовке\n"
-        content += "• Дополнительные материалы\n\n"
-        content += "💡 Изучи материал внимательно для лучшей подготовки!"
 
-    elif purchase.item.item_type == "money":
-        content = f"💰 {purchase.item.name}\n\n"
-        content += f"🎉 Поздравляем! Вы выиграли денежный приз!\n\n"
-        content += f"💵 Сумма: 5000 тенге\n"
-        content += f"📞 Для получения приза свяжитесь с администратором\n"
-        content += f"📱 Telegram: @admin\n\n"
-        content += f"✅ Ваш промокод: BONUS{purchase.id}"
+    # Добавляем основной контент из базы данных
+    if purchase.item.content:
+        content += f"{purchase.item.content}\n\n"
 
-    elif purchase.item.item_type == "other":
-        content = f"🎁 {purchase.item.name}\n\n"
-        content += f"👨‍🏫 {purchase.item.description}\n\n"
-        content += f"📅 Для записи на консультацию:\n"
-        content += f"• Выберите удобное время\n"
-        content += f"• Подготовьте вопросы заранее\n"
-        content += f"• Консультация проходит онлайн\n\n"
-        content += f"📞 Свяжитесь с преподавателем: @teacher\n"
-        content += f"🎫 Ваш код бронирования: CONS{purchase.id}"
+    # Добавляем информацию о файле если есть
+    if purchase.item.file_path:
+        content += f"📎 Файл: {purchase.item.file_path}\n\n"
 
-    else:
-        content = f"🎁 {purchase.item.name}\n\n{purchase.item.description}"
+    # Добавляем контактную информацию если есть
+    if purchase.item.contact_info:
+        content += f"📞 Контакты:\n{purchase.item.contact_info}\n\n"
+
+    # Добавляем уникальный код для отслеживания
+    if purchase.item.item_type in ["money", "other"]:
+        content += f"🎫 Ваш код: {purchase.item.item_type.upper()}{purchase.id}"
 
     # Отмечаем как использованный
     await StudentPurchaseRepository.mark_as_used(purchase.id)
@@ -409,10 +429,18 @@ async def use_bonus_item(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("use_bonus_test_"))
 async def use_bonus_test(callback: CallbackQuery, state: FSMContext):
-    """Использовать бонусный тест (пока заглушка)"""
+    """Использовать бонусный тест"""
     await log("use_bonus_test", "student", state)
 
-    purchase_id = int(callback.data.replace("use_bonus_test_", ""))
+    try:
+        purchase_id = int(callback.data.replace("use_bonus_test_", ""))
+    except (ValueError, TypeError) as e:
+        logging.error(f"Ошибка парсинга callback_data для бонусного теста: '{callback.data}', ошибка: {e}")
+        await callback.message.edit_text(
+            f"❌ Ошибка: неверный ID покупки бонусного теста.\nCallback data: {callback.data}",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
 
     # Получаем покупку бонусного теста
     purchase = await StudentBonusTestRepository.get_purchase_by_id(purchase_id)
@@ -432,18 +460,160 @@ async def use_bonus_test(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    # Пока показываем информацию о тесте (позже будет запуск теста)
-    question_count = len(purchase.bonus_test.questions) if purchase.bonus_test.questions else 0
+    # Получаем вопросы теста
+    bonus_test = purchase.bonus_test
+    questions = await BonusQuestionRepository().get_by_bonus_test(bonus_test.id)
+
+    if not questions:
+        await callback.message.edit_text(
+            f"❌ В тесте '{bonus_test.name}' нет вопросов.",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
+
+    question_count = len(questions)
+
+    # Показываем информацию о тесте с кнопкой запуска
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Начать тест", callback_data=f"start_bonus_test_{purchase_id}")],
+        [InlineKeyboardButton(text="🔙 Назад к бонусам", callback_data="my_bonuses")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+    ])
+
+    # Определяем диапазон времени для вопросов
+    time_limits = [q.time_limit for q in questions]
+    min_time = min(time_limits)
+    max_time = max(time_limits)
+
+    if min_time == max_time:
+        time_info = f"⏱️ Время на вопрос: {min_time} секунд"
+    else:
+        time_info = f"⏱️ Время на вопрос: {min_time}-{max_time} секунд"
 
     await callback.message.edit_text(
-        f"🧪 {purchase.bonus_test.name}\n\n"
+        f"🧪 {bonus_test.name}\n\n"
         f"📊 Количество вопросов: {question_count}\n"
-        f"⏱️ Время на вопрос: 30 секунд\n"
+        f"{time_info}\n"
         f"💰 Стоимость: {purchase.price_paid} монет\n\n"
-        f"🚧 Запуск бонусного теста будет реализован позже.\n"
-        f"Пока что тест доступен для просмотра.",
-        reply_markup=get_back_to_shop_kb()
+        f"🎯 Это бонусный тест для дополнительной практики.\n"
+        f"Результаты не сохраняются, можно проходить сколько угодно раз!",
+        reply_markup=keyboard
     )
+
+    # Сохраняем данные для запуска теста
+    await state.update_data(
+        bonus_test_purchase_id=purchase_id,
+        bonus_test_id=bonus_test.id,
+        bonus_test_name=bonus_test.name
+    )
+    await state.set_state(ShopStates.bonus_test_confirmation)
+
+@router.callback_query(ShopStates.bonus_test_confirmation, F.data.startswith("start_bonus_test_"))
+async def start_bonus_test(callback: CallbackQuery, state: FSMContext):
+    """Начать прохождение бонусного теста"""
+    await log("start_bonus_test", "student", state)
+
+    purchase_id = int(callback.data.replace("start_bonus_test_", ""))
+
+    # Получаем данные из состояния
+    data = await state.get_data()
+    bonus_test_id = data.get("bonus_test_id")
+
+    if not bonus_test_id:
+        await callback.answer("❌ Ошибка: данные теста не найдены", show_alert=True)
+        return
+
+    # Получаем вопросы теста
+    questions = await BonusQuestionRepository().get_by_bonus_test(bonus_test_id)
+
+    if not questions:
+        await callback.answer("❌ В тесте нет вопросов", show_alert=True)
+        return
+
+    # Получаем ID студента
+    student = await StudentRepository.get_by_telegram_id(callback.from_user.id)
+    if not student:
+        await callback.answer("❌ Студент не найден", show_alert=True)
+        return
+
+    # Инициализируем состояние теста
+    await state.update_data(
+        student_id=student.id,
+        user_id=callback.from_user.id,
+        score=0,
+        q_index=0,
+        total_questions=len(questions),
+        question_results=[],
+        messages_to_delete=[],  # Список сообщений для удаления после теста
+        questions=[{
+            'id': q.id,
+            'text': q.text,
+            'photo_path': q.photo_path,
+            'time_limit': q.time_limit,
+            'microtopic_number': None  # У бонусных тестов нет микротем
+        } for q in questions]
+    )
+
+    await state.set_state(ShopStates.bonus_test_in_progress)
+    await callback.answer()
+    await send_next_question(callback.message.chat.id, state, callback.bot, finish_bonus_test)
+
+
+async def finish_bonus_test(chat_id, state: FSMContext, bot: Bot):
+    """Завершение бонусного теста (без сохранения результатов)"""
+    await log("finish_bonus_test", "student", state)
+
+    data = await state.get_data()
+    score = data.get("score", 0)
+    total_questions = data.get("total_questions", 0)
+    bonus_test_name = data.get("bonus_test_name", "Бонусный тест")
+
+    # Формируем сообщение с результатами
+    percentage = round((score / total_questions) * 100, 1) if total_questions > 0 else 0
+
+    if score == total_questions:
+        result_emoji = "🎉"
+        result_text = "Отлично! Все ответы правильные!"
+    elif percentage >= 80:
+        result_emoji = "👏"
+        result_text = "Хорошо! Почти все правильно!"
+    elif percentage >= 60:
+        result_emoji = "👍"
+        result_text = "Неплохо! Есть над чем поработать"
+    else:
+        result_emoji = "📚"
+        result_text = "Стоит повторить материал"
+
+    message = (
+        f"{result_emoji} Бонусный тест завершен!\n\n"
+        f"🧪 {bonus_test_name}\n"
+        f"📊 Результат: {score}/{total_questions} ({percentage}%)\n"
+        f"{result_text}\n\n"
+        f"💡 Можешь пройти тест еще раз для закрепления!"
+    )
+
+    # Кнопки для дальнейших действий
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Пройти еще раз", callback_data=f"use_bonus_test_{data.get('bonus_test_purchase_id')}")],
+        [InlineKeyboardButton(text="📦 Мои бонусы", callback_data="my_bonuses")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+    ])
+
+    await bot.send_message(chat_id, message, reply_markup=keyboard)
+
+    # Удаляем все сообщения теста после небольшой задержки
+    await asyncio.sleep(1)
+    await cleanup_test_messages(chat_id, data, bot)
+
+    # Возвращаемся в состояние магазина
+    await state.set_state(ShopStates.my_bonuses)
+
+
+@router.callback_query(F.data == "my_bonuses")
+async def handle_my_bonuses_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для кнопки 'Мои бонусы'"""
+    await show_my_bonuses(callback, state)
+
 
 @router.callback_query(F.data == "back_to_shop")
 async def back_to_shop(callback: CallbackQuery, state: FSMContext):

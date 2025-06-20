@@ -1,7 +1,7 @@
 """
 Создание тестовых тестов месяца
 """
-from database import MonthTestRepository
+from database import MonthTestRepository, QuestionRepository, AnswerOptionRepository, MicrotopicRepository
 
 
 async def add_test_month_tests(created_subjects):
@@ -66,12 +66,14 @@ async def add_test_month_tests(created_subjects):
                     course_id = course.id
                     break
 
+            # Создаем тест месяца (только входной для демонстрации)
             month_test = await MonthTestRepository.create(
                 name=test_data["name"],
                 course_id=course_id,
-                subject_id=subject.id
+                subject_id=subject.id,
+                test_type='entry'
             )
-            
+
             print(f"   ✅ Тест месяца '{month_test.name}' создан для предмета '{subject_name}' ({test_data['month']})")
             created_count += 1
 

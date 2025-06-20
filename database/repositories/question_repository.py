@@ -123,6 +123,22 @@ class QuestionRepository(BaseQuestionRepository):
             )
             return list(result.scalars().all())
 
+    @staticmethod
+    async def get_by_subject(subject_id: int) -> List[Question]:
+        """Получить все вопросы по предмету"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Question)
+                .options(
+                    selectinload(Question.homework),
+                    selectinload(Question.subject),
+                    selectinload(Question.answer_options)
+                )
+                .where(Question.subject_id == subject_id)
+                .order_by(Question.homework_id, Question.order_number)
+            )
+            return list(result.scalars().all())
+
     async def get_next_order_number(self, homework_id: int) -> int:
         """Получить следующий порядковый номер для вопроса в ДЗ"""
         return await super().get_next_order_number(homework_id)

@@ -1,51 +1,52 @@
 """
-Репозиторий для работы с результатами входных тестов месяца
+Репозиторий для работы с результатами контрольных тестов месяца
 """
 from typing import List, Optional, Dict
 from sqlalchemy import select, delete, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from ..models import (
-    MonthEntryTestResult, MonthEntryQuestionResult, Student, MonthTest, 
-    Question, Homework, Lesson, Group, MonthTestMicrotopic, User
+    MonthControlTestResult, MonthControlQuestionResult, Student, MonthTest, 
+    Question, Homework, Lesson, Group, MonthTestMicrotopic, User,
+    MonthEntryTestResult, MonthEntryQuestionResult
 )
 from ..database import get_db_session
 import random
 
 
-class MonthEntryTestResultRepository:
-    """Репозиторий для работы с результатами входных тестов месяца"""
+class MonthControlTestResultRepository:
+    """Репозиторий для работы с результатами контрольных тестов месяца"""
     
     @staticmethod
-    async def get_all() -> List[MonthEntryTestResult]:
-        """Получить все результаты входных тестов месяца"""
+    async def get_all() -> List[MonthControlTestResult]:
+        """Получить все результаты контрольных тестов месяца"""
         async with get_db_session() as session:
             result = await session.execute(
-                select(MonthEntryTestResult)
+                select(MonthControlTestResult)
                 .options(
-                    selectinload(MonthEntryTestResult.student).selectinload(Student.user),
-                    selectinload(MonthEntryTestResult.month_test),
-                    selectinload(MonthEntryTestResult.question_results)
+                    selectinload(MonthControlTestResult.student).selectinload(Student.user),
+                    selectinload(MonthControlTestResult.month_test),
+                    selectinload(MonthControlTestResult.question_results)
                 )
-                .order_by(MonthEntryTestResult.completed_at.desc())
+                .order_by(MonthControlTestResult.completed_at.desc())
             )
             return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_student_and_month_test(student_id: int, month_test_id: int) -> Optional[MonthEntryTestResult]:
-        """Получить результат теста студента по тесту месяца"""
+    async def get_by_student_and_month_test(student_id: int, month_test_id: int) -> Optional[MonthControlTestResult]:
+        """Получить результат контрольного теста студента по тесту месяца"""
         async with get_db_session() as session:
             result = await session.execute(
-                select(MonthEntryTestResult)
+                select(MonthControlTestResult)
                 .options(
-                    selectinload(MonthEntryTestResult.student).selectinload(Student.user),
-                    selectinload(MonthEntryTestResult.month_test),
-                    selectinload(MonthEntryTestResult.question_results)
+                    selectinload(MonthControlTestResult.student).selectinload(Student.user),
+                    selectinload(MonthControlTestResult.month_test),
+                    selectinload(MonthControlTestResult.question_results)
                 )
                 .where(
                     and_(
-                        MonthEntryTestResult.student_id == student_id,
-                        MonthEntryTestResult.month_test_id == month_test_id
+                        MonthControlTestResult.student_id == student_id,
+                        MonthControlTestResult.month_test_id == month_test_id
                     )
                 )
             )
@@ -53,14 +54,14 @@ class MonthEntryTestResultRepository:
 
     @staticmethod
     async def has_student_taken_test(student_id: int, month_test_id: int) -> bool:
-        """Проверить, проходил ли студент входной тест месяца"""
-        result = await MonthEntryTestResultRepository.get_by_student_and_month_test(student_id, month_test_id)
+        """Проверить, проходил ли студент контрольный тест месяца"""
+        result = await MonthControlTestResultRepository.get_by_student_and_month_test(student_id, month_test_id)
         return result is not None
 
     @staticmethod
     async def get_random_questions_for_month_test(month_test_id: int, questions_per_microtopic: int = 3) -> List[Dict]:
         """
-        Получить случайные вопросы для входного теста месяца
+        Получить случайные вопросы для контрольного теста месяца
         По каждой микротеме берется указанное количество случайных вопросов из ДЗ
         """
         async with get_db_session() as session:
@@ -109,8 +110,8 @@ class MonthEntryTestResultRepository:
 
     @staticmethod
     async def create_test_result(student_id: int, month_test_id: int, 
-                               question_results: List[Dict]) -> MonthEntryTestResult:
-        """Создать результат входного теста месяца"""
+                               question_results: List[Dict]) -> MonthControlTestResult:
+        """Создать результат контрольного теста месяца"""
         async with get_db_session() as session:
             # Подсчитываем правильные ответы
             correct_answers = sum(1 for qr in question_results if qr['is_correct'])
@@ -118,7 +119,7 @@ class MonthEntryTestResultRepository:
             score_percentage = int((correct_answers / total_questions) * 100) if total_questions > 0 else 0
             
             # Создаем основной результат
-            test_result = MonthEntryTestResult(
+            test_result = MonthControlTestResult(
                 student_id=student_id,
                 month_test_id=month_test_id,
                 total_questions=total_questions,
@@ -130,7 +131,7 @@ class MonthEntryTestResultRepository:
             
             # Создаем результаты ответов на вопросы
             for qr_data in question_results:
-                question_result = MonthEntryQuestionResult(
+                question_result = MonthControlQuestionResult(
                     test_result_id=test_result.id,
                     question_id=qr_data['question_id'],
                     selected_answer_id=qr_data.get('selected_answer_id'),
@@ -146,7 +147,7 @@ class MonthEntryTestResultRepository:
 
     @staticmethod
     async def get_statistics_by_group_and_month_test(group_id: int, month_test_id: int) -> Dict:
-        """Получить статистику входного теста месяца по группе и тесту"""
+        """Получить статистику контрольного теста месяца по группе и тесту"""
         async with get_db_session() as session:
             from ..models import student_groups
             
@@ -186,17 +187,17 @@ class MonthEntryTestResultRepository:
             
             # Получаем результаты тестов для студентов группы по данному тесту месяца
             test_results = await session.execute(
-                select(MonthEntryTestResult)
+                select(MonthControlTestResult)
                 .options(
-                    selectinload(MonthEntryTestResult.student).selectinload(Student.user),
-                    selectinload(MonthEntryTestResult.question_results)
+                    selectinload(MonthControlTestResult.student).selectinload(Student.user),
+                    selectinload(MonthControlTestResult.question_results)
                 )
-                .join(Student, MonthEntryTestResult.student_id == Student.id)
+                .join(Student, MonthControlTestResult.student_id == Student.id)
                 .join(student_groups, Student.id == student_groups.c.student_id)
                 .where(
                     and_(
                         student_groups.c.group_id == group_id,
-                        MonthEntryTestResult.month_test_id == month_test_id
+                        MonthControlTestResult.month_test_id == month_test_id
                     )
                 )
             )
@@ -218,12 +219,12 @@ class MonthEntryTestResultRepository:
 
     @staticmethod
     async def get_microtopic_statistics(test_result_id: int) -> Dict[int, Dict]:
-        """Получить статистику по микротемам для результата теста"""
+        """Получить статистику по микротемам для результата контрольного теста"""
         async with get_db_session() as session:
             # Получаем результаты ответов с микротемами
             result = await session.execute(
-                select(MonthEntryQuestionResult)
-                .where(MonthEntryQuestionResult.test_result_id == test_result_id)
+                select(MonthControlQuestionResult)
+                .where(MonthControlQuestionResult.test_result_id == test_result_id)
             )
             question_results = list(result.scalars().all())
             
@@ -250,66 +251,96 @@ class MonthEntryTestResultRepository:
             return microtopic_stats
 
     @staticmethod
-    async def get_comparison_statistics(student_id: int, entry_test_id: int, control_test_id: int) -> Optional[Dict]:
-        """Получить сравнительную статистику между входным и контрольным тестами месяца"""
-        async with get_db_session() as session:
-            # Получаем результаты входного и контрольного тестов
-            entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(student_id, entry_test_id)
-            control_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(student_id, control_test_id)
-
-            if not entry_result or not control_result:
-                return None
-
-            # Получаем статистику по микротемам для обоих тестов
-            entry_microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(entry_result.id)
-            control_microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(control_result.id)
-
-            # Формируем сравнительные данные
-            microtopic_changes = {}
-            all_microtopics = set(entry_microtopic_stats.keys()) | set(control_microtopic_stats.keys())
-
-            for microtopic_num in all_microtopics:
-                entry_stats = entry_microtopic_stats.get(microtopic_num, {'percentage': 0})
-                control_stats = control_microtopic_stats.get(microtopic_num, {'percentage': 0})
-
-                entry_percentage = entry_stats['percentage']
-                control_percentage = control_stats['percentage']
-
-                # Рассчитываем рост
-                if entry_percentage > 0:
-                    growth_percentage = ((control_percentage - entry_percentage) / entry_percentage) * 100
-                else:
-                    # Если входной тест 0%, используем отрицательное значение как флаг абсолютного роста
-                    growth_percentage = -control_percentage if control_percentage > 0 else 0
-
-                microtopic_changes[microtopic_num] = {
-                    'entry_percentage': entry_percentage,
-                    'control_percentage': control_percentage,
-                    'growth_percentage': growth_percentage
-                }
-
-            return {
-                'entry_test': {
-                    'correct_answers': entry_result.correct_answers,
-                    'total_questions': entry_result.total_questions,
-                    'score_percentage': entry_result.score_percentage
-                },
-                'control_test': {
-                    'correct_answers': control_result.correct_answers,
-                    'total_questions': control_result.total_questions,
-                    'score_percentage': control_result.score_percentage
-                },
-                'comparison': {
-                    'microtopic_changes': microtopic_changes
-                }
-            }
-
-    @staticmethod
     async def delete_by_id(test_result_id: int) -> bool:
-        """Удалить результат входного теста месяца по ID"""
+        """Удалить результат контрольного теста месяца по ID"""
         async with get_db_session() as session:
             result = await session.execute(
-                delete(MonthEntryTestResult).where(MonthEntryTestResult.id == test_result_id)
+                delete(MonthControlTestResult).where(MonthControlTestResult.id == test_result_id)
             )
             await session.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def get_comparison_statistics(student_id: int, entry_test_id: int, control_test_id: int) -> Dict:
+        """Получить сравнительную статистику входного и контрольного тестов"""
+        async with get_db_session() as session:
+            # Получаем результаты входного теста
+            entry_result = await session.execute(
+                select(MonthEntryTestResult)
+                .options(selectinload(MonthEntryTestResult.question_results))
+                .where(
+                    and_(
+                        MonthEntryTestResult.student_id == student_id,
+                        MonthEntryTestResult.month_test_id == entry_test_id
+                    )
+                )
+            )
+            entry_test_result = entry_result.scalar_one_or_none()
+
+            # Получаем результаты контрольного теста
+            control_result = await session.execute(
+                select(MonthControlTestResult)
+                .options(selectinload(MonthControlTestResult.question_results))
+                .where(
+                    and_(
+                        MonthControlTestResult.student_id == student_id,
+                        MonthControlTestResult.month_test_id == control_test_id
+                    )
+                )
+            )
+            control_test_result = control_result.scalar_one_or_none()
+
+            if not entry_test_result or not control_test_result:
+                return {}
+
+            # Получаем статистику по микротемам для входного теста
+            from .month_entry_test_result_repository import MonthEntryTestResultRepository
+            entry_microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(entry_test_result.id)
+
+            # Получаем статистику по микротемам для контрольного теста
+            control_microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(control_test_result.id)
+
+            # Сравниваем результаты
+            comparison_data = {
+                'entry_test': {
+                    'correct_answers': entry_test_result.correct_answers,
+                    'total_questions': entry_test_result.total_questions,
+                    'score_percentage': entry_test_result.score_percentage,
+                    'microtopic_stats': entry_microtopic_stats
+                },
+                'control_test': {
+                    'correct_answers': control_test_result.correct_answers,
+                    'total_questions': control_test_result.total_questions,
+                    'score_percentage': control_test_result.score_percentage,
+                    'microtopic_stats': control_microtopic_stats
+                },
+                'comparison': {
+                    'score_difference': control_test_result.score_percentage - entry_test_result.score_percentage,
+                    'microtopic_changes': {}
+                }
+            }
+
+            # Сравниваем изменения по микротемам с новой формулой роста
+            all_microtopics = set(entry_microtopic_stats.keys()) | set(control_microtopic_stats.keys())
+            for microtopic_num in all_microtopics:
+                entry_percentage = entry_microtopic_stats.get(microtopic_num, {}).get('percentage', 0)
+                control_percentage = control_microtopic_stats.get(microtopic_num, {}).get('percentage', 0)
+
+                # Рассчитываем рост по формуле: ((B - A) / A) × 100%
+                if entry_percentage > 0:
+                    growth_percentage = ((control_percentage - entry_percentage) / entry_percentage) * 100
+                else:
+                    # Если входной тест 0%, показываем абсолютный рост в процентных пунктах
+                    growth_percentage = control_percentage  # Абсолютный рост = контрольный процент - 0
+                    # Используем отрицательное значение как флаг для абсолютного роста
+                    if growth_percentage > 0:
+                        growth_percentage = -growth_percentage  # Отрицательное значение = абсолютный рост
+
+                comparison_data['comparison']['microtopic_changes'][microtopic_num] = {
+                    'entry_percentage': entry_percentage,
+                    'control_percentage': control_percentage,
+                    'difference': control_percentage - entry_percentage,
+                    'growth_percentage': growth_percentage
+                }
+
+            return comparison_data

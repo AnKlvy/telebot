@@ -221,7 +221,7 @@ class HomeworkResultRepository:
                 .where(and_(
                     HomeworkResult.student_id == student_id,
                     Question.subject_id == subject_id,
-                    QuestionResult.microtopic_number.isnot(None)
+                    ~QuestionResult.microtopic_number.is_(None)
                 ))
                 .group_by(QuestionResult.microtopic_number)
             )

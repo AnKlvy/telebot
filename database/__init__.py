@@ -2,12 +2,13 @@
 Модуль для работы с базой данных
 """
 from .database import init_database, close_database, get_db_session
-from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager, Microtopic, Lesson, Homework, Question, AnswerOption, MonthTest, MonthTestMicrotopic, BonusTest, BonusQuestion, BonusAnswerOption, HomeworkResult, QuestionResult, CourseEntryTestResult, CourseEntryQuestionResult, MonthEntryTestResult, MonthEntryQuestionResult, ShopItem, StudentPurchase, StudentBonusTest
+from .models import User, Course, Subject, Group, Student, Curator, Teacher, Manager, Microtopic, Lesson, Homework, Question, AnswerOption, MonthTest, MonthTestMicrotopic, BonusTest, BonusQuestion, BonusAnswerOption, HomeworkResult, QuestionResult, CourseEntryTestResult, CourseEntryQuestionResult, MonthEntryTestResult, MonthEntryQuestionResult, MonthControlTestResult, MonthControlQuestionResult, ShopItem, StudentPurchase, StudentBonusTest, TrialEntResult, TrialEntQuestionResult
 from .repositories import UserRepository, CourseRepository, SubjectRepository, GroupRepository, StudentRepository, \
     CuratorRepository, TeacherRepository, ManagerRepository, MicrotopicRepository, LessonRepository, \
     HomeworkRepository, QuestionRepository, AnswerOptionRepository, MonthTestRepository, \
     MonthTestMicrotopicRepository, BonusTestRepository, BonusQuestionRepository, BonusAnswerOptionRepository, \
-    HomeworkResultRepository, QuestionResultRepository, CourseEntryTestResultRepository, MonthEntryTestResultRepository, ShopItemRepository, StudentPurchaseRepository, StudentBonusTestRepository
+    HomeworkResultRepository, QuestionResultRepository, CourseEntryTestResultRepository, MonthEntryTestResultRepository, MonthControlTestResultRepository, ShopItemRepository, StudentPurchaseRepository, StudentBonusTestRepository, \
+    TrialEntResultRepository, TrialEntQuestionResultRepository
 
 
 # Функции для совместимости со старым кодом
@@ -51,6 +52,8 @@ __all__ = [
     'CourseEntryQuestionResult',
     'MonthEntryTestResult',
     'MonthEntryQuestionResult',
+    'MonthControlTestResult',
+    'MonthControlQuestionResult',
     'UserRepository',
     'CourseRepository',
     'SubjectRepository',
@@ -73,6 +76,7 @@ __all__ = [
     'QuestionResultRepository',
     'CourseEntryTestResultRepository',
     'MonthEntryTestResultRepository',
+    'MonthControlTestResultRepository',
     'get_user_role',
     'get_user_by_telegram_id',
     'create_user'

@@ -23,9 +23,12 @@ from .homework_result_repository import HomeworkResultRepository
 from .question_result_repository import QuestionResultRepository
 from .course_entry_test_result_repository import CourseEntryTestResultRepository
 from .month_entry_test_result_repository import MonthEntryTestResultRepository
+from .month_control_test_result_repository import MonthControlTestResultRepository
 from .shop_item_repository import ShopItemRepository
 from .student_purchase_repository import StudentPurchaseRepository
 from .student_bonus_test_repository import StudentBonusTestRepository
+from .trial_ent_result_repository import TrialEntResultRepository
+from .trial_ent_question_result_repository import TrialEntQuestionResultRepository
 
 __all__ = [
     'UserRepository',
@@ -50,7 +53,10 @@ __all__ = [
     'QuestionResultRepository',
     'CourseEntryTestResultRepository',
     'MonthEntryTestResultRepository',
+    'MonthControlTestResultRepository',
     'ShopItemRepository',
     'StudentPurchaseRepository',
-    'StudentBonusTestRepository'
+    'StudentBonusTestRepository',
+    'TrialEntResultRepository',
+    'TrialEntQuestionResultRepository'
 ]
