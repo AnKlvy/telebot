@@ -16,13 +16,16 @@ from .month_handlers import router as month_handlers_router
 # Импортируем функции для использования в других модулях
 from .course_entry_handlers import (
     show_course_entry_test_results,
-    show_course_entry_test_results_final
+    show_course_entry_test_results_final,
+    handle_course_entry_confirmation
 )
 from .month_handlers import (
     generate_month_test_questions,
     finish_month_entry_test,
     finish_month_control_test,
-    show_month_control_test_statistics_final
+    show_month_control_test_statistics_final,
+    handle_month_entry_confirmation,
+    handle_month_control_confirmation
 )
 from .base_handlers import (
     show_course_entry_subjects,
@@ -36,6 +39,7 @@ from .base_handlers import (
     show_month_entry_test_statistics,
     show_month_control_test_statistics
 )
+from .menu import show_tests_menu_safe
 
 # Настройка логгера
 logger = logging.getLogger(__name__)

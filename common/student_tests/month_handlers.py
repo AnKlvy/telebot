@@ -94,6 +94,116 @@ async def generate_month_test_questions(month_test_id: int):
         return []
 
 
+async def show_month_entry_test_confirmation(callback: CallbackQuery, state: FSMContext, test_questions, student_id: int, month_test):
+    """Показать подтверждение для начала входного теста месяца"""
+    try:
+        # Вычисляем среднее время на вопрос для отображения
+        avg_time = sum(q.get('time_limit', 60) for q in test_questions) // len(test_questions) if test_questions else 60
+
+        # Получаем информацию о микротемах
+        microtopic_numbers = [mtm.microtopic_number for mtm in month_test.microtopics]
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
+        test_microtopics = [mt for mt in microtopics if mt.number in microtopic_numbers]
+
+        microtopic_names = ", ".join([mt.name for mt in test_microtopics[:3]])  # Показываем первые 3
+        if len(test_microtopics) > 3:
+            microtopic_names += f" и еще {len(test_microtopics) - 3}"
+
+        text = (
+            f"📅 Входной тест месяца\n\n"
+            f"📚 Предмет: {month_test.subject.name}\n"
+            f"📝 Тест: {month_test.name}\n"
+            f"📋 Вопросов: {len(test_questions)}\n"
+            f"⏱ Среднее время на вопрос: {avg_time} секунд\n"
+            f"🎯 Микротемы: {microtopic_names}\n\n"
+            f"ℹ️ Это входной тест для оценки ваших знаний по темам месяца.\n"
+            f"По каждой микротеме будет 3 вопроса.\n\n"
+            "Готовы начать?"
+        )
+
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        confirmation_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="▶️ Начать тест", callback_data="start_month_entry_test")],
+            *get_back_to_test_kb().inline_keyboard
+        ])
+
+        # Сохраняем данные для последующего запуска теста (только сериализуемые данные)
+        await state.update_data(
+            test_type="month_entry",
+            month_test_id=month_test.id,
+            student_id=student_id,
+            questions=test_questions,  # test_questions уже словари из generate_month_test_questions
+            confirmation_message_id=callback.message.message_id
+        )
+
+        await callback.message.edit_text(text, reply_markup=confirmation_kb)
+        await state.set_state(StudentTestsStates.month_entry_confirmation)
+
+        logger.info(f"Показано подтверждение входного теста месяца для теста {month_test.name}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при показе подтверждения входного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при подготовке теста. Попробуйте позже.",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+async def show_month_control_test_confirmation(callback: CallbackQuery, state: FSMContext, test_questions, student_id: int, month_test):
+    """Показать подтверждение для начала контрольного теста месяца"""
+    try:
+        # Вычисляем среднее время на вопрос для отображения
+        avg_time = sum(q.get('time_limit', 60) for q in test_questions) // len(test_questions) if test_questions else 60
+
+        # Получаем информацию о микротемах
+        microtopic_numbers = [mtm.microtopic_number for mtm in month_test.microtopics]
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
+        test_microtopics = [mt for mt in microtopics if mt.number in microtopic_numbers]
+
+        microtopic_names = ", ".join([mt.name for mt in test_microtopics[:3]])  # Показываем первые 3
+        if len(test_microtopics) > 3:
+            microtopic_names += f" и еще {len(test_microtopics) - 3}"
+
+        text = (
+            f"🎯 Контрольный тест месяца\n\n"
+            f"📚 Предмет: {month_test.subject.name}\n"
+            f"📝 Тест: {month_test.name}\n"
+            f"📋 Вопросов: {len(test_questions)}\n"
+            f"⏱ Среднее время на вопрос: {avg_time} секунд\n"
+            f"🎯 Микротемы: {microtopic_names}\n\n"
+            f"ℹ️ Это контрольный тест для проверки прогресса по темам месяца.\n"
+            f"Результат будет сравнен с входным тестом.\n\n"
+            "Готовы начать?"
+        )
+
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        confirmation_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="▶️ Начать тест", callback_data="start_month_control_test")],
+            *get_back_to_test_kb().inline_keyboard
+        ])
+
+        # Сохраняем данные для последующего запуска теста (только сериализуемые данные)
+        await state.update_data(
+            test_type="month_control",
+            month_test_id=month_test.id,
+            student_id=student_id,
+            questions=test_questions,  # test_questions уже словари из generate_month_test_questions
+            confirmation_message_id=callback.message.message_id
+        )
+
+        await callback.message.edit_text(text, reply_markup=confirmation_kb)
+        await state.set_state(StudentTestsStates.month_control_confirmation)
+
+        logger.info(f"Показано подтверждение контрольного теста месяца для теста {month_test.name}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при показе подтверждения контрольного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при подготовке теста. Попробуйте позже.",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
 async def finish_month_entry_test(chat_id: int, state: FSMContext, bot):
     """Завершение входного теста месяца и сохранение результатов в БД"""
     try:
@@ -274,3 +384,107 @@ async def show_month_control_test_statistics_final(chat_id: int, state: FSMConte
             "❌ Ошибка при получении статистики",
             reply_markup=get_back_to_test_kb()
         )
+
+
+# Обработчики кнопок "Начать тест" для тестов месяца
+@router.callback_query(StudentTestsStates.month_entry_confirmation, F.data == "start_month_entry_test")
+async def start_month_entry_test_confirmed(callback: CallbackQuery, state: FSMContext):
+    """Запуск входного теста месяца после подтверждения"""
+    try:
+        data = await state.get_data()
+        questions = data.get("questions")
+        month_test_id = data.get("month_test_id")
+        student_id = data.get("student_id")
+
+        if not all([questions, month_test_id, student_id]):
+            logger.error("Отсутствуют данные для запуска входного теста месяца")
+            await callback.answer("❌ Ошибка: данные теста не найдены", show_alert=True)
+            return
+
+        # Сохраняем данные для quiz_registrator
+        await state.update_data(
+            month_test_id=month_test_id,
+            student_id=student_id,
+            questions=questions,
+            q_index=0,
+            score=0,
+            question_results=[]
+        )
+
+        # ВАЖНО: Устанавливаем состояние ПЕРЕД запуском теста
+        await state.set_state(StudentTestsStates.test_in_progress)
+
+        # Запускаем тест через quiz_registrator
+        await send_next_question(
+            chat_id=callback.message.chat.id,
+            state=state,
+            bot=callback.bot,
+            finish_callback=finish_month_entry_test
+        )
+
+        logger.info(f"Запущен входной тест месяца: {len(questions)} вопросов")
+
+    except Exception as e:
+        logger.error(f"Ошибка при запуске входного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при запуске теста. Попробуйте позже.",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+@router.callback_query(StudentTestsStates.month_control_confirmation, F.data == "start_month_control_test")
+async def start_month_control_test_confirmed(callback: CallbackQuery, state: FSMContext):
+    """Запуск контрольного теста месяца после подтверждения"""
+    try:
+        data = await state.get_data()
+        questions = data.get("questions")
+        month_test_id = data.get("month_test_id")
+        student_id = data.get("student_id")
+
+        if not all([questions, month_test_id, student_id]):
+            logger.error("Отсутствуют данные для запуска контрольного теста месяца")
+            await callback.answer("❌ Ошибка: данные теста не найдены", show_alert=True)
+            return
+
+        # Сохраняем данные для quiz_registrator
+        await state.update_data(
+            month_test_id=month_test_id,
+            student_id=student_id,
+            questions=questions,
+            q_index=0,
+            score=0,
+            question_results=[]
+        )
+
+        # ВАЖНО: Устанавливаем состояние ПЕРЕД запуском теста
+        await state.set_state(StudentTestsStates.test_in_progress)
+
+        # Запускаем тест через quiz_registrator
+        await send_next_question(
+            chat_id=callback.message.chat.id,
+            state=state,
+            bot=callback.bot,
+            finish_callback=finish_month_control_test
+        )
+
+        logger.info(f"Запущен контрольный тест месяца: {len(questions)} вопросов")
+
+    except Exception as e:
+        logger.error(f"Ошибка при запуске контрольного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при запуске теста. Попробуйте позже.",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+# Функции для использования в transitions.py
+async def handle_month_entry_confirmation(callback, state=None, user_role: str = None):
+    """Обработчик состояния подтверждения входного теста месяца для навигации"""
+    from .base_handlers import show_month_entry_subjects
+    await show_month_entry_subjects(callback, state)
+
+
+async def handle_month_control_confirmation(callback, state=None, user_role: str = None):
+    """Обработчик состояния подтверждения контрольного теста месяца для навигации"""
+    from .base_handlers import show_month_control_subjects
+    await show_month_control_subjects(callback, state)

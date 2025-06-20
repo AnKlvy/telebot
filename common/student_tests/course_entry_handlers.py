@@ -89,8 +89,8 @@ async def handle_course_entry_test_real(callback: CallbackQuery, state: FSMConte
 
         logger.info(f"НАЙДЕНО ВОПРОСОВ: {len(questions)} для предмета {subject.name}")
 
-        # Начинаем тест через quiz_registrator
-        await start_course_entry_test_with_quiz(callback, state, questions, student.id, subject.id, subject.name)
+        # Переходим к подтверждению теста вместо прямого запуска
+        await show_course_entry_test_confirmation(callback, state, questions, student.id, subject.id, subject.name)
 
     except Exception as e:
         logger.error(f"ОШИБКА в handle_course_entry_test_real: {e}")
@@ -100,29 +100,126 @@ async def handle_course_entry_test_real(callback: CallbackQuery, state: FSMConte
         )
 
 
+async def show_course_entry_test_confirmation(callback: CallbackQuery, state: FSMContext, questions, student_id: int, subject_id: int, subject_name: str):
+    """Показать подтверждение для начала входного теста курса"""
+    try:
+        # Вычисляем среднее время на вопрос для отображения
+        avg_time = sum(q.time_limit for q in questions) // len(questions) if questions else 0
+
+        text = (
+            f"🎯 Входной тест курса\n\n"
+            f"📚 Предмет: {subject_name}\n"
+            f"📋 Вопросов: {len(questions)}\n"
+            f"⏱ Среднее время на вопрос: {avg_time} секунд\n\n"
+            f"ℹ️ Это входной тест для определения вашего уровня знаний по предмету.\n"
+            f"Результат поможет адаптировать обучение под ваши потребности.\n\n"
+            "Готовы начать?"
+        )
+
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        confirmation_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="▶️ Начать тест", callback_data="start_course_entry_test")],
+            *get_back_to_test_kb().inline_keyboard
+        ])
+
+        # Преобразуем объекты Question в словари для сериализации
+        quiz_questions = []
+        for question in questions:
+            quiz_questions.append({
+                'id': question.id,
+                'text': question.text,
+                'photo_path': question.photo_path,
+                'time_limit': question.time_limit,
+                'microtopic_number': question.microtopic_number,
+                'answer_options': [
+                    {
+                        'id': opt.id,
+                        'text': opt.text,
+                        'is_correct': opt.is_correct,
+                        'order_number': opt.order_number
+                    }
+                    for opt in question.answer_options
+                ]
+            })
+
+        # Сохраняем данные для последующего запуска теста
+        await state.update_data(
+            test_type="course_entry",
+            student_id=student_id,
+            subject_id=subject_id,
+            subject_name=subject_name,
+            questions=quiz_questions,
+            confirmation_message_id=callback.message.message_id
+        )
+
+        await callback.message.edit_text(text, reply_markup=confirmation_kb)
+        await state.set_state(StudentTestsStates.course_entry_confirmation)
+
+        logger.info(f"Показано подтверждение входного теста курса для предмета {subject_name}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при показе подтверждения входного теста курса: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при подготовке теста. Попробуйте позже.",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+# Обработчик кнопки "Начать тест" для входного теста курса
+@router.callback_query(StudentTestsStates.course_entry_confirmation, F.data == "start_course_entry_test")
+async def start_course_entry_test_confirmed(callback: CallbackQuery, state: FSMContext):
+    """Запуск входного теста курса после подтверждения"""
+    try:
+        data = await state.get_data()
+        questions = data.get("questions")
+        student_id = data.get("student_id")
+        subject_id = data.get("subject_id")
+        subject_name = data.get("subject_name")
+
+        if not all([questions, student_id, subject_id, subject_name]):
+            logger.error("Отсутствуют данные для запуска теста")
+            await callback.answer("❌ Ошибка: данные теста не найдены", show_alert=True)
+            return
+
+        # Запускаем тест
+        await start_course_entry_test_with_quiz(callback, state, questions, student_id, subject_id, subject_name)
+
+    except Exception as e:
+        logger.error(f"Ошибка при запуске входного теста курса: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при запуске теста. Попробуйте позже.",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
 async def start_course_entry_test_with_quiz(callback: CallbackQuery, state: FSMContext, questions, student_id: int, subject_id: int, subject_name: str):
     """Запуск входного теста курса через quiz_registrator"""
     logger.info(f"ЗАПУСК ТЕСТА: {len(questions)} вопросов для студента {student_id}")
 
-    # Подготавливаем данные вопросов для quiz_registrator
-    quiz_questions = []
-    for question in questions:
-        quiz_questions.append({
-            'id': question.id,
-            'text': question.text,
-            'photo_path': question.photo_path,
-            'time_limit': question.time_limit,
-            'microtopic_number': question.microtopic_number,
-            'answer_options': [
-                {
-                    'id': opt.id,
-                    'text': opt.text,
-                    'is_correct': opt.is_correct,
-                    'order_number': opt.order_number
-                }
-                for opt in question.answer_options
-            ]
-        })
+    # Проверяем, нужно ли преобразовывать вопросы (если они еще объекты Question)
+    if questions and hasattr(questions[0], 'id'):
+        # Это объекты Question, преобразуем их
+        quiz_questions = []
+        for question in questions:
+            quiz_questions.append({
+                'id': question.id,
+                'text': question.text,
+                'photo_path': question.photo_path,
+                'time_limit': question.time_limit,
+                'microtopic_number': question.microtopic_number,
+                'answer_options': [
+                    {
+                        'id': opt.id,
+                        'text': opt.text,
+                        'is_correct': opt.is_correct,
+                        'order_number': opt.order_number
+                    }
+                    for opt in question.answer_options
+                ]
+            })
+    else:
+        # Это уже словари, используем как есть
+        quiz_questions = questions
 
     # Сохраняем данные теста в состоянии
     await state.update_data(
@@ -264,3 +361,10 @@ async def show_course_entry_test_results_final(chat_id: int, state: FSMContext, 
             chat_id,
             "❌ Ошибка при отображении результатов теста."
         )
+
+
+# Функция для использования в transitions.py
+async def handle_course_entry_confirmation(callback, state=None, user_role: str = None):
+    """Обработчик состояния подтверждения входного теста курса для навигации"""
+    from .base_handlers import show_course_entry_subjects
+    await show_course_entry_subjects(callback, state)

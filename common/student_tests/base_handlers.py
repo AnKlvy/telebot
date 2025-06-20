@@ -194,28 +194,11 @@ async def handle_month_entry_test_by_id(callback: CallbackQuery, state: FSMConte
             )
             return
 
-        # Сохраняем данные для quiz_registrator
-        await state.update_data(
-            month_test_id=month_test.id,
-            student_id=student.id,
-            questions=test_questions,
-            q_index=0,
-            score=0,
-            question_results=[]
-        )
+        # Переходим к подтверждению теста вместо прямого запуска
+        from .month_handlers import show_month_entry_test_confirmation
+        await show_month_entry_test_confirmation(callback, state, test_questions, student.id, month_test)
 
-        # ВАЖНО: Устанавливаем состояние ПЕРЕД запуском теста
-        await state.set_state(StudentTestsStates.test_in_progress)
-
-        # Запускаем тест через quiz_registrator
-        await send_next_question(
-            chat_id=callback.message.chat.id,
-            state=state,
-            bot=callback.bot,
-            finish_callback=finish_month_entry_test
-        )
-
-        logger.info(f"Запущен входной тест месяца: {len(test_questions)} вопросов")
+        logger.info(f"Показано подтверждение входного теста месяца: {len(test_questions)} вопросов")
 
     except Exception as e:
         logger.error(f"Ошибка при обработке входного теста месяца по ID: {e}")
@@ -290,28 +273,11 @@ async def handle_month_control_test_by_id(callback: CallbackQuery, state: FSMCon
             )
             return
 
-        # Сохраняем данные для quiz_registrator
-        await state.update_data(
-            month_test_id=month_test.id,
-            student_id=student.id,
-            questions=test_questions,
-            q_index=0,
-            score=0,
-            question_results=[]
-        )
+        # Переходим к подтверждению теста вместо прямого запуска
+        from .month_handlers import show_month_control_test_confirmation
+        await show_month_control_test_confirmation(callback, state, test_questions, student.id, month_test)
 
-        # ВАЖНО: Устанавливаем состояние ПЕРЕД запуском теста
-        await state.set_state(StudentTestsStates.test_in_progress)
-
-        # Запускаем тест через quiz_registrator
-        await send_next_question(
-            chat_id=callback.message.chat.id,
-            state=state,
-            bot=callback.bot,
-            finish_callback=finish_month_control_test
-        )
-
-        logger.info(f"Запущен контрольный тест месяца: {len(test_questions)} вопросов")
+        logger.info(f"Показано подтверждение контрольного теста месяца: {len(test_questions)} вопросов")
 
     except Exception as e:
         logger.error(f"Ошибка при обработке контрольного теста месяца по ID: {e}")
