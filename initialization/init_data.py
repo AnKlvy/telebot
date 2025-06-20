@@ -86,15 +86,19 @@ async def add_initial_data():
         print("\n📊 Создание результатов контрольных тестов месяца...")
         await create_month_control_test_results()
 
-        # 13. Обновление баллов и уровней студентов
+        # 13. Установка связей между входными и контрольными тестами
+        print("\n🔗 Установка связей между входными и контрольными тестами...")
+        await link_entry_and_control_tests()
+
+        # 14. Обновление баллов и уровней студентов
         print("\n🔄 Обновление баллов и уровней студентов...")
         await update_all_student_points()
 
-        # 14. Инициализация товаров магазина
+        # 15. Инициализация товаров магазина
         print("\n🛒 Инициализация товаров магазина...")
         await init_shop_items()
 
-        # 15. Инициализация данных пробного ЕНТ
+        # 16. Инициализация данных пробного ЕНТ
         print("\n🎯 Инициализация данных пробного ЕНТ...")
         await init_trial_ent_data()
 
@@ -102,6 +106,63 @@ async def add_initial_data():
         
     except Exception as e:
         print(f"\n❌ Ошибка при инициализации данных: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+async def link_entry_and_control_tests():
+    """Установка связей parent_test_id между входными и контрольными тестами"""
+    try:
+        print("🔗 Установка связей между входными и контрольными тестами...")
+
+        from database import MonthTestRepository
+        from database.database import get_db_session
+
+        # Получаем все тесты
+        all_tests = await MonthTestRepository.get_all()
+        entry_tests = [t for t in all_tests if t.test_type == 'entry']
+        control_tests = [t for t in all_tests if t.test_type == 'control']
+
+        # Соответствие между входными и контрольными тестами
+        test_mappings = [
+            ('Контрольный тест по алгебре', 'Контрольный тест по алгебре (Контроль)'),
+            ('Геометрия и фигуры', 'Геометрия и фигуры (Контроль)'),
+            ('Основы программирования', 'Основы программирования (Контроль)')
+        ]
+
+        updated_count = 0
+
+        async with get_db_session() as session:
+            for entry_name, control_name in test_mappings:
+                # Находим входной тест
+                entry_test = next((t for t in entry_tests if t.name == entry_name), None)
+                if not entry_test:
+                    print(f"   ⚠️ Входной тест '{entry_name}' не найден")
+                    continue
+
+                # Находим контрольный тест
+                control_test = next((t for t in control_tests if t.name == control_name), None)
+                if not control_test:
+                    print(f"   ⚠️ Контрольный тест '{control_name}' не найден")
+                    continue
+
+                # Проверяем, не установлена ли уже связь
+                if control_test.parent_test_id == entry_test.id:
+                    print(f"   ✅ Связь уже установлена: {control_name} -> {entry_name}")
+                    continue
+
+                # Обновляем parent_test_id
+                control_test.parent_test_id = entry_test.id
+                session.add(control_test)
+                print(f"   ✅ Установлена связь: {control_name} -> {entry_name} (ID: {entry_test.id})")
+                updated_count += 1
+
+            await session.commit()
+
+        print(f"🔗 Установка связей завершена! Обновлено: {updated_count}")
+
+    except Exception as e:
+        print(f"❌ Ошибка при установке связей между тестами: {e}")
         import traceback
         traceback.print_exc()
 

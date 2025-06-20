@@ -143,6 +143,57 @@ class QuestionRepository(BaseQuestionRepository):
         """Получить следующий порядковый номер для вопроса в ДЗ"""
         return await super().get_next_order_number(homework_id)
 
+    @staticmethod
+    async def get_random_questions_for_course_entry_test(telegram_id: int, subject_id: int, max_questions: int = 30) -> List[Question]:
+        """
+        Получить случайные вопросы для входного теста курса
+        Берет вопросы из домашних заданий по предмету из курсов студента
+
+        Args:
+            telegram_id: Telegram ID студента
+            subject_id: ID предмета
+            max_questions: Максимальное количество вопросов (по умолчанию 30)
+
+        Returns:
+            List[Question]: Список случайных вопросов (минимум 1, максимум max_questions)
+        """
+        async with get_db_session() as session:
+            from ..models import Course, student_courses, Student, User, Homework, Lesson
+
+            # Получаем все вопросы из домашних заданий по предмету из курсов студента
+            result = await session.execute(
+                select(Question)
+                .options(
+                    selectinload(Question.homework),
+                    selectinload(Question.subject),
+                    selectinload(Question.answer_options)
+                )
+                .join(Homework, Question.homework_id == Homework.id)
+                .join(Lesson, Homework.lesson_id == Lesson.id)
+                .join(Course, Lesson.course_id == Course.id)
+                .join(student_courses, Course.id == student_courses.c.course_id)
+                .join(Student, Student.id == student_courses.c.student_id)
+                .join(User, Student.user_id == User.id)
+                .where(
+                    User.telegram_id == telegram_id,
+                    Question.subject_id == subject_id
+                )
+                .order_by(Question.homework_id, Question.order_number)
+            )
+
+            all_questions = list(result.scalars().all())
+
+            if not all_questions:
+                return []
+
+            # Если вопросов меньше чем max_questions, возвращаем все
+            if len(all_questions) <= max_questions:
+                return all_questions
+
+            # Иначе возвращаем случайную выборку
+            import random
+            return random.sample(all_questions, max_questions)
+
 
 
     @staticmethod

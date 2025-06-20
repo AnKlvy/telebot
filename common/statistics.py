@@ -1041,6 +1041,189 @@ def format_test_result(test_results: Dict, subject_name: str, test_type: str, mo
     
     return result_text
 
+
+async def format_course_entry_test_result(test_result) -> str:
+    """
+    Форматировать результаты входного теста курса из БД (краткая версия для студента)
+
+    Args:
+        test_result: Объект CourseEntryTestResult из БД
+
+    Returns:
+        str: Отформатированный текст результатов
+    """
+    try:
+        # Безопасно получаем название предмета
+        subject_name = "Неизвестный предмет"
+        if hasattr(test_result, 'subject') and test_result.subject:
+            subject_name = test_result.subject.name
+
+        # Основная информация без детальной статистики
+        result_text = f"📊 Входной тест курса пройден\nРезультат:\n📗 {subject_name}:\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n"
+        result_text += f"Процент: {int((test_result.correct_answers / test_result.total_questions) * 100)}%\n\n"
+        result_text += "Выберите тип аналитики:"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка в format_course_entry_test_result: {e}")
+        return f"📊 Входной тест курса пройден\nВерных: {test_result.correct_answers} / {test_result.total_questions}\n\n❌ Ошибка при загрузке статистики"
+
+
+async def format_course_entry_test_detailed_microtopics(test_result) -> str:
+    """
+    Форматировать детальную статистику по микротемам входного теста курса
+
+    Args:
+        test_result: Объект CourseEntryTestResult из БД
+
+    Returns:
+        str: Отформатированный текст с процентами по микротемам
+    """
+    try:
+        from database import MicrotopicRepository
+
+        # Безопасно получаем название предмета
+        subject_name = "Неизвестный предмет"
+        if hasattr(test_result, 'subject') and test_result.subject:
+            subject_name = test_result.subject.name
+
+        # Основная информация
+        result_text = f"📊 Входной тест курса - детальная статистика\n📗 {subject_name}:\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+
+        # Группируем результаты по микротемам
+        microtopic_stats = {}
+
+        if hasattr(test_result, 'question_results') and test_result.question_results:
+            for question_result in test_result.question_results:
+                microtopic_num = question_result.microtopic_number
+                if microtopic_num is None:
+                    continue
+
+                if microtopic_num not in microtopic_stats:
+                    microtopic_stats[microtopic_num] = {
+                        'correct': 0,
+                        'total': 0
+                    }
+
+                microtopic_stats[microtopic_num]['total'] += 1
+                if question_result.is_correct:
+                    microtopic_stats[microtopic_num]['correct'] += 1
+
+        # Получаем названия микротем
+        microtopic_names = {}
+        try:
+            microtopics = await MicrotopicRepository.get_by_subject(test_result.subject_id)
+            microtopic_names = {mt.number: mt.name for mt in microtopics}
+        except Exception as e:
+            print(f"Ошибка при получении микротем: {e}")
+
+        # Добавляем статистику по микротемам
+        result_text += "📈 Проценты по микротемам:\n"
+        for microtopic_num, stats in microtopic_stats.items():
+            if stats['total'] > 0:
+                percentage = int((stats['correct'] / stats['total']) * 100)
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+
+                status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
+                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка в format_course_entry_test_detailed_microtopics: {e}")
+        return f"📊 Входной тест курса\nВерных: {test_result.correct_answers} / {test_result.total_questions}\n\n❌ Ошибка при загрузке детальной статистики"
+
+
+async def format_course_entry_test_summary_microtopics(test_result) -> str:
+    """
+    Форматировать сводку по сильным/слабым темам входного теста курса
+
+    Args:
+        test_result: Объект CourseEntryTestResult из БД
+
+    Returns:
+        str: Отформатированный текст с сильными и слабыми темами
+    """
+    try:
+        from database import MicrotopicRepository
+
+        # Безопасно получаем название предмета
+        subject_name = "Неизвестный предмет"
+        if hasattr(test_result, 'subject') and test_result.subject:
+            subject_name = test_result.subject.name
+
+        # Основная информация
+        result_text = f"📊 Входной тест курса - сильные/слабые темы\n📗 {subject_name}:\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+
+        # Группируем результаты по микротемам
+        microtopic_stats = {}
+
+        if hasattr(test_result, 'question_results') and test_result.question_results:
+            for question_result in test_result.question_results:
+                microtopic_num = question_result.microtopic_number
+                if microtopic_num is None:
+                    continue
+
+                if microtopic_num not in microtopic_stats:
+                    microtopic_stats[microtopic_num] = {
+                        'correct': 0,
+                        'total': 0
+                    }
+
+                microtopic_stats[microtopic_num]['total'] += 1
+                if question_result.is_correct:
+                    microtopic_stats[microtopic_num]['correct'] += 1
+
+        # Получаем названия микротем
+        microtopic_names = {}
+        try:
+            microtopics = await MicrotopicRepository.get_by_subject(test_result.subject_id)
+            microtopic_names = {mt.number: mt.name for mt in microtopics}
+        except Exception as e:
+            print(f"Ошибка при получении микротем: {e}")
+
+        # Определяем сильные и слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        for microtopic_num, stats in microtopic_stats.items():
+            if stats['total'] > 0:
+                percentage = int((stats['correct'] / stats['total']) * 100)
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+
+                if percentage >= 80:
+                    strong_topics.append(microtopic_name)
+                elif percentage <= 40:
+                    weak_topics.append(microtopic_name)
+
+        # Добавляем сильные темы
+        if strong_topics:
+            result_text += "🟢 Сильные темы (≥80%):\n"
+            for topic in strong_topics:
+                result_text += f"• {topic}\n"
+        else:
+            result_text += "🟢 Сильные темы (≥80%): нет\n"
+
+        result_text += "\n"
+
+        # Добавляем слабые темы
+        if weak_topics:
+            result_text += "🔴 Слабые темы (≤40%):\n"
+            for topic in weak_topics:
+                result_text += f"• {topic}\n"
+        else:
+            result_text += "🔴 Слабые темы (≤40%): нет\n"
+
+        return result_text
+
+    except Exception as e:
+        print(f"Ошибка в format_course_entry_test_summary_microtopics: {e}")
+        return f"📊 Входной тест курса\nВерных: {test_result.correct_answers} / {test_result.total_questions}\n\n❌ Ошибка при загрузке сводки"
+
 def format_test_comparison(entry_results: Dict, control_results: Dict, subject_name: str, month: str) -> str:
     """
     Форматировать сравнение входного и контрольного тестов

@@ -1808,32 +1808,32 @@ async def show_month_control_student_detail(callback: CallbackQuery, state: FSMC
 
             if entry_result:
                 # Показываем краткое сравнение
-                result_text += f"Верных: {entry_result.correct_answers} / {entry_result.total_questions} → {control_result.correct_answers} / {control_result.total_questions}\n"
+                result_text += f"Верных: {entry_result.correct_answers}/{entry_result.total_questions} → {control_result.correct_answers}/{control_result.total_questions}\n"
 
                 # Рассчитываем общий рост по формуле KPI
-                entry_percentage = (entry_result.correct_answers / entry_result.total_questions) * 100
-                control_percentage = (control_result.correct_answers / control_result.total_questions) * 100
+                entry_percentage = entry_result.score_percentage
+                control_percentage = control_result.score_percentage
 
                 if entry_percentage > 0:
                     growth_percentage = ((control_percentage - entry_percentage) / entry_percentage) * 100
                     if growth_percentage > 0:
-                        result_text += f"📈 Общий рост: +{growth_percentage:.1f}%\n"
+                        result_text += f"Общий рост: +{growth_percentage:.1f}%\n"
                     elif growth_percentage < 0:
-                        result_text += f"📉 Общее снижение: {growth_percentage:.1f}%\n"
+                        result_text += f"Общий рост: {growth_percentage:.1f}%\n"
                     else:
-                        result_text += f"📊 Результат остался на том же уровне\n"
+                        result_text += f"Результат остался на том же уровне\n"
                 else:
                     # Если входной тест 0%, показываем абсолютный рост в процентных пунктах
                     if control_percentage > 0:
-                        result_text += f"📈 Рост: +{control_percentage:.1f} п.п.\n"  # п.п. = процентные пункты
+                        result_text += f"Общий рост: +{control_percentage:.1f} п.п.\n"
                     else:
-                        result_text += f"📊 Оба теста показали 0%\n"
+                        result_text += f"Оба теста показали 0%\n"
             else:
                 # Если входной тест не пройден, показываем только контрольный
-                result_text += f"Верных: {control_result.correct_answers} / {control_result.total_questions}\n"
+                result_text += f"Верных: {control_result.correct_answers}/{control_result.total_questions}\n"
         else:
             # Если входной тест не найден, показываем только контрольный
-            result_text += f"Верных: {control_result.correct_answers} / {control_result.total_questions}\n"
+            result_text += f"Верных: {control_result.correct_answers}/{control_result.total_questions}\n"
 
         result_text += "\nВыберите тип аналитики:"
 
@@ -1977,18 +1977,20 @@ async def show_month_control_microtopics_detailed(callback: CallbackQuery, state
                             emoji = "⚠️"
 
                         # Показываем сравнение с ростом
-                        if entry_percentage == 0 and growth_percentage < 0:
-                            # Абсолютный рост (отрицательное значение как флаг)
-                            absolute_growth = -growth_percentage
-                            arrow = f"📈 (+{absolute_growth:.1f} п.п.)"
-                        elif growth_percentage > 0:
-                            arrow = f"↗️ (+{growth_percentage:.1f}%)"
-                        elif growth_percentage < 0:
-                            arrow = f"↘️ ({growth_percentage:.1f}%)"
+                        if entry_percentage == 0 and control_percentage > 0:
+                            # Абсолютный рост в процентных пунктах
+                            result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% (+{control_percentage:.0f} п.п.) {emoji}\n"
+                        elif entry_percentage > 0:
+                            # Относительный рост в процентах
+                            if growth_percentage > 0:
+                                result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% (+{growth_percentage:.1f}%) {emoji}\n"
+                            elif growth_percentage < 0:
+                                result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% ({growth_percentage:.1f}%) {emoji}\n"
+                            else:
+                                result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {emoji}\n"
                         else:
-                            arrow = "→"
-
-                        result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {arrow} {emoji}\n"
+                            # Оба теста 0%
+                            result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {emoji}\n"
                 else:
                     result_text += "Нет данных по микротемам\n"
             else:

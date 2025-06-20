@@ -37,13 +37,19 @@ class BonusAnswerOptionRepository:
     @staticmethod
     async def get_by_bonus_question(bonus_question_id: int) -> List[BonusAnswerOption]:
         """Получить варианты ответов по вопросу"""
+        import logging
         async with get_db_session() as session:
             result = await session.execute(
                 select(BonusAnswerOption)
                 .where(BonusAnswerOption.bonus_question_id == bonus_question_id)
                 .order_by(BonusAnswerOption.order_number)
             )
-            return list(result.scalars().all())
+            options = list(result.scalars().all())
+            logging.info(f"📋 BONUS_REPO: Получено {len(options)} вариантов ответов для бонусного вопроса {bonus_question_id}")
+            if options:
+                for i, opt in enumerate(options):
+                    logging.info(f"   {i+1}. {opt.text} ({'✅' if opt.is_correct else '❌'})")
+            return options
 
     @staticmethod
     async def get_next_order_number(bonus_question_id: int) -> int:

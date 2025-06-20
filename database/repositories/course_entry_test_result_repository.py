@@ -32,6 +32,21 @@ class CourseEntryTestResultRepository:
             return list(result.scalars().all())
 
     @staticmethod
+    async def get_by_id(test_result_id: int) -> Optional[CourseEntryTestResult]:
+        """Получить результат теста по ID"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(CourseEntryTestResult)
+                .options(
+                    selectinload(CourseEntryTestResult.student).selectinload(Student.user),
+                    selectinload(CourseEntryTestResult.subject),
+                    selectinload(CourseEntryTestResult.question_results)
+                )
+                .where(CourseEntryTestResult.id == test_result_id)
+            )
+            return result.scalar_one_or_none()
+
+    @staticmethod
     async def get_by_student_and_subject(student_id: int, subject_id: int) -> Optional[CourseEntryTestResult]:
         """Получить результат теста студента по предмету"""
         async with get_db_session() as session:
@@ -110,8 +125,18 @@ class CourseEntryTestResultRepository:
                 session.add(question_result)
             
             await session.commit()
-            await session.refresh(test_result)
-            return test_result
+
+            # Загружаем объект с связанными данными
+            result = await session.execute(
+                select(CourseEntryTestResult)
+                .options(
+                    selectinload(CourseEntryTestResult.student).selectinload(Student.user),
+                    selectinload(CourseEntryTestResult.subject),
+                    selectinload(CourseEntryTestResult.question_results)
+                )
+                .where(CourseEntryTestResult.id == test_result.id)
+            )
+            return result.scalar_one()
 
     @staticmethod
     async def get_statistics_by_group(group_id: int) -> Dict:

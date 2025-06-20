@@ -79,35 +79,82 @@ async def get_test_subjects_kb(test_type: str, user_id: int = None) -> InlineKey
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_month_test_kb(test_type: str, subject_id: str) -> InlineKeyboardMarkup:
+async def get_month_test_kb(test_type: str, subject_id: str, user_id: int = None) -> InlineKeyboardMarkup:
     """
-    Клавиатура с месяцами для тестов
-    
+    Клавиатура с доступными тестами месяца для предмета
+
     Args:
         test_type: Тип теста (month_entry, month_control)
-        subject_id: ID предмета
+        subject_id: ID предмета (строковый, например "math", "chem")
+        user_id: ID пользователя для получения его курсов
     """
-    months = [
-        {"id": "1", "name": "Сентябрь"},
-        {"id": "2", "name": "Октябрь"},
-        {"id": "3", "name": "Ноябрь"},
-        {"id": "4", "name": "Декабрь"},
-        {"id": "5", "name": "Январь"},
-        {"id": "6", "name": "Февраль"},
-        {"id": "7", "name": "Март"},
-        {"id": "8", "name": "Апрель"},
-        {"id": "9", "name": "Май"}
-    ]
-    
     buttons = []
-    for month in months:
+
+    if user_id:
+        try:
+            from database.repositories.user_repository import UserRepository
+            from database.repositories.student_repository import StudentRepository
+            from database.repositories.subject_repository import SubjectRepository
+            from database.repositories.month_test_repository import MonthTestRepository
+
+            # Получаем пользователя и студента
+            user = await UserRepository.get_by_telegram_id(user_id)
+            if user:
+                student = await StudentRepository.get_by_user_id(user.id)
+                if student:
+                    # Преобразуем subject_id в название предмета
+                    subject_mapping = {
+                        "kz": "История Казахстана",
+                        "mathlit": "Математическая грамотность",
+                        "math": "Математика",
+                        "geo": "География",
+                        "bio": "Биология",
+                        "chem": "Химия",
+                        "inf": "Информатика",
+                        "world": "Всемирная история",
+                        "python": "Python",
+                        "js": "JavaScript",
+                        "java": "Java",
+                        "physics": "Физика"
+                    }
+
+                    subject_name = subject_mapping.get(subject_id, subject_id)
+                    subject = await SubjectRepository.get_by_name(subject_name)
+
+                    if subject:
+                        # Получаем курсы студента
+                        student_courses = await StudentRepository.get_courses(student.id)
+
+                        # Ищем тесты месяца для данного предмета в курсах студента
+                        available_tests = []
+                        for course in student_courses:
+                            tests = await MonthTestRepository.get_by_course_subject(course.id, subject.id)
+                            # Фильтруем по типу теста
+                            test_filter_type = 'entry' if test_type == 'month_entry' else 'control'
+                            filtered_tests = [t for t in tests if t.test_type == test_filter_type]
+                            available_tests.extend(filtered_tests)
+
+                        # Создаем кнопки для доступных тестов
+                        for test in available_tests:
+                            buttons.append([
+                                InlineKeyboardButton(
+                                    text=test.name,
+                                    callback_data=f"{test_type}_{subject_id}_test_{test.id}"
+                                )
+                            ])
+
+        except Exception as e:
+            print(f"Ошибка при получении тестов месяца: {e}")
+
+    # Если нет доступных тестов, показываем сообщение
+    if not buttons:
         buttons.append([
             InlineKeyboardButton(
-                text=month["name"],
-                callback_data=f"{test_type}_{subject_id}_month_{month['id']}"
+                text="📝 Нет доступных тестов",
+                callback_data="no_tests_available"
             )
         ])
-    
+
     # Добавляем кнопку "Назад"
     back_action = "back_to_month_entry_subjects" if test_type == "month_entry" else "back_to_month_control_subjects"
     buttons.append([
@@ -116,7 +163,7 @@ def get_month_test_kb(test_type: str, subject_id: str) -> InlineKeyboardMarkup:
             callback_data=back_action
         )
     ])
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_test_answers_kb() -> InlineKeyboardMarkup:

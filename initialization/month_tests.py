@@ -1,7 +1,7 @@
 """
 Создание тестовых тестов месяца
 """
-from database import MonthTestRepository, QuestionRepository, AnswerOptionRepository, MicrotopicRepository
+from database import MonthTestRepository, QuestionRepository, AnswerOptionRepository, MicrotopicRepository, MonthTestMicrotopicRepository
 
 
 async def add_test_month_tests(created_subjects):
@@ -74,7 +74,21 @@ async def add_test_month_tests(created_subjects):
                 test_type='entry'
             )
 
+            # Получаем микротемы для предмета
+            microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+
+            # Добавляем первые 3 микротемы к тесту (или все, если их меньше 3)
+            microtopics_to_add = microtopics[:3] if len(microtopics) >= 3 else microtopics
+
+            for microtopic in microtopics_to_add:
+                await MonthTestMicrotopicRepository.create(
+                    month_test_id=month_test.id,
+                    microtopic_number=microtopic.number
+                )
+
+            microtopic_numbers = [mt.number for mt in microtopics_to_add]
             print(f"   ✅ Тест месяца '{month_test.name}' создан для предмета '{subject_name}' ({test_data['month']})")
+            print(f"      Добавлены микротемы: {microtopic_numbers}")
             created_count += 1
 
         print(f"🗓️ Создание тестовых тестов месяца завершено! Создано: {created_count}")

@@ -537,25 +537,35 @@ async def start_bonus_test(callback: CallbackQuery, state: FSMContext):
         return
 
     # Инициализируем состояние теста
-    await state.update_data(
-        student_id=student.id,
-        user_id=callback.from_user.id,
-        score=0,
-        q_index=0,
-        total_questions=len(questions),
-        question_results=[],
-        messages_to_delete=[],  # Список сообщений для удаления после теста
-        questions=[{
+    test_data = {
+        'student_id': student.id,
+        'user_id': callback.from_user.id,
+        'bonus_test_id': bonus_test_id,  # Важно: сохраняем ID бонусного теста
+        'score': 0,
+        'q_index': 0,
+        'total_questions': len(questions),
+        'question_results': [],
+        'messages_to_delete': [],  # Список сообщений для удаления после теста
+        'questions': [{
             'id': q.id,
             'text': q.text,
             'photo_path': q.photo_path,
             'time_limit': q.time_limit,
             'microtopic_number': None  # У бонусных тестов нет микротем
         } for q in questions]
-    )
+    }
+
+    logging.info(f"🧪 SHOP: Инициализация бонусного теста - bonus_test_id: {bonus_test_id}, questions: {len(questions)}")
+    await state.update_data(**test_data)
+
+    # Проверяем, что данные сохранились
+    saved_data = await state.get_data()
+    logging.info(f"🧪 SHOP: Данные сохранены в состоянии - bonus_test_id: {saved_data.get('bonus_test_id')}")
 
     await state.set_state(ShopStates.bonus_test_in_progress)
     await callback.answer()
+
+    logging.info(f"🧪 SHOP: Запускаем send_next_question для chat_id: {callback.message.chat.id}")
     await send_next_question(callback.message.chat.id, state, callback.bot, finish_bonus_test)
 
 

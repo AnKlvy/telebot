@@ -131,12 +131,16 @@ async def send_next_question(chat_id: int, state: FSMContext, bot: Bot, finish_c
     # Проверяем, есть ли в данных состояния информация о бонусном тесте
     is_bonus_test = data.get("bonus_test_id") is not None
 
+    logging.info(f"📋 QUIZ: Определение типа теста - is_bonus_test: {is_bonus_test}, bonus_test_id: {data.get('bonus_test_id')}, question_id: {question_id}")
+
     if is_bonus_test:
         # Для бонусных тестов используем BonusAnswerOptionRepository
         answer_options = await BonusAnswerOptionRepository.get_by_bonus_question(question_id)
+        logging.info(f"📋 QUIZ: Получено {len(answer_options) if answer_options else 0} вариантов ответов для бонусного вопроса {question_id}")
     else:
         # Для обычных тестов используем AnswerOptionRepository
         answer_options = await AnswerOptionRepository.get_by_question(question_id)
+        logging.info(f"📋 QUIZ: Получено {len(answer_options) if answer_options else 0} вариантов ответов для обычного вопроса {question_id}")
 
     if not answer_options:
         error_msg = f"❌ QUIZ: Варианты ответов не найдены для вопроса ID {question_id}"

@@ -67,12 +67,13 @@ async def create_month_control_tests():
                 print(f"   ⚠️ Контрольный тест '{test_data['control_test_name']}' уже существует")
                 continue
             
-            # Создаем контрольный тест
+            # Создаем контрольный тест с привязкой к входному
             control_test = await MonthTestRepository.create(
                 name=test_data["control_test_name"],
                 course_id=entry_test.course_id,
                 subject_id=entry_test.subject_id,
-                test_type='control'
+                test_type='control',
+                parent_test_id=entry_test.id
             )
             
             print(f"   ✅ Контрольный тест '{control_test.name}' создан для предмета '{test_data['subject_name']}'")
