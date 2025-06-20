@@ -19,6 +19,9 @@ class CuratorHomeworkStates(StatesGroup):
     student_stats_list = State()
     group_stats_group = State()
     group_stats_result = State()
+    # Состояния для отправки сообщений
+    enter_homework_message = State()
+    confirm_homework_message = State()
 
 
 router = Router()
@@ -183,54 +186,67 @@ async def show_student_stats_list(callback: CallbackQuery, state: FSMContext):
         # Получаем студентов группы
         students = await StudentRepository.get_by_group(group_id)
 
+        # Получаем домашние задания для урока
+        homeworks = await HomeworkRepository.get_by_subject_lesson(group.subject_id, lesson_id)
+
         # Формируем список студентов с их статусом выполнения ДЗ
         completed_students = []
         not_completed_students = []
 
         for student in students:
-            # TODO: Здесь должна быть логика проверки выполнения ДЗ
-            # Пока используем заглушку
-            if student.id % 2 == 0:  # Заглушка: четные ID выполнили
+            # Проверяем выполнение всех ДЗ урока
+            has_completed_all = True
+
+            for homework in homeworks:
+                # Проверяем, есть ли у студента результат по этому ДЗ
+                attempts = await HomeworkResultRepository.get_student_homework_attempts(student.id, homework.id)
+                if not attempts:
+                    has_completed_all = False
+                    break
+
+            if has_completed_all and homeworks:  # Есть ДЗ и все выполнены
                 completed_students.append(student)
             else:
                 not_completed_students.append(student)
 
-        # Создаем клавиатуру со списком студентов
+        # Формируем текст с выполнившими студентами
+        completed_text = ""
+        if completed_students:
+            completed_text = "\n".join([f"• {student.user.name}" for student in completed_students])
+
+        # Создаем клавиатуру только с не выполнившими студентами
         buttons = []
 
-        # Добавляем заголовок для выполнивших
-        if completed_students:
-            buttons.append([InlineKeyboardButton(text="✅ Выполнили:", callback_data="completed_header")])
-            for student in completed_students:
-                buttons.append([
-                    InlineKeyboardButton(
-                        text=student.user.name,
-                        callback_data=f"student_completed_{student.id}"
-                    )
-                ])
-
-        # Добавляем заголовок для не выполнивших
         if not_completed_students:
-            buttons.append([InlineKeyboardButton(text="❌ Не выполнили:", callback_data="not_completed_header")])
             for student in not_completed_students:
-                # Для не выполнивших добавляем ссылку на Telegram
                 buttons.append([
                     InlineKeyboardButton(
                         text=student.user.name,
-                        url=f"tg://user?id={student.user.telegram_id}"
+                        callback_data=f"hw_message_student_{student.id}"
                     )
                 ])
 
         buttons.extend(get_main_menu_back_button())
 
-        await callback.message.edit_text(
+        # Формируем полный текст сообщения
+        message_text = (
             f"📊 Статистика выполнения ДЗ\n"
             f"👥 Группа: {group.name} ({group.subject.name})\n"
             f"📚 Курс: {course.name}\n"
             f"📖 Урок: {lesson.name}\n\n"
             f"✅ Выполнили: {len(completed_students)}\n"
-            f"❌ Не выполнили: {len(not_completed_students)}\n\n"
-            "Нажмите на имя ученика для связи:",
+        )
+
+        if completed_text:
+            message_text += completed_text + "\n\n"
+
+        message_text += f"❌ Не выполнили: {len(not_completed_students)}"
+
+        if not_completed_students:
+            message_text += "\n\nНажмите на имя ученика для отправки сообщения:"
+
+        await callback.message.edit_text(
+            message_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
         await state.set_state(CuratorHomeworkStates.student_stats_list)
@@ -329,4 +345,151 @@ async def show_group_stats(callback: CallbackQuery, state: FSMContext):
         ])
     )
     await state.set_state(CuratorHomeworkStates.group_stats_result)
+
+
+# Обработчики для отправки сообщений студентам
+@router.callback_query(CuratorHomeworkStates.student_stats_list, F.data.startswith("hw_message_student_"))
+async def enter_homework_message(callback: CallbackQuery, state: FSMContext):
+    """Ввод сообщения для студента, не выполнившего ДЗ"""
+    student_id = int(callback.data.replace("hw_message_student_", ""))
+
+    try:
+        # Получаем информацию о студенте
+        student = await StudentRepository.get_by_id(student_id)
+        if not student:
+            await callback.message.edit_text(
+                "❌ Студент не найден",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+            return
+
+        # Сохраняем данные о студенте
+        await state.update_data(
+            selected_student_id=student_id,
+            student_name=student.user.name
+        )
+
+        await callback.message.edit_text(
+            f"Введите текст сообщения для ученика {student.user.name}:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                *get_main_menu_back_button()
+            ])
+        )
+        await state.set_state(CuratorHomeworkStates.enter_homework_message)
+
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ Ошибка при выборе студента: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                *get_main_menu_back_button()
+            ])
+        )
+        print(f"Ошибка в enter_homework_message: {e}")
+
+
+@router.message(CuratorHomeworkStates.enter_homework_message)
+async def confirm_homework_message(message, state: FSMContext):
+    """Подтверждение отправки сообщения студенту"""
+    message_text = message.text
+    user_data = await state.get_data()
+    student_name = user_data.get("student_name", "Неизвестный ученик")
+
+    await state.update_data(message_text=message_text)
+
+    # Удаляем сообщение пользователя
+    await message.delete()
+
+    await message.answer(
+        f"Отправить сообщение ученику {student_name}?\n\n"
+        f"Текст сообщения:\n{message_text}",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Отправить", callback_data="send_homework_message")],
+            [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_homework_message")]
+        ])
+    )
+    await state.set_state(CuratorHomeworkStates.confirm_homework_message)
+
+
+@router.callback_query(CuratorHomeworkStates.confirm_homework_message, F.data == "send_homework_message")
+async def send_homework_message(callback: CallbackQuery, state: FSMContext):
+    """Отправка сообщения студенту"""
+    user_data = await state.get_data()
+    student_id = user_data.get("selected_student_id")
+    student_name = user_data.get("student_name", "Неизвестный ученик")
+    message_text = user_data.get("message_text", "")
+
+    try:
+        # Получаем студента для получения telegram_id
+        student = await StudentRepository.get_by_id(student_id)
+        if not student:
+            await callback.message.edit_text(
+                "❌ Студент не найден",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+            return
+
+        telegram_id = student.user.telegram_id
+        success = False
+        error_message = ""
+
+        if telegram_id:
+            try:
+                # Отправляем сообщение ученику
+                await callback.bot.send_message(
+                    chat_id=telegram_id,
+                    text=f"Сообщение от куратора:\n\n{message_text}"
+                )
+                success = True
+            except Exception as e:
+                print(f"Ошибка при отправке сообщения: {e}")
+                error_str = str(e)
+                if "Forbidden" in error_str or "bot was blocked" in error_str or "chat not found" in error_str:
+                    error_message = f"❌ Ученик {student_name} никогда не писал боту.\n\nПопросите ученика написать боту любое сообщение (например, /start), а затем попробуйте снова."
+                else:
+                    error_message = f"❌ Не удалось отправить сообщение ученику {student_name}.\nОшибка: {error_str}"
+        else:
+            error_message = f"❌ У ученика {student_name} не указан Telegram ID."
+
+        if success:
+            await callback.message.edit_text(
+                f"✅ Сообщение успешно отправлено ученику {student_name}",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+        else:
+            await callback.message.edit_text(
+                error_message,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    *get_main_menu_back_button()
+                ])
+            )
+
+        # Очищаем состояние
+        await state.clear()
+
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ Ошибка при отправке сообщения: {str(e)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                *get_main_menu_back_button()
+            ])
+        )
+        print(f"Ошибка в send_homework_message: {e}")
+
+
+@router.callback_query(CuratorHomeworkStates.confirm_homework_message, F.data == "cancel_homework_message")
+async def cancel_homework_message(callback: CallbackQuery, state: FSMContext):
+    """Отмена отправки сообщения"""
+    await callback.message.edit_text(
+        "❌ Отправка сообщения отменена",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            *get_main_menu_back_button()
+        ])
+    )
+    await state.clear()
 

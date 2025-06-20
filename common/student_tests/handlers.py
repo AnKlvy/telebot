@@ -6,6 +6,7 @@ import logging
 from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
+from .states import StudentTestsStates
 
 # Импортируем все модули
 from .base_handlers import router as base_router
@@ -32,7 +33,6 @@ from .base_handlers import (
     handle_month_entry_month,
     handle_month_control_subject,
     handle_month_control_month,
-    back_to_tests,
     show_month_entry_test_statistics,
     show_month_control_test_statistics
 )
@@ -106,3 +106,126 @@ async def show_student_course_entry_microtopics_summary(callback: CallbackQuery,
             "❌ Ошибка при получении сводки",
             reply_markup=get_back_to_test_kb()
         )
+
+
+# Обработчики состояний для системы навигации
+async def handle_main(callback, state=None, user_role: str = None):
+    """Обработчик главного меню тестов"""
+    from .menu import show_tests_menu_safe
+    from aiogram.types import CallbackQuery, Message
+
+    # Если state не передан, создаем фиктивный FSMContext
+    if state is None:
+        from aiogram.fsm.context import FSMContext
+        state = FSMContext(storage=None, key=None)
+
+    # Проверяем тип объекта
+    if isinstance(callback, CallbackQuery):
+        # Это CallbackQuery - используем безопасную версию
+        await show_tests_menu_safe(callback, state, user_role)
+    elif isinstance(callback, Message):
+        # Это Message - создаем CallbackQuery-подобный объект
+        class FakeCallback:
+            def __init__(self, message):
+                self.message = message
+                self.from_user = message.from_user
+
+        fake_callback = FakeCallback(callback)
+        await show_tests_menu_safe(fake_callback, state, user_role)
+    else:
+        # Неизвестный тип - пытаемся обработать как CallbackQuery
+        await show_tests_menu_safe(callback, state, user_role)
+
+async def handle_test_result(callback, state=None, user_role: str = None):
+    """Обработчик состояния результата теста"""
+    await handle_main(callback, state, user_role)
+
+async def handle_test_in_progress(callback, state=None, user_role: str = None):
+    """Обработчик состояния прохождения теста"""
+    await handle_main(callback, state, user_role)
+
+# Обработчики для входного теста курса
+async def handle_course_entry_subjects(callback, state=None, user_role: str = None):
+    """Обработчик выбора предметов для входного теста курса"""
+    from .keyboards import get_test_subjects_kb
+    from aiogram.types import CallbackQuery, Message
+
+    # Обработка разных типов callback
+    if isinstance(callback, CallbackQuery):
+        # Это CallbackQuery
+        await callback.message.edit_text(
+            "Выберите предмет для входного теста курса:",
+            reply_markup=await get_test_subjects_kb("course_entry", user_id=callback.from_user.id)
+        )
+        if state:
+            await state.set_state(StudentTestsStates.course_entry_subjects)
+    elif isinstance(callback, Message):
+        # Это Message
+        await callback.edit_text(
+            "Выберите предмет для входного теста курса:",
+            reply_markup=await get_test_subjects_kb("course_entry", user_id=callback.from_user.id)
+        )
+
+async def handle_course_entry_subject_selected(callback, state=None, user_role: str = None):
+    """Обработчик после выбора предмета для входного теста курса"""
+    await handle_course_entry_subjects(callback, state, user_role)
+
+# Обработчики для входного теста месяца
+async def handle_month_entry_subjects(callback, state=None, user_role: str = None):
+    """Обработчик выбора предметов для входного теста месяца"""
+    from .keyboards import get_test_subjects_kb
+    from aiogram.types import CallbackQuery, Message
+
+    # Обработка разных типов callback
+    if isinstance(callback, CallbackQuery):
+        # Это CallbackQuery
+        await callback.message.edit_text(
+            "Выберите предмет для входного теста месяца:",
+            reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
+        )
+        if state:
+            await state.set_state(StudentTestsStates.month_entry_subjects)
+    elif isinstance(callback, Message):
+        # Это Message
+        await callback.edit_text(
+            "Выберите предмет для входного теста месяца:",
+            reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
+        )
+
+async def handle_month_entry_subject_selected(callback, state=None, user_role: str = None):
+    """Обработчик после выбора предмета для входного теста месяца"""
+    await handle_month_entry_subjects(callback, state, user_role)
+
+async def handle_month_entry_month_selected(callback, state=None, user_role: str = None):
+    """Обработчик после выбора месяца для входного теста месяца"""
+    await handle_month_entry_subjects(callback, state, user_role)
+
+# Обработчики для контрольного теста месяца
+async def handle_month_control_subjects(callback, state=None, user_role: str = None):
+    """Обработчик выбора предметов для контрольного теста месяца"""
+    from .keyboards import get_test_subjects_kb
+    from aiogram.types import CallbackQuery, Message
+
+    # Обработка разных типов callback
+    if isinstance(callback, CallbackQuery):
+        # Это CallbackQuery
+        await callback.message.edit_text(
+            "Выберите предмет для контрольного теста месяца:",
+            reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
+        )
+        if state:
+            await state.set_state(StudentTestsStates.month_control_subjects)
+    elif isinstance(callback, Message):
+        # Это Message
+        await callback.edit_text(
+            "Выберите предмет для контрольного теста месяца:",
+            reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
+        )
+
+async def handle_month_control_subject_selected(callback, state=None, user_role: str = None):
+    """Обработчик после выбора предмета для контрольного теста месяца"""
+    await handle_month_control_subjects(callback, state, user_role)
+
+async def handle_month_control_month_selected(callback, state=None, user_role: str = None):
+    """Обработчик после выбора месяца для контрольного теста месяца"""
+    await handle_month_control_subjects(callback, state, user_role)

@@ -41,24 +41,21 @@ async def show_student_tests(callback: CallbackQuery, state: FSMContext):
     await show_tests_menu(callback, state, "student")
 
 
-@router.callback_query(F.data == "back_to_tests")
-async def back_to_tests(callback: CallbackQuery, state: FSMContext):
-    """Возврат в меню тестов"""
-    await show_tests_menu(callback, state, "student")
+# Удаляем дублирующий обработчик - он будет добавлен ниже с фильтрами состояний
 
 
 # Входной тест курса
-@router.callback_query(F.data == "course_entry_test")
+@router.callback_query(StudentTestsStates.main, F.data == "course_entry_test")
 async def show_course_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста курса"""
     await callback.message.edit_text(
         "Выберите предмет для входного теста курса:",
         reply_markup=await get_test_subjects_kb("course_entry", user_id=callback.from_user.id)
     )
-    await state.set_state(StudentTestsStates.select_group_entry)
+    await state.set_state(StudentTestsStates.course_entry_subjects)
 
 
-@router.callback_query(StudentTestsStates.select_group_entry, F.data.startswith("course_entry_sub_"))
+@router.callback_query(StudentTestsStates.course_entry_subjects, F.data.startswith("course_entry_sub_"))
 async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста курса"""
     subject_id = callback.data.replace("course_entry_sub_", "")
@@ -66,30 +63,30 @@ async def handle_course_entry_subject(callback: CallbackQuery, state: FSMContext
 
 
 # Входной тест месяца
-@router.callback_query(F.data == "month_entry_test")
+@router.callback_query(StudentTestsStates.main, F.data == "month_entry_test")
 async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для входного теста месяца"""
     await callback.message.edit_text(
         "Выберите предмет для входного теста месяца:",
         reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
     )
-    await state.set_state(StudentTestsStates.select_group_entry)
+    await state.set_state(StudentTestsStates.month_entry_subjects)
 
 
-@router.callback_query(StudentTestsStates.select_group_entry, F.data.startswith("month_entry_sub_"))
+@router.callback_query(StudentTestsStates.month_entry_subjects, F.data.startswith("month_entry_sub_"))
 async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста месяца"""
     subject_id = callback.data.replace("month_entry_sub_", "")
-    
+
     # Показываем доступные месяцы для выбранного предмета
     await callback.message.edit_text(
         f"Выберите месяц для входного теста:",
         reply_markup=await get_month_test_kb("month_entry", subject_id, user_id=callback.from_user.id)
     )
-    await state.set_state(StudentTestsStates.select_month_entry)
+    await state.set_state(StudentTestsStates.month_entry_subject_selected)
 
 
-@router.callback_query(StudentTestsStates.select_month_entry, F.data.startswith("month_entry_"))
+@router.callback_query(StudentTestsStates.month_entry_subject_selected, F.data.startswith("month_entry_"))
 async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для входного теста месяца"""
     # Парсим данные: month_entry_subject_test_testid
@@ -106,30 +103,30 @@ async def handle_month_entry_month(callback: CallbackQuery, state: FSMContext):
 
 
 # Контрольный тест месяца
-@router.callback_query(F.data == "month_control_test")
+@router.callback_query(StudentTestsStates.main, F.data == "month_control_test")
 async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext):
     """Показать предметы для контрольного теста месяца"""
     await callback.message.edit_text(
         "Выберите предмет для контрольного теста месяца:",
         reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
     )
-    await state.set_state(StudentTestsStates.select_group_control)
+    await state.set_state(StudentTestsStates.month_control_subjects)
 
 
-@router.callback_query(StudentTestsStates.select_group_control, F.data.startswith("month_control_sub_"))
+@router.callback_query(StudentTestsStates.month_control_subjects, F.data.startswith("month_control_sub_"))
 async def handle_month_control_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для контрольного теста месяца"""
     subject_id = callback.data.replace("month_control_sub_", "")
-    
+
     # Показываем доступные месяцы для выбранного предмета
     await callback.message.edit_text(
         f"Выберите месяц для контрольного теста:",
         reply_markup=await get_month_test_kb("month_control", subject_id, user_id=callback.from_user.id)
     )
-    await state.set_state(StudentTestsStates.select_month_control)
+    await state.set_state(StudentTestsStates.month_control_subject_selected)
 
 
-@router.callback_query(StudentTestsStates.select_month_control, F.data.startswith("month_control_"))
+@router.callback_query(StudentTestsStates.month_control_subject_selected, F.data.startswith("month_control_"))
 async def handle_month_control_month(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора месяца для контрольного теста месяца"""
     # Парсим данные: month_control_subject_test_testid
@@ -461,33 +458,7 @@ async def show_month_control_test_statistics(callback: CallbackQuery, state: FSM
         )
 
 
-# Специфичные обработчики навигации с фильтрами состояний
-@router.callback_query(StudentTestsStates.select_month_entry, F.data == "back_to_month_entry_subjects")
-async def back_to_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
-    """Возврат к выбору предметов для входного теста месяца"""
-    await callback.message.edit_text(
-        "Выберите предмет для входного теста месяца:",
-        reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
-    )
-    await state.set_state(StudentTestsStates.select_group_entry)
-
-
-@router.callback_query(StudentTestsStates.select_month_control, F.data == "back_to_month_control_subjects")
-async def back_to_month_control_subjects(callback: CallbackQuery, state: FSMContext):
-    """Возврат к выбору предметов для контрольного теста месяца"""
-    await callback.message.edit_text(
-        "Выберите предмет для контрольного теста месяца:",
-        reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
-    )
-    await state.set_state(StudentTestsStates.select_group_control)
-
-
-# Обработчики для возврата в меню тестов из состояния ошибки
-@router.callback_query(F.data == "back_to_tests")
-async def back_to_tests_universal(callback: CallbackQuery, state: FSMContext):
-    """Универсальный возврат в меню тестов"""
-    from .menu import show_tests_menu
-    await show_tests_menu(callback, state)
+# Все обработчики "Назад" удалены - используется общая система навигации через common/navigation.py
 
 
 # Обработчики детальной аналитики для студентов (как у куратора)
