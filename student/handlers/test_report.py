@@ -52,7 +52,14 @@ async def show_student_course_entry_summary(callback: CallbackQuery, state: FSMC
             reply_markup=get_back_to_test_kb()
         )
 
-# НЕ регистрируем quiz обработчики здесь, так как они уже зарегистрированы в common/student_tests/handlers.py
+# Регистрируем quiz обработчики для входного теста курса
+register_quiz_handlers(
+    router=router,
+    test_state=StudentTestStates.test_in_progress,
+    poll_answer_handler=None,  # Используем стандартный обработчик
+    timeout_handler=None,      # Используем стандартный обработчик
+    finish_handler=None        # Будем передавать в send_next_question
+)
 
 @router.callback_query(F.data == "student_tests")
 async def show_student_tests(callback: CallbackQuery, state: FSMContext):
