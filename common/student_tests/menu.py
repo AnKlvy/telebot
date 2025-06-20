@@ -55,4 +55,6 @@ async def show_tests_menu_safe(callback: CallbackQuery, state: FSMContext, user_
             reply_markup=get_tests_menu_kb()
         )
 
-    await state.set_state(StudentTestsStates.main)
+    # Устанавливаем состояние только если state не None
+    if state:
+        await state.set_state(StudentTestsStates.main)

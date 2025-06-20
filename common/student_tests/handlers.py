@@ -55,6 +55,31 @@ register_quiz_handlers(
     test_state=StudentTestsStates.test_in_progress
 )
 
+# Основная функция для обработки главного меню тестов
+async def handle_main(callback, state=None, user_role: str = None):
+    """Обработчик главного меню тестов"""
+    from aiogram.types import CallbackQuery, Message
+    from .keyboards import get_tests_menu_kb
+    from .states import StudentTestsStates
+
+    text = (
+        "🧠 Тест-отчет\n\n"
+        "В этом разделе ты можешь пройти входные и контрольные тесты "
+        "и посмотреть, как растёт твой уровень знаний.\n\n"
+        "Выбери тип теста:"
+    )
+
+    if isinstance(callback, CallbackQuery):
+        try:
+            await callback.message.edit_text(text, reply_markup=get_tests_menu_kb())
+        except Exception:
+            await callback.message.answer(text, reply_markup=get_tests_menu_kb())
+    elif isinstance(callback, Message):
+        await callback.answer(text, reply_markup=get_tests_menu_kb())
+
+    if state:
+        await state.set_state(StudentTestsStates.main)
+
 # Функции для детальной аналитики входного теста курса
 async def show_student_course_entry_microtopics_detailed(callback: CallbackQuery, state: FSMContext, test_result_id: int):
     """Показать детальную статистику по микротемам входного теста курса для студента"""
@@ -108,33 +133,6 @@ async def show_student_course_entry_microtopics_summary(callback: CallbackQuery,
         )
 
 
-# Обработчики состояний для системы навигации
-async def handle_main(callback, state=None, user_role: str = None):
-    """Обработчик главного меню тестов"""
-    from .menu import show_tests_menu_safe
-    from aiogram.types import CallbackQuery, Message
-
-    # Если state не передан, создаем фиктивный FSMContext
-    if state is None:
-        from aiogram.fsm.context import FSMContext
-        state = FSMContext(storage=None, key=None)
-
-    # Проверяем тип объекта
-    if isinstance(callback, CallbackQuery):
-        # Это CallbackQuery - используем безопасную версию
-        await show_tests_menu_safe(callback, state, user_role)
-    elif isinstance(callback, Message):
-        # Это Message - создаем CallbackQuery-подобный объект
-        class FakeCallback:
-            def __init__(self, message):
-                self.message = message
-                self.from_user = message.from_user
-
-        fake_callback = FakeCallback(callback)
-        await show_tests_menu_safe(fake_callback, state, user_role)
-    else:
-        # Неизвестный тип - пытаемся обработать как CallbackQuery
-        await show_tests_menu_safe(callback, state, user_role)
 
 async def handle_test_result(callback, state=None, user_role: str = None):
     """Обработчик состояния результата теста"""
@@ -161,7 +159,7 @@ async def handle_course_entry_subjects(callback, state=None, user_role: str = No
             await state.set_state(StudentTestsStates.course_entry_subjects)
     elif isinstance(callback, Message):
         # Это Message
-        await callback.edit_text(
+        await callback.answer(
             "Выберите предмет для входного теста курса:",
             reply_markup=await get_test_subjects_kb("course_entry", user_id=callback.from_user.id)
         )
@@ -187,7 +185,7 @@ async def handle_month_entry_subjects(callback, state=None, user_role: str = Non
             await state.set_state(StudentTestsStates.month_entry_subjects)
     elif isinstance(callback, Message):
         # Это Message
-        await callback.edit_text(
+        await callback.answer(
             "Выберите предмет для входного теста месяца:",
             reply_markup=await get_test_subjects_kb("month_entry", user_id=callback.from_user.id)
         )
@@ -217,7 +215,7 @@ async def handle_month_control_subjects(callback, state=None, user_role: str = N
             await state.set_state(StudentTestsStates.month_control_subjects)
     elif isinstance(callback, Message):
         # Это Message
-        await callback.edit_text(
+        await callback.answer(
             "Выберите предмет для контрольного теста месяца:",
             reply_markup=await get_test_subjects_kb("month_control", user_id=callback.from_user.id)
         )

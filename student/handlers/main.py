@@ -15,10 +15,9 @@ async def student_start(message: Message, state: FSMContext, user_role: str = No
     """Начальное меню студента"""
     # Если роль не куратор, показываем меню студента
     if user_role == "student":
-        await show_student_main_menu(message)
-        await state.set_state(StudentMainStates.main)
+        await show_student_main_menu(message, state)
 
-async def show_student_main_menu(message: Message, user_role: str = None):
+async def show_student_main_menu(message: Message, state: FSMContext = None, user_role: str = None):
     """Возврат в главное меню студента"""
     # Студенческое меню доступно всем (включая админов и новых пользователей)
     # Не делаем проверку роли, так как это меню по умолчанию
@@ -29,3 +28,6 @@ async def show_student_main_menu(message: Message, user_role: str = None):
         "Ниже — все разделы, которые тебе доступны:",
         reply_markup=get_student_main_menu_kb()
     )
+
+    if state:
+        await state.set_state(StudentMainStates.main)
