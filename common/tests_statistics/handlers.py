@@ -2,6 +2,8 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 import logging
+
+from database import MonthControlTestResultRepository
 from .keyboards import (
     get_tests_statistics_menu_kb,
     get_groups_kb,
