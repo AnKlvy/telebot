@@ -456,7 +456,48 @@ async def show_month_control_test_statistics(callback: CallbackQuery, state: FSM
 
 
 # Обработчики детальной аналитики для студентов (как у куратора)
-@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_entry_detailed_"))
+
+# Обработчики для входного теста курса
+@router.callback_query(StudentTestsStates.course_entry_result, F.data.startswith("student_course_entry_detailed_"))
+async def show_student_course_entry_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам входного теста курса для студента"""
+    try:
+        # Формат: student_course_entry_detailed_TEST_RESULT_ID
+        test_result_id = int(callback.data.split("_")[-1])
+
+        # Вызываем функцию из handlers.py
+        from .handlers import show_student_course_entry_microtopics_detailed
+        await show_student_course_entry_microtopics_detailed(callback, state, test_result_id)
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики входного теста курса: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+@router.callback_query(StudentTestsStates.course_entry_result, F.data.startswith("student_course_entry_summary_"))
+async def show_student_course_entry_summary(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным/слабым темам входного теста курса для студента"""
+    try:
+        # Формат: student_course_entry_summary_TEST_RESULT_ID
+        test_result_id = int(callback.data.split("_")[-1])
+
+        # Вызываем функцию из handlers.py
+        from .handlers import show_student_course_entry_microtopics_summary
+        await show_student_course_entry_microtopics_summary(callback, state, test_result_id)
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении сводки входного теста курса: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении сводки",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+# Обработчики для тестов месяца
+@router.callback_query(StudentTestsStates.month_entry_result, F.data.startswith("student_month_entry_detailed_"))
 async def show_student_month_entry_detailed(callback: CallbackQuery, state: FSMContext):
     """Показать детальную статистику по микротемам входного теста месяца для студента"""
     try:
@@ -533,7 +574,7 @@ async def show_student_month_entry_detailed(callback: CallbackQuery, state: FSMC
         )
 
 
-@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_entry_summary_"))
+@router.callback_query(StudentTestsStates.month_entry_result, F.data.startswith("student_month_entry_summary_"))
 async def show_student_month_entry_summary(callback: CallbackQuery, state: FSMContext):
     """Показать сводку по сильным/слабым темам входного теста месяца для студента"""
     try:
@@ -625,7 +666,7 @@ async def show_student_month_entry_summary(callback: CallbackQuery, state: FSMCo
         )
 
 
-@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_control_detailed_"))
+@router.callback_query(StudentTestsStates.month_control_result, F.data.startswith("student_month_control_detailed_"))
 async def show_student_month_control_detailed(callback: CallbackQuery, state: FSMContext):
     """Показать детальную статистику по микротемам контрольного теста месяца для студента"""
     try:
@@ -702,7 +743,7 @@ async def show_student_month_control_detailed(callback: CallbackQuery, state: FS
         )
 
 
-@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_control_summary_"))
+@router.callback_query(StudentTestsStates.month_control_result, F.data.startswith("student_month_control_summary_"))
 async def show_student_month_control_summary(callback: CallbackQuery, state: FSMContext):
     """Показать сводку по сильным/слабым темам контрольного теста месяца для студента"""
     try:

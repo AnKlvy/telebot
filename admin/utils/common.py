@@ -182,6 +182,10 @@ async def remove_group(group_id: int) -> bool:
     """Удалить группу"""
     return await GroupRepository.delete(group_id)
 
+async def remove_all_groups() -> int:
+    """Удалить все группы"""
+    return await GroupRepository.delete_all()
+
 async def check_existing_user_for_role_assignment(telegram_id: int, target_role: str, current_user_telegram_id: int = None) -> dict:
     """
     Проверить существующего пользователя для назначения роли
@@ -334,12 +338,46 @@ async def remove_student(student_id: int) -> bool:
     if not student:
         return False
 
-    # Удаляем пользователя (студент удалится каскадно)
+    # Проверяем, не является ли это пользователем с ролью админа
+    if student.user.role == 'admin':
+        print(f"⚠️ Попытка удаления студента с ролью админа (ID: {student.user.telegram_id}). Удаление отменено.")
+        # Удаляем только связи, но оставляем пользователя и студента
+        from sqlalchemy import delete
+        from database.models import student_courses, student_groups
+        from database import get_db_session
+
+        async with get_db_session() as session:
+            # Удаляем только связи с курсами
+            await session.execute(
+                delete(student_courses).where(student_courses.c.student_id == student_id)
+            )
+
+            # Удаляем только связи с группами
+            await session.execute(
+                delete(student_groups).where(student_groups.c.student_id == student_id)
+            )
+
+            await session.commit()
+            print(f"✅ Связи студента-админа удалены, но пользователь сохранен")
+            return True
+
+    # Удаляем все связи студента с курсами и группами, затем самого студента и пользователя
     from sqlalchemy import delete
-    from database.models import User
+    from database.models import User, student_courses, student_groups
     from database import get_db_session
 
     async with get_db_session() as session:
+        # Сначала удаляем связи с курсами
+        await session.execute(
+            delete(student_courses).where(student_courses.c.student_id == student_id)
+        )
+
+        # Затем удаляем связи с группами
+        await session.execute(
+            delete(student_groups).where(student_groups.c.student_id == student_id)
+        )
+
+        # Теперь можно безопасно удалить пользователя (студент удалится каскадно)
         result = await session.execute(delete(User).where(User.id == student.user_id))
         await session.commit()
         return result.rowcount > 0
@@ -438,6 +476,20 @@ async def remove_curator(curator_id: int) -> bool:
     if not curator:
         return False
 
+    # Проверяем, не является ли это пользователем с ролью admin
+    if curator.user.role == 'admin':
+        print(f"⚠️ Попытка удаления куратора с ролью admin (ID: {curator.user.telegram_id}). Удаление отменено.")
+        # Удаляем только профиль куратора, но оставляем пользователя
+        from sqlalchemy import delete
+        from database.models import Curator
+        from database import get_db_session
+
+        async with get_db_session() as session:
+            result = await session.execute(delete(Curator).where(Curator.id == curator_id))
+            await session.commit()
+            print(f"✅ Профиль куратора-админа удален, но пользователь сохранен")
+            return result.rowcount > 0
+
     # Удаляем пользователя (куратор удалится каскадно)
     from sqlalchemy import delete
     from database.models import User
@@ -515,6 +567,20 @@ async def remove_teacher(teacher_id: int) -> bool:
     if not teacher:
         return False
 
+    # Проверяем, не является ли это пользователем с ролью admin
+    if teacher.user.role == 'admin':
+        print(f"⚠️ Попытка удаления преподавателя с ролью admin (ID: {teacher.user.telegram_id}). Удаление отменено.")
+        # Удаляем только профиль преподавателя, но оставляем пользователя
+        from sqlalchemy import delete
+        from database.models import Teacher
+        from database import get_db_session
+
+        async with get_db_session() as session:
+            result = await session.execute(delete(Teacher).where(Teacher.id == teacher_id))
+            await session.commit()
+            print(f"✅ Профиль преподавателя-админа удален, но пользователь сохранен")
+            return result.rowcount > 0
+
     # Удаляем пользователя (преподаватель удалится каскадно)
     from sqlalchemy import delete
     from database.models import User
@@ -579,6 +645,20 @@ async def remove_manager(manager_id: int) -> bool:
     manager = await ManagerRepository.get_by_id(manager_id)
     if not manager:
         return False
+
+    # Проверяем, не является ли это пользователем с ролью admin
+    if manager.user.role == 'admin':
+        print(f"⚠️ Попытка удаления менеджера с ролью admin (ID: {manager.user.telegram_id}). Удаление отменено.")
+        # Удаляем только профиль менеджера, но оставляем пользователя
+        from sqlalchemy import delete
+        from database.models import Manager
+        from database import get_db_session
+
+        async with get_db_session() as session:
+            result = await session.execute(delete(Manager).where(Manager.id == manager_id))
+            await session.commit()
+            print(f"✅ Профиль менеджера-админа удален, но пользователь сохранен")
+            return result.rowcount > 0
 
     # Удаляем пользователя (менеджер удалится каскадно)
     from sqlalchemy import delete

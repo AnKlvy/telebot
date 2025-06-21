@@ -2,7 +2,6 @@ from common.student_tests.states import StudentTestsStates
 from typing import Dict, Any, Callable
 from common.student_tests.handlers import (
     handle_main,
-    handle_test_result,
     handle_test_in_progress,
     handle_course_entry_subjects,
     handle_course_entry_subject_selected,
@@ -38,7 +37,6 @@ STATE_TRANSITIONS = {
 
     # Общие состояния
     StudentTestsStates.test_in_progress: StudentTestsStates.main,  # Из теста возвращаемся в главное меню
-    StudentTestsStates.test_result: StudentTestsStates.main,  # Общее состояние (для обратной совместимости)
 
     # Отдельные состояния результатов с логичными переходами
     StudentTestsStates.course_entry_result: StudentTestsStates.course_entry_subjects,  # К выбору предмета
@@ -52,7 +50,6 @@ STATE_TRANSITIONS = {
 STATE_HANDLERS = {
     # Добавляем обработчик для главного меню тестов
     StudentTestsStates.main: handle_main,
-    StudentTestsStates.test_result: handle_test_result,
     StudentTestsStates.test_in_progress: handle_test_in_progress,
 
     # Обработчики для отдельных состояний результатов

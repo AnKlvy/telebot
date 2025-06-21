@@ -135,10 +135,6 @@ async def show_student_course_entry_microtopics_summary(callback: CallbackQuery,
 
 
 
-async def handle_test_result(callback, state=None, user_role: str = None):
-    """Обработчик состояния результата теста"""
-    await handle_main(callback, state, user_role)
-
 async def handle_test_in_progress(callback, state=None, user_role: str = None):
     """Обработчик состояния прохождения теста"""
     await handle_main(callback, state, user_role)
