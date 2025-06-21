@@ -44,7 +44,8 @@ STATE_TRANSITIONS = {
 
 # Словарь обработчиков состояний
 STATE_HANDLERS = {
-    # Убираем StudentTestsStates.main: handle_main - из главного меню тестов "Назад" должен вести в главное меню студента
+    # Добавляем обработчик для главного меню тестов
+    StudentTestsStates.main: handle_main,
     StudentTestsStates.test_result: handle_test_result,
     StudentTestsStates.test_in_progress: handle_test_in_progress,
 

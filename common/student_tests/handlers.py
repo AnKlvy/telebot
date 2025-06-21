@@ -16,16 +16,13 @@ from .month_handlers import router as month_handlers_router
 # Импортируем функции для использования в других модулях
 from .course_entry_handlers import (
     show_course_entry_test_results,
-    show_course_entry_test_results_final,
-    handle_course_entry_confirmation
+    show_course_entry_test_results_final
 )
 from .month_handlers import (
     generate_month_test_questions,
     finish_month_entry_test,
     finish_month_control_test,
-    show_month_control_test_statistics_final,
-    handle_month_entry_confirmation,
-    handle_month_control_confirmation
+    show_month_control_test_statistics_final
 )
 from .base_handlers import (
     show_course_entry_subjects,
@@ -230,4 +227,17 @@ async def handle_month_control_subject_selected(callback, state=None, user_role:
 
 async def handle_month_control_month_selected(callback, state=None, user_role: str = None):
     """Обработчик после выбора месяца для контрольного теста месяца"""
+    await handle_month_control_subjects(callback, state, user_role)
+
+# Обработчики для состояний подтверждения
+async def handle_course_entry_confirmation(callback, state=None, user_role: str = None):
+    """Обработчик состояния подтверждения входного теста курса для навигации"""
+    await handle_course_entry_subjects(callback, state, user_role)
+
+async def handle_month_entry_confirmation(callback, state=None, user_role: str = None):
+    """Обработчик состояния подтверждения входного теста месяца для навигации"""
+    await handle_month_entry_subjects(callback, state, user_role)
+
+async def handle_month_control_confirmation(callback, state=None, user_role: str = None):
+    """Обработчик состояния подтверждения контрольного теста месяца для навигации"""
     await handle_month_control_subjects(callback, state, user_role)
