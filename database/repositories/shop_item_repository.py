@@ -45,19 +45,34 @@ class ShopItemRepository:
             return list(result.scalars().all())
     
     @staticmethod
-    async def create(name: str, description: str, price: int, item_type: str) -> ShopItem:
+    async def create(name: str, description: str, price: int, item_type: str,
+                    content: str = None, file_path: str = None, contact_info: str = None) -> ShopItem:
         """Создать новый товар"""
         async with get_db_session() as session:
             item = ShopItem(
                 name=name,
                 description=description,
                 price=price,
-                item_type=item_type
+                item_type=item_type,
+                content=content,
+                file_path=file_path,
+                contact_info=contact_info
             )
             session.add(item)
             await session.commit()
             await session.refresh(item)
             return item
+
+    @staticmethod
+    async def create_bonus_task(name: str, description: str, price: int) -> ShopItem:
+        """Создать бонусное задание"""
+        return await ShopItemRepository.create(
+            name=name,
+            description=description,
+            price=price,
+            item_type="bonus_task",
+            content=description  # Используем описание как контент задания
+        )
     
     @staticmethod
     async def update_price(item_id: int, new_price: int) -> bool:

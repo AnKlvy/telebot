@@ -5,6 +5,7 @@ import logging
 
 from common.keyboards import get_main_menu_back_button, get_home_kb
 from .main import show_manager_main_menu
+from database import ShopItemRepository
 
 from aiogram.fsm.state import State, StatesGroup
 
@@ -229,29 +230,36 @@ async def show_bonus_task_confirmation(message_or_callback, state: FSMContext):
 async def save_bonus_task(callback: CallbackQuery, state: FSMContext):
     """Сохранение бонусного задания"""
     logger.info("Вызван обработчик save_bonus_task")
-    
+
     user_data = await state.get_data()
     task_name = user_data.get("task_name", "")
     task_description = user_data.get("task_description", "")
     price = user_data.get("price", 0)
-    
-    # Здесь должен быть код для сохранения бонусного задания в базу данных
-    # Структура данных:
-    # {
-    #     "id": "task_1",
-    #     "name": task_name,
-    #     "description": task_description,
-    #     "price": price,
-    #     "type": "bonus_task",
-    #     "created_at": datetime.now()
-    # }
-    
-    await callback.message.edit_text(
-        f"✅ Бонусное задание '{task_name}' успешно создано!\n"
-        f"💰 Цена: {price} монет\n\n"
-        "Задание появится в каталоге бонусов у учеников.",
-        reply_markup=get_bonus_task_management_kb()
-    )
+
+    try:
+        # Создаем бонусное задание в базе данных как товар магазина
+        shop_item = await ShopItemRepository.create_bonus_task(
+            name=task_name,
+            description=task_description,
+            price=price
+        )
+
+        await callback.message.edit_text(
+            f"✅ Бонусное задание '{task_name}' успешно создано!\n"
+            f"💰 Цена: {price} монет\n\n"
+            "Задание появится в каталоге бонусов у учеников.",
+            reply_markup=get_bonus_task_management_kb()
+        )
+        logger.info(f"Создано бонусное задание: {task_name} (ID: {shop_item.id})")
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании бонусного задания: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при создании бонусного задания.\n"
+            "Попробуйте еще раз.",
+            reply_markup=get_bonus_task_management_kb()
+        )
+
     await state.set_state(BonusTaskStates.main)
 
 @router.callback_query(BonusTaskStates.confirm_task, F.data == "edit_bonus_task")
@@ -282,45 +290,81 @@ async def show_bonus_tasks_to_delete(callback: CallbackQuery, state: FSMContext)
     """Показ списка бонусных заданий для удаления"""
     logger.info("Вызван обработчик show_bonus_tasks_to_delete")
 
-    # В реальном приложении здесь будет запрос к базе данных
-    # Пример данных бонусных заданий
-    tasks_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📝 Дополнительные упражнения - 50 монет", callback_data="delete_task_1")],
-        [InlineKeyboardButton(text="📚 Конспект по теме - 80 монет", callback_data="delete_task_2")],
-        [InlineKeyboardButton(text="🎯 Практические задачи - 100 монет", callback_data="delete_task_3")],
-        *get_main_menu_back_button()
-    ])
+    try:
+        # Получаем все бонусные задания из базы данных
+        bonus_tasks = await ShopItemRepository.get_by_type("bonus_task")
 
-    await callback.message.edit_text(
-        "Выберите бонусное задание для удаления:",
-        reply_markup=tasks_kb
-    )
-    await state.set_state(BonusTaskStates.select_task_to_delete)
+        if not bonus_tasks:
+            await callback.message.edit_text(
+                "📝 Бонусных заданий пока нет.\n\n"
+                "Создайте первое бонусное задание!",
+                reply_markup=get_bonus_task_management_kb()
+            )
+            await state.set_state(BonusTaskStates.main)
+            return
+
+        # Создаем клавиатуру с бонусными заданиями
+        buttons = []
+        for task in bonus_tasks:
+            button_text = f"📝 {task.name} - {task.price} монет"
+            buttons.append([InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"delete_task_{task.id}"
+            )])
+
+        buttons.extend(get_main_menu_back_button())
+        tasks_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+        await callback.message.edit_text(
+            "Выберите бонусное задание для удаления:",
+            reply_markup=tasks_kb
+        )
+        await state.set_state(BonusTaskStates.select_task_to_delete)
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении списка бонусных заданий: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при загрузке списка заданий.",
+            reply_markup=get_bonus_task_management_kb()
+        )
+        await state.set_state(BonusTaskStates.main)
 
 @router.callback_query(BonusTaskStates.select_task_to_delete, F.data.startswith("delete_task_"))
 async def confirm_delete_bonus_task(callback: CallbackQuery, state: FSMContext):
     """Подтверждение удаления бонусного задания"""
     logger.info("Вызван обработчик confirm_delete_bonus_task")
 
-    task_id = callback.data.replace("delete_task_", "")
+    task_id = int(callback.data.replace("delete_task_", ""))
     await state.update_data(task_id=task_id)
 
-    # В реальном приложении здесь будет запрос к базе данных
-    task_names = {
-        "1": "Дополнительные упражнения",
-        "2": "Конспект по теме",
-        "3": "Практические задачи"
-    }
-    task_name = task_names.get(task_id, "Неизвестное задание")
+    try:
+        # Получаем информацию о задании из базы данных
+        task = await ShopItemRepository.get_by_id(task_id)
 
-    await callback.message.edit_text(
-        f"Вы действительно хотите удалить бонусное задание '{task_name}'?\n\n"
-        "⚠️ Это действие нельзя отменить!",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_delete_task")],
-            [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="cancel_delete_task")]
-        ])
-    )
+        if not task:
+            await callback.message.edit_text(
+                "❌ Бонусное задание не найдено.",
+                reply_markup=get_bonus_task_management_kb()
+            )
+            await state.set_state(BonusTaskStates.main)
+            return
+
+        await callback.message.edit_text(
+            f"Вы действительно хотите удалить бонусное задание '{task.name}'?\n\n"
+            "⚠️ Это действие нельзя отменить!",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_delete_task")],
+                [InlineKeyboardButton(text="❌ Нет, отмена", callback_data="cancel_delete_task")]
+            ])
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении информации о задании: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при загрузке информации о задании.",
+            reply_markup=get_bonus_task_management_kb()
+        )
+        await state.set_state(BonusTaskStates.main)
 
 @router.callback_query(F.data == "confirm_delete_task")
 async def delete_bonus_task(callback: CallbackQuery, state: FSMContext):
@@ -328,16 +372,41 @@ async def delete_bonus_task(callback: CallbackQuery, state: FSMContext):
     logger.info("Вызван обработчик delete_bonus_task")
 
     user_data = await state.get_data()
-    task_id = user_data.get("task_id", "")
+    task_id = user_data.get("task_id")
 
-    # Здесь должен быть код для удаления бонусного задания из базы данных
-    # DELETE FROM bonus_tasks WHERE id = task_id
+    if not task_id:
+        await callback.message.edit_text(
+            "❌ Ошибка: не найден ID задания для удаления.",
+            reply_markup=get_bonus_task_management_kb()
+        )
+        await state.set_state(BonusTaskStates.main)
+        return
 
-    await callback.message.edit_text(
-        "✅ Бонусное задание успешно удалено!\n\n"
-        "Задание больше не будет отображаться в каталоге бонусов у учеников.",
-        reply_markup=get_bonus_task_management_kb()
-    )
+    try:
+        # Деактивируем бонусное задание в базе данных
+        success = await ShopItemRepository.deactivate(task_id)
+
+        if success:
+            await callback.message.edit_text(
+                "✅ Бонусное задание успешно удалено!\n\n"
+                "Задание больше не будет отображаться в каталоге бонусов у учеников.",
+                reply_markup=get_bonus_task_management_kb()
+            )
+            logger.info(f"Удалено бонусное задание с ID: {task_id}")
+        else:
+            await callback.message.edit_text(
+                "❌ Не удалось удалить бонусное задание.\n"
+                "Возможно, оно уже было удалено.",
+                reply_markup=get_bonus_task_management_kb()
+            )
+
+    except Exception as e:
+        logger.error(f"Ошибка при удалении бонусного задания: {e}")
+        await callback.message.edit_text(
+            "❌ Произошла ошибка при удалении задания.",
+            reply_markup=get_bonus_task_management_kb()
+        )
+
     await state.set_state(BonusTaskStates.main)
 
 @router.callback_query(F.data == "cancel_delete_task")

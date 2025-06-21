@@ -145,6 +145,13 @@ async def show_bonus_catalog(callback: CallbackQuery, state: FSMContext):
     # Получаем бонусные тесты из базы данных
     bonus_tests = await BonusTestRepository.get_all()
 
+    # Отладочная информация
+    logging.info(f"Найдено товаров в магазине: {len(shop_items)}")
+    logging.info(f"Найдено бонусных тестов: {len(bonus_tests)}")
+
+    for item in shop_items:
+        logging.info(f"Товар: {item.name}, тип: {item.item_type}, активен: {item.is_active}")
+
     # Объединяем товары и бонусные тесты
     all_items = []
 
@@ -158,6 +165,7 @@ async def show_bonus_catalog(callback: CallbackQuery, state: FSMContext):
                 'price': item.price,
                 'item_type': item.item_type
             })
+            logging.info(f"Добавлен товар в каталог: {item.name}")
 
     # Добавляем бонусные тесты как товары
     for test in bonus_tests:
@@ -169,6 +177,9 @@ async def show_bonus_catalog(callback: CallbackQuery, state: FSMContext):
             'price': test.price,
             'item_type': 'bonus_test'
         })
+        logging.info(f"Добавлен бонусный тест в каталог: {test.name}")
+
+    logging.info(f"Всего товаров в каталоге: {len(all_items)}")
 
     if not all_items:
         await callback.message.edit_text(
