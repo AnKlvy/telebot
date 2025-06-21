@@ -40,6 +40,8 @@ class NavigationManager:
                 await callback.message.delete()
                 await handler(callback.message, user_role=role_to_use)
                 await state.clear()
+                data = await state.get_data()
+                print(f"   💾 FSM data: {data}")
             return
         
         # Получаем предыдущее состояние
@@ -54,6 +56,8 @@ class NavigationManager:
                 await callback.message.delete()
                 await handler(callback.message, user_role=role_to_use)
                 await state.clear()
+                data = await state.get_data()
+                print(f"   💾 FSM data: {data}")
         else:
             # Переходим в предыдущее состояние
             print(f"DEBUG: Переходим в предыдущее состояние: {previous_state}")
@@ -80,6 +84,8 @@ class NavigationManager:
                     await callback.message.delete()
                     await main_handler(callback.message, user_role=role_to_use)
                     await state.clear()
+                    data = await state.get_data()
+                    print(f"   💾 FSM data: {data}")
     
     async def handle_main_menu(self, callback: CallbackQuery, state: FSMContext, user_role: str):
         """Универсальный обработчик кнопки главного меню"""

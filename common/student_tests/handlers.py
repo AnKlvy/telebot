@@ -241,3 +241,56 @@ async def handle_month_entry_confirmation(callback, state=None, user_role: str =
 async def handle_month_control_confirmation(callback, state=None, user_role: str = None):
     """Обработчик состояния подтверждения контрольного теста месяца для навигации"""
     await handle_month_control_subjects(callback, state, user_role)
+
+# Обработчики для состояний "выбор месяца" (для возврата из результатов)
+async def handle_month_entry_month_selected(callback, state=None, user_role: str = None):
+    """Обработчик состояния выбора месяца для входного теста месяца"""
+    from common.utils import check_if_id_in_callback_data
+    from .keyboards import get_month_test_kb
+    from aiogram.types import CallbackQuery, Message
+
+    if isinstance(callback, CallbackQuery) and state:
+        # Получаем subject_id из callback_data или из состояния
+        subject_id = await check_if_id_in_callback_data(
+            callback_starts_with="month_entry_sub_",
+            callback=callback,
+            state=state,
+            id_type="subject_id"
+        )
+
+        if subject_id:
+            await callback.message.edit_text(
+                f"Выберите месяц для входного теста:",
+                reply_markup=await get_month_test_kb("month_entry", str(subject_id), user_id=callback.from_user.id)
+            )
+            await state.set_state(StudentTestsStates.month_entry_month_selected)
+            return
+
+    # Если нет данных о предмете, возвращаемся к выбору предмета
+    await handle_month_entry_subjects(callback, state, user_role)
+
+async def handle_month_control_month_selected(callback, state=None, user_role: str = None):
+    """Обработчик состояния выбора месяца для контрольного теста месяца"""
+    from common.utils import check_if_id_in_callback_data
+    from .keyboards import get_month_test_kb
+    from aiogram.types import CallbackQuery, Message
+
+    if isinstance(callback, CallbackQuery) and state:
+        # Получаем subject_id из callback_data или из состояния
+        subject_id = await check_if_id_in_callback_data(
+            callback_starts_with="month_control_sub_",
+            callback=callback,
+            state=state,
+            id_type="subject_id"
+        )
+
+        if subject_id:
+            await callback.message.edit_text(
+                f"Выберите месяц для контрольного теста:",
+                reply_markup=await get_month_test_kb("month_control", str(subject_id), user_id=callback.from_user.id)
+            )
+            await state.set_state(StudentTestsStates.month_control_month_selected)
+            return
+
+    # Если нет данных о предмете, возвращаемся к выбору предмета
+    await handle_month_control_subjects(callback, state, user_role)

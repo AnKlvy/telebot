@@ -313,7 +313,7 @@ async def show_course_entry_test_results(callback: CallbackQuery, state: FSMCont
             result_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
-        await state.set_state(StudentTestsStates.test_result)
+        await state.set_state(StudentTestsStates.course_entry_result)
 
     except Exception as e:
         logger.error(f"ОШИБКА при показе результатов: {e}")
@@ -350,7 +350,7 @@ async def show_course_entry_test_results_final(chat_id: int, state: FSMContext, 
             result_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
-        await state.set_state(StudentTestsStates.test_result)
+        await state.set_state(StudentTestsStates.course_entry_result)
 
     except Exception as e:
         logger.error(f"ОШИБКА при показе результатов: {e}")

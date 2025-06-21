@@ -27,6 +27,7 @@ from common.statistics import (
     format_test_result,
     format_test_comparison
 )
+from ..utils import check_if_id_in_callback_data
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -76,7 +77,13 @@ async def show_month_entry_subjects(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(StudentTestsStates.month_entry_subjects, F.data.startswith("month_entry_sub_"))
 async def handle_month_entry_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для входного теста месяца"""
-    subject_id = callback.data.replace("month_entry_sub_", "")
+    # Получаем subject_id и сохраняем в состоянии
+    subject_id = await check_if_id_in_callback_data(
+        callback_starts_with="month_entry_sub_",
+        callback=callback,
+        state=state,
+        id_type="subject_id"
+    )
 
     # Показываем доступные месяцы для выбранного предмета
     await callback.message.edit_text(
@@ -116,7 +123,16 @@ async def show_month_control_subjects(callback: CallbackQuery, state: FSMContext
 @router.callback_query(StudentTestsStates.month_control_subjects, F.data.startswith("month_control_sub_"))
 async def handle_month_control_subject(callback: CallbackQuery, state: FSMContext):
     """Обработка выбора предмета для контрольного теста месяца"""
-    subject_id = callback.data.replace("month_control_sub_", "")
+    from common.utils import check_if_id_in_callback_data
+
+    # Получаем subject_id и сохраняем в состоянии
+    subject_id = await check_if_id_in_callback_data(
+        callback_starts_with="month_control_sub_",
+        callback=callback,
+        state=state,
+        id_type="subject_id"
+    )
+
 
     # Показываем доступные месяцы для выбранного предмета
     await callback.message.edit_text(
@@ -341,7 +357,7 @@ async def show_month_entry_test_statistics(callback: CallbackQuery, state: FSMCo
             result_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
-        await state.set_state(StudentTestsStates.test_result)
+        await state.set_state(StudentTestsStates.month_entry_result)
 
         logger.info(f"Показана статистика теста месяца для студента {full_test_result.student_id}")
 
@@ -424,7 +440,7 @@ async def show_month_control_test_statistics(callback: CallbackQuery, state: FSM
             result_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
-        await state.set_state(StudentTestsStates.test_result)
+        await state.set_state(StudentTestsStates.month_control_result)
 
         logger.info(f"Показана статистика контрольного теста месяца для студента {test_result.student_id}")
 

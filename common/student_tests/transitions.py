@@ -38,7 +38,13 @@ STATE_TRANSITIONS = {
 
     # Общие состояния
     StudentTestsStates.test_in_progress: StudentTestsStates.main,  # Из теста возвращаемся в главное меню
-    StudentTestsStates.test_result: StudentTestsStates.main,
+    StudentTestsStates.test_result: StudentTestsStates.main,  # Общее состояние (для обратной совместимости)
+
+    # Отдельные состояния результатов с логичными переходами
+    StudentTestsStates.course_entry_result: StudentTestsStates.course_entry_subjects,  # К выбору предмета
+    StudentTestsStates.month_entry_result: StudentTestsStates.month_entry_month_selected,  # К выбору месяца
+    StudentTestsStates.month_control_result: StudentTestsStates.month_control_month_selected,  # К выбору месяца
+
     StudentTestsStates.main: None  # None означает возврат в главное меню студента
 }
 
@@ -48,6 +54,11 @@ STATE_HANDLERS = {
     StudentTestsStates.main: handle_main,
     StudentTestsStates.test_result: handle_test_result,
     StudentTestsStates.test_in_progress: handle_test_in_progress,
+
+    # Обработчики для отдельных состояний результатов
+    StudentTestsStates.course_entry_result: handle_course_entry_subjects,
+    StudentTestsStates.month_entry_result: handle_month_entry_month_selected,
+    StudentTestsStates.month_control_result: handle_month_control_month_selected,
 
     # Входной тест курса
     StudentTestsStates.course_entry_subjects: handle_course_entry_subjects,

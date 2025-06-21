@@ -260,7 +260,7 @@ async def finish_month_entry_test(chat_id: int, state: FSMContext, bot):
             result_text,
             reply_markup=get_back_to_test_kb()
         )
-        await state.set_state(StudentTestsStates.test_result)
+        await state.set_state(StudentTestsStates.month_entry_result)
 
         logger.info(f"Тест месяца завершен: студент {student_id}, результат {test_result.score_percentage}%")
 
@@ -394,7 +394,7 @@ async def show_month_control_test_statistics_final(chat_id: int, state: FSMConte
             result_text,
             reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
-        await state.set_state(StudentTestsStates.test_result)
+        await state.set_state(StudentTestsStates.month_control_result)
 
         logger.info(f"Показана статистика контрольного теста месяца для студента {test_result.student_id}")
 
