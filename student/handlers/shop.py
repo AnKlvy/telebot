@@ -153,12 +153,20 @@ async def show_bonus_catalog(callback: CallbackQuery, state: FSMContext):
     for item in shop_items:
         logging.info(f"Товар: {item.name}, тип: {item.item_type}, активен: {item.is_active}")
 
+    # Получаем уже купленные товары студента
+    purchased_items = await StudentPurchaseRepository.get_student_purchases(student.id)
+    purchased_item_ids = {purchase.item_id for purchase in purchased_items}
+
+    # Получаем уже купленные бонусные тесты студента
+    purchased_bonus_tests = await StudentBonusTestRepository.get_student_bonus_tests(student.id)
+    purchased_bonus_test_ids = {purchase.bonus_test_id for purchase in purchased_bonus_tests}
+
     # Объединяем товары и бонусные тесты
     all_items = []
 
-    # Добавляем обычные товары (кроме статического "Бонусный тест")
+    # Добавляем обычные товары (кроме статического "Бонусный тест" и уже купленных)
     for item in shop_items:
-        if item.item_type != "bonus_test":
+        if item.item_type != "bonus_test" and item.id not in purchased_item_ids:
             all_items.append({
                 'type': 'shop_item',
                 'id': item.id,
@@ -168,17 +176,18 @@ async def show_bonus_catalog(callback: CallbackQuery, state: FSMContext):
             })
             logging.info(f"Добавлен товар в каталог: {item.name}")
 
-    # Добавляем бонусные тесты как товары
+    # Добавляем бонусные тесты как товары (только не купленные)
     for test in bonus_tests:
-        question_count = len(test.questions) if test.questions else 0
-        all_items.append({
-            'type': 'bonus_test',
-            'id': test.id,
-            'name': f"{test.name} ({question_count} вопр.)",
-            'price': test.price,
-            'item_type': 'bonus_test'
-        })
-        logging.info(f"Добавлен бонусный тест в каталог: {test.name}")
+        if test.id not in purchased_bonus_test_ids:
+            question_count = len(test.questions) if test.questions else 0
+            all_items.append({
+                'type': 'bonus_test',
+                'id': test.id,
+                'name': f"{test.name} ({question_count} вопр.)",
+                'price': test.price,
+                'item_type': 'bonus_test'
+            })
+            logging.info(f"Добавлен бонусный тест в каталог: {test.name}")
 
     logging.info(f"Всего товаров в каталоге: {len(all_items)}")
 
@@ -372,7 +381,11 @@ async def confirm_item_purchase(callback: CallbackQuery, state: FSMContext):
             f"Потрачено: {item.price} монет\n"
             f"💰 Осталось монет: {new_balance['coins']}\n\n"
             f"🎯 Бонусное задание доступно в разделе 'Мои бонусы'",
-            reply_markup=get_back_to_shop_kb()
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🛒 Вернуться к каталогу", callback_data="bonus_catalog")],
+                [InlineKeyboardButton(text="📦 Мои бонусы", callback_data="my_bonuses")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+            ])
         )
     else:
         await callback.message.edit_text(
@@ -526,7 +539,11 @@ async def confirm_bonus_test_purchase(callback: CallbackQuery, state: FSMContext
             f"Потрачено: {bonus_test.price} монет\n"
             f"💰 Осталось монет: {new_balance['coins']}\n\n"
             f"🎯 Бонусный тест доступен в разделе 'Мои бонусы'",
-            reply_markup=get_back_to_shop_kb()
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🛒 Вернуться к каталогу", callback_data="bonus_catalog")],
+                [InlineKeyboardButton(text="📦 Мои бонусы", callback_data="my_bonuses")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+            ])
         )
     else:
         await callback.message.edit_text(
@@ -839,3 +856,8 @@ async def handle_my_bonuses_callback(callback: CallbackQuery, state: FSMContext)
 async def back_to_shop(callback: CallbackQuery, state: FSMContext):
     """Вернуться в меню магазина"""
     await show_shop_menu(callback, state)
+
+@router.callback_query(F.data == "bonus_catalog")
+async def back_to_catalog_universal(callback: CallbackQuery, state: FSMContext):
+    """Универсальный обработчик возврата к каталогу"""
+    await show_bonus_catalog(callback, state)
