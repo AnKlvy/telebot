@@ -13,22 +13,30 @@ def get_tests_statistics_menu_kb() -> InlineKeyboardMarkup:
         *get_main_menu_back_button()
             ])
 
-def get_groups_kb(test_type: str) -> InlineKeyboardMarkup:
-    """Клавиатура с группами для статистики тестов (старая версия для совместимости)"""
-    # В реальном приложении группы будут загружаться из базы данных
-    groups = [
-        {"id": "geo_intensive", "name": "Интенсив. География"},
-        {"id": "math_intensive", "name": "Интенсив. Математика"}
-    ]
+async def get_groups_kb(test_type: str) -> InlineKeyboardMarkup:
+    """Клавиатура с группами для статистики тестов"""
+    try:
+        from database import GroupRepository
+        groups = await GroupRepository.get_all()
 
-    buttons = []
-    for group in groups:
-        buttons.append([
-            InlineKeyboardButton(
-                text=group["name"],
-                callback_data=f"{test_type}_group_{group['id']}"
-            )
-        ])
+        buttons = []
+        for group in groups:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=group.name,
+                    callback_data=f"{test_type}_group_{group.id}"
+                )
+            ])
+
+        if not groups:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Нет доступных групп", callback_data="no_groups")
+            ])
+    except Exception as e:
+        print(f"Ошибка при получении групп: {e}")
+        buttons = [
+            [InlineKeyboardButton(text="❌ Ошибка загрузки групп", callback_data="groups_error")]
+        ]
 
     # Добавляем кнопку "Назад"
     buttons.extend(get_main_menu_back_button())

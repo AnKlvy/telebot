@@ -62,3 +62,6 @@ def register_handlers():
     navigation_manager.register_role("teacher", teacher_transitions, {None: show_teacher_main_menu, **teacher_handlers})
     navigation_manager.register_role("manager", manager_transitions, {None: show_manager_main_menu, **manager_handlers})
     navigation_manager.register_role("admin", admin_transitions, {None: show_admin_main_menu, **admin_handlers})
+
+    # Регистрируем обработчики для новых пользователей (по умолчанию показываем меню студента)
+    navigation_manager.register_role("new_user", {}, {None: show_student_main_menu})

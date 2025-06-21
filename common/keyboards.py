@@ -2,13 +2,36 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List, Dict, Any, Tuple
 
 
-def get_courses_kb() -> InlineKeyboardMarkup:
-    """Общая клавиатура выбора курса"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Интенсив. География", callback_data="course_geo")],
-        [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_math")],
-        *get_main_menu_back_button()
-    ])
+async def get_courses_kb() -> InlineKeyboardMarkup:
+    """Общая клавиатура выбора курса с данными из БД"""
+    try:
+        from database import CourseRepository
+        courses = await CourseRepository.get_all()
+        buttons = []
+
+        for course in courses:
+            buttons.append([
+                InlineKeyboardButton(
+                    text=course.name,
+                    callback_data=f"course_{course.id}"
+                )
+            ])
+
+        if not courses:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Нет доступных курсов", callback_data="no_courses")
+            ])
+
+        buttons.extend(get_main_menu_back_button())
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+    except Exception as e:
+        print(f"Ошибка при получении курсов: {e}")
+        # В случае ошибки показываем сообщение об ошибке
+        buttons = [
+            [InlineKeyboardButton(text="❌ Ошибка загрузки курсов", callback_data="courses_error")],
+            *get_main_menu_back_button()
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_subjects_kb() -> InlineKeyboardMarkup:
     """Общая клавиатура выбора предмета"""

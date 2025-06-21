@@ -37,7 +37,10 @@ class NavigationManager:
             handler = handlers.get(None)
             if handler:
                 print(f"DEBUG: Найден обработчик для None: {handler}")
-                await callback.message.delete()
+                try:
+                    await callback.message.delete()
+                except Exception as e:
+                    print(f"DEBUG: Не удалось удалить сообщение: {e}")
                 await handler(callback.message, user_role=role_to_use)
                 await state.clear()
                 data = await state.get_data()
@@ -53,7 +56,10 @@ class NavigationManager:
             print(f"DEBUG: Возвращаемся в главное меню для роли: {role_to_use}")
             handler = handlers.get(None)
             if handler:
-                await callback.message.delete()
+                try:
+                    await callback.message.delete()
+                except Exception as e:
+                    print(f"DEBUG: Не удалось удалить сообщение: {e}")
                 await handler(callback.message, user_role=role_to_use)
                 await state.clear()
                 data = await state.get_data()
@@ -107,8 +113,12 @@ class NavigationManager:
         main_handler = handlers.get(None)
         if main_handler:
             print(f"DEBUG: Найден обработчик главного меню: {main_handler}")
-            if callback.message:
-                await callback.message.delete()
+            try:
+                if callback.message:
+                    await callback.message.delete()
+            except Exception as e:
+                print(f"DEBUG: Не удалось удалить сообщение: {e}")
+
             # Передаем user_role в обработчик главного меню
             await main_handler(callback.message if hasattr(callback, 'message') else callback, user_role=role_to_use)
             await state.clear()

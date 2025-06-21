@@ -29,6 +29,29 @@ async def choose_course(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(HomeworkStates.course)
 
+@router.callback_query(HomeworkStates.course, F.data == "no_courses")
+async def handle_no_courses(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для случая когда у студента нет доступных курсов"""
+    await callback.message.edit_text(
+        "📚 У вас пока нет доступных курсов\n\n"
+        "Обратитесь к администратору или куратору для добавления вас в курсы.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            *get_main_menu_back_button()
+        ])
+    )
+
+@router.callback_query(HomeworkStates.course, F.data == "courses_error")
+async def handle_courses_error(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для случая ошибки загрузки курсов"""
+    await callback.message.edit_text(
+        "❌ Произошла ошибка при загрузке курсов\n\n"
+        "Попробуйте позже или обратитесь к администратору.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data="homework")],
+            *get_main_menu_back_button()
+        ])
+    )
+
 @router.callback_query(HomeworkStates.course, F.data.startswith("course_"))
 async def choose_subject(callback: CallbackQuery, state: FSMContext):
     """Выбор предмета для курса"""
@@ -48,6 +71,38 @@ async def choose_subject(callback: CallbackQuery, state: FSMContext):
         reply_markup=await get_subjects_kb(course_id=course_id, user_id=callback.from_user.id)
     )
     await state.set_state(HomeworkStates.subject)
+
+@router.callback_query(HomeworkStates.subject, F.data == "no_subjects")
+async def handle_no_subjects(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для случая когда в курсе нет доступных предметов"""
+    user_data = await state.get_data()
+    course_name = user_data.get("course_name", "")
+
+    await callback.message.edit_text(
+        f"📚 Курс: {course_name}\n\n"
+        "📖 В этом курсе пока нет доступных предметов\n\n"
+        "Обратитесь к администратору или куратору.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            *get_main_menu_back_button()
+        ])
+    )
+
+@router.callback_query(HomeworkStates.subject, F.data == "subjects_error")
+async def handle_subjects_error(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для случая ошибки загрузки предметов"""
+    user_data = await state.get_data()
+    course_name = user_data.get("course_name", "")
+    course_id = user_data.get("course_id")
+
+    await callback.message.edit_text(
+        f"📚 Курс: {course_name}\n\n"
+        "❌ Произошла ошибка при загрузке предметов\n\n"
+        "Попробуйте позже или обратитесь к администратору.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Попробовать снова", callback_data=f"course_{course_id}")],
+            *get_main_menu_back_button()
+        ])
+    )
 
 @router.callback_query(HomeworkStates.subject, F.data.startswith("subject_"))
 async def choose_lesson(callback: CallbackQuery, state: FSMContext):

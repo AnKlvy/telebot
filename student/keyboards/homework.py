@@ -29,11 +29,11 @@ async def get_courses_kb(user_id: int = None) -> InlineKeyboardMarkup:
 
         buttons.extend(get_main_menu_back_button())
         return InlineKeyboardMarkup(inline_keyboard=buttons)
-    except Exception:
-        # Fallback на хардкод данные в случае ошибки
+    except Exception as e:
+        # В случае ошибки показываем сообщение об ошибке, а не захардкоженные данные
+        print(f"Ошибка при получении курсов: {e}")
         buttons = [
-            [InlineKeyboardButton(text="Интенсив. География", callback_data="course_1")],
-            [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_2")],
+            [InlineKeyboardButton(text="❌ Ошибка загрузки курсов", callback_data="courses_error")],
             *get_main_menu_back_button()
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -61,17 +61,18 @@ async def get_subjects_kb(course_id: int = None, user_id: int = None) -> InlineK
                 )
             ])
 
+        if not subjects:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Нет доступных предметов", callback_data="no_subjects")
+            ])
+
         buttons.extend(get_main_menu_back_button())
         return InlineKeyboardMarkup(inline_keyboard=buttons)
-    except Exception:
-        # Fallback на хардкод данные в случае ошибки
+    except Exception as e:
+        # В случае ошибки показываем сообщение об ошибке
+        print(f"Ошибка при получении предметов: {e}")
         buttons = [
-            [InlineKeyboardButton(text="История Казахстана", callback_data="subject_1")],
-            [InlineKeyboardButton(text="Математическая грамотность", callback_data="subject_2")],
-            [InlineKeyboardButton(text="География", callback_data="subject_3")],
-            [InlineKeyboardButton(text="Биология", callback_data="subject_4")],
-            [InlineKeyboardButton(text="Химия", callback_data="subject_5")],
-            [InlineKeyboardButton(text="Информатика", callback_data="subject_6")],
+            [InlineKeyboardButton(text="❌ Ошибка загрузки предметов", callback_data="subjects_error")],
             *get_main_menu_back_button()
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)

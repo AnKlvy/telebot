@@ -26,13 +26,18 @@ async def get_courses_kb() -> InlineKeyboardMarkup:
                 )
             ])
 
+        if not courses:
+            buttons.append([
+                InlineKeyboardButton(text="❌ Нет доступных курсов", callback_data="no_courses")
+            ])
+
         buttons.extend(get_main_menu_back_button())
         return InlineKeyboardMarkup(inline_keyboard=buttons)
-    except Exception:
-        # Fallback на хардкод данные в случае ошибки
+    except Exception as e:
+        # В случае ошибки показываем сообщение об ошибке
+        print(f"Ошибка при получении курсов: {e}")
         buttons = [
-            [InlineKeyboardButton(text="Интенсив. География", callback_data="course_1")],
-            [InlineKeyboardButton(text="Интенсив. Математика", callback_data="course_2")],
+            [InlineKeyboardButton(text="❌ Ошибка загрузки курсов", callback_data="courses_error")],
             *get_main_menu_back_button()
         ]
         return InlineKeyboardMarkup(inline_keyboard=buttons)
