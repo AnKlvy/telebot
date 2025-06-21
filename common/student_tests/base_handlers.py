@@ -167,9 +167,9 @@ async def handle_month_entry_test_by_id(callback: CallbackQuery, state: FSMConte
 
         # Получаем тест месяца по ID
         month_test = await MonthTestRepository.get_by_id(test_id)
-        if not month_test or month_test.test_type != 'entry':
+        if not month_test:
             await callback.message.edit_text(
-                "❌ Входной тест месяца не найден",
+                "❌ Тест месяца не найден",
                 reply_markup=get_back_to_test_kb()
             )
             return
@@ -231,11 +231,11 @@ async def handle_month_control_test_by_id(callback: CallbackQuery, state: FSMCon
             )
             return
 
-        # Получаем контрольный тест месяца по ID
+        # Получаем тест месяца по ID
         month_test = await MonthTestRepository.get_by_id(month_test_id)
-        if not month_test or month_test.test_type != 'control':
+        if not month_test:
             await callback.message.edit_text(
-                "❌ Контрольный тест месяца не найден",
+                "❌ Тест месяца не найден",
                 reply_markup=get_back_to_test_kb()
             )
             return
@@ -251,18 +251,17 @@ async def handle_month_control_test_by_id(callback: CallbackQuery, state: FSMCon
             await show_month_control_test_statistics(callback, state, existing_result)
             return
 
-        # Проверяем, прошел ли студент соответствующий входной тест
-        if month_test.parent_test_id:
-            entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
-                student_id=student.id,
-                month_test_id=month_test.parent_test_id
+        # Проверяем, прошел ли студент соответствующий входной тест (теперь по тому же тесту)
+        entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            student_id=student.id,
+            month_test_id=month_test.id
+        )
+        if not entry_result:
+            await callback.message.edit_text(
+                f"❌ Сначала необходимо пройти входной тест месяца '{month_test.name}'",
+                reply_markup=get_back_to_test_kb()
             )
-            if not entry_result:
-                await callback.message.edit_text(
-                    f"❌ Сначала необходимо пройти входной тест месяца '{month_test.name}'",
-                    reply_markup=get_back_to_test_kb()
-                )
-                return
+            return
 
         # Генерируем вопросы для теста (используем ту же функцию, что и для входного)
         test_questions = await generate_month_test_questions(month_test.id)
@@ -357,56 +356,53 @@ async def show_month_entry_test_statistics(callback: CallbackQuery, state: FSMCo
 async def show_month_control_test_statistics(callback: CallbackQuery, state: FSMContext, test_result):
     """Показать статистику уже пройденного контрольного теста месяца"""
     try:
+        # Получаем тест месяца отдельно (объект test_result может быть отвязан от сессии)
+        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        if not month_test:
+            logger.error(f"Тест месяца с ID {test_result.month_test_id} не найден")
+            await callback.message.edit_text(
+                "❌ Ошибка при загрузке данных теста",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
         # Получаем статистику по микротемам
         microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
 
         # Получаем названия микротем
-        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
         microtopic_names = {mt.number: mt.name for mt in microtopics}
 
-        # Пытаемся найти соответствующий входной тест для сравнения
-        entry_test = None
+        # Пытаемся найти соответствующий входной результат для сравнения
         comparison_text = ""
-        if test_result.month_test.parent_test_id:
-            entry_test = await MonthTestRepository.get_by_id(test_result.month_test.parent_test_id)
-            if entry_test:
-                entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
-                    test_result.student_id, entry_test.id
-                )
-                if entry_result:
-                    # Показываем сравнение с входным тестом
-                    comparison_text = f"\n📊 Сравнение с входным тестом:\n"
-                    comparison_text += f"Верных: {entry_result.correct_answers}/{entry_result.total_questions} → {test_result.correct_answers}/{test_result.total_questions}\n"
+        entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            test_result.student_id, test_result.month_test_id
+        )
+        if entry_result:
+            # Показываем сравнение с входным тестом
+            comparison_text = f"\n📊 Сравнение с входным тестом:\n"
+            comparison_text += f"Верных: {entry_result.correct_answers}/{entry_result.total_questions} → {test_result.correct_answers}/{test_result.total_questions}\n"
 
-                    # Рассчитываем общий рост
-                    if entry_result.score_percentage > 0:
-                        growth = ((test_result.score_percentage - entry_result.score_percentage) / entry_result.score_percentage) * 100
-                        if growth > 0:
-                            comparison_text += f"📈 Общий рост: +{growth:.1f}%\n"
-                        elif growth < 0:
-                            comparison_text += f"📉 Общее снижение: {growth:.1f}%\n"
-                        else:
-                            comparison_text += f"📊 Результат остался на том же уровне\n"
-                    else:
-                        if test_result.score_percentage > 0:
-                            comparison_text += f"📈 Рост: +{test_result.score_percentage:.1f} п.п.\n"
+            # Рассчитываем общий рост
+            if entry_result.score_percentage > 0:
+                growth = ((test_result.score_percentage - entry_result.score_percentage) / entry_result.score_percentage) * 100
+                if growth > 0:
+                    comparison_text += f"📈 Общий рост: +{growth:.1f}%\n"
+                elif growth < 0:
+                    comparison_text += f"📉 Общее снижение: {growth:.1f}%\n"
+                else:
+                    comparison_text += f"📊 Результат остался на том же уровне\n"
+            else:
+                if test_result.score_percentage > 0:
+                    comparison_text += f"📈 Рост: +{test_result.score_percentage:.1f} п.п.\n"
 
         # Формируем результат
         result_text = f"🎉 Контрольный тест месяца завершен!\n\n"
-        result_text += f"📗 {test_result.month_test.subject.name}\n"
-        result_text += f"Тест: {test_result.month_test.name}\n"
+        result_text += f"📗 {month_test.subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
         result_text += f"Верных ответов: {test_result.correct_answers} / {test_result.total_questions}\n"
         result_text += f"Процент: {test_result.score_percentage}%\n"
         result_text += comparison_text
-
-        # Добавляем статистику по микротемам
-        if microtopic_stats:
-            result_text += "\n📈 Результаты по микротемам:\n"
-            for microtopic_num, stats in microtopic_stats.items():
-                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
-                percentage = stats['percentage']
-                status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
-                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
 
         result_text += "\nВыберите тип аналитики:"
 
@@ -465,17 +461,23 @@ async def show_student_month_entry_detailed(callback: CallbackQuery, state: FSMC
         # Получаем статистику по микротемам
         microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
 
-        # Получаем названия микротем
+        # Получаем тест месяца и названия микротем
         from database.repositories.microtopic_repository import MicrotopicRepository
-        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
-        microtopic_names = {mt.number: mt.name for mt in microtopics}
-
-        # Получаем предмет и тест
         from database.repositories.subject_repository import SubjectRepository
         from database.repositories.month_test_repository import MonthTestRepository
 
-        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
         month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        if not month_test:
+            await callback.message.edit_text(
+                "❌ Тест месяца не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        subject = await SubjectRepository.get_by_id(month_test.subject_id)
 
         # Формируем детальную статистику
         result_text = f"📊 Детальная статистика входного теста месяца\n\n"
@@ -539,9 +541,18 @@ async def show_student_month_entry_summary(callback: CallbackQuery, state: FSMCo
         # Получаем названия микротем
         from database.repositories.subject_repository import SubjectRepository
         from database.repositories.month_test_repository import MonthTestRepository
+        from database.repositories.microtopic_repository import MicrotopicRepository
 
+        # Получаем тест месяца и предмет
         month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
-        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
+        if not month_test:
+            await callback.message.edit_text(
+                "❌ Тест месяца не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        subject = await SubjectRepository.get_by_id(month_test.subject_id)
         microtopics = await MicrotopicRepository.get_by_subject(subject.id)
         microtopic_names = {mt.number: mt.name for mt in microtopics}
 
@@ -619,17 +630,23 @@ async def show_student_month_control_detailed(callback: CallbackQuery, state: FS
         # Получаем статистику по микротемам
         microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
 
-        # Получаем названия микротем
+        # Получаем тест месяца и названия микротем
         from database.repositories.microtopic_repository import MicrotopicRepository
-        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
-        microtopic_names = {mt.number: mt.name for mt in microtopics}
-
-        # Получаем предмет и тест
         from database.repositories.subject_repository import SubjectRepository
         from database.repositories.month_test_repository import MonthTestRepository
 
-        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
         month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        if not month_test:
+            await callback.message.edit_text(
+                "❌ Тест месяца не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        subject = await SubjectRepository.get_by_id(month_test.subject_id)
 
         # Формируем детальную статистику
         result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
@@ -696,7 +713,14 @@ async def show_student_month_control_summary(callback: CallbackQuery, state: FSM
         from database.repositories.microtopic_repository import MicrotopicRepository
 
         month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
-        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
+        if not month_test:
+            await callback.message.edit_text(
+                "❌ Тест месяца не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        subject = await SubjectRepository.get_by_id(month_test.subject_id)
         microtopics = await MicrotopicRepository.get_by_subject(subject.id)
         microtopic_names = {mt.number: mt.name for mt in microtopics}
 

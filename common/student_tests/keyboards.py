@@ -99,10 +99,8 @@ async def get_month_test_kb(test_type: str, subject_id: str, user_id: int = None
                         available_tests = []
                         for course in student_courses:
                             tests = await MonthTestRepository.get_by_course_subject(course.id, subject.id)
-                            # Фильтруем по типу теста
-                            test_filter_type = 'entry' if test_type == 'month_entry' else 'control'
-                            filtered_tests = [t for t in tests if t.test_type == test_filter_type]
-                            available_tests.extend(filtered_tests)
+                            # Показываем все тесты для обоих режимов (входной и контрольный)
+                            available_tests.extend(tests)
 
                         # Создаем кнопки для доступных тестов
                         for test in available_tests:

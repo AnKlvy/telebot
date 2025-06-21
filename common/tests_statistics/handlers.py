@@ -1633,8 +1633,8 @@ async def show_month_control_test_months(callback: CallbackQuery, state: FSMCont
 
         # Получаем все тесты месяца для предмета группы
         all_month_tests = await MonthTestRepository.get_all()
-        # Фильтруем только контрольные тесты для предмета группы
-        group_control_tests = [mt for mt in all_month_tests if mt.subject_id == group.subject_id and mt.test_type == 'control']
+        # Показываем все тесты для предмета группы (теперь один тест используется для обоих режимов)
+        group_control_tests = [mt for mt in all_month_tests if mt.subject_id == group.subject_id]
 
         if not group_control_tests:
             await callback.message.edit_text(
@@ -1795,16 +1795,13 @@ async def show_month_control_student_detail(callback: CallbackQuery, state: FSMC
         result_text += f"📗 {group.subject.name}:\n"
         result_text += f"Тест: {month_test.name}\n"
 
-        # Пытаемся найти соответствующий входной тест для краткого сравнения
-        entry_test = None
-        if month_test.parent_test_id:
-            entry_test = await MonthTestRepository.get_by_id(month_test.parent_test_id)
+        # Пытаемся найти соответствующий входной результат для краткого сравнения
+        # Теперь ищем входной результат по тому же тесту
+        entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            student_id, month_test_id
+        )
 
-        if entry_test:
-            # Получаем результат входного теста
-            entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
-                student_id, entry_test.id
-            )
+        if entry_result:
 
             if entry_result:
                 # Показываем краткое сравнение
@@ -1932,73 +1929,64 @@ async def show_month_control_microtopics_detailed(callback: CallbackQuery, state
         microtopic_names = {mt.number: mt.name for mt in microtopics}
 
         # Пытаемся получить сравнительную статистику
-        entry_test = None
-        if month_test.parent_test_id:
-            entry_test = await MonthTestRepository.get_by_id(month_test.parent_test_id)
+        # Теперь ищем входной и контрольный результаты по тому же тесту
+        comparison_data = await MonthEntryTestResultRepository.get_comparison_statistics(
+            student_id, month_test_id, month_test_id
+        )
 
-        if entry_test:
-            # Получаем сравнительную статистику
-            comparison_data = await MonthEntryTestResultRepository.get_comparison_statistics(
-                student_id, entry_test.id, month_test_id
-            )
+        if comparison_data:
+            # Показываем сравнение
+            result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
+            result_text += f"👤 {student.user.name}\n"
+            result_text += f"📗 {group.subject.name}:\n"
+            result_text += f"Тест: {month_test.name}\n"
 
-            if comparison_data:
-                # Показываем сравнение
-                result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
-                result_text += f"👤 {student.user.name}\n"
-                result_text += f"📗 {group.subject.name}:\n"
-                result_text += f"Тест: {month_test.name}\n"
+            entry_data = comparison_data['entry_test']
+            control_data = comparison_data['control_test']
+            comparison = comparison_data['comparison']
 
-                entry_data = comparison_data['entry_test']
-                control_data = comparison_data['control_test']
-                comparison = comparison_data['comparison']
+            result_text += f"Верных: {entry_data['correct_answers']} / {entry_data['total_questions']} → {control_data['correct_answers']} / {control_data['total_questions']}\n\n"
 
-                result_text += f"Верных: {entry_data['correct_answers']} / {entry_data['total_questions']} → {control_data['correct_answers']} / {control_data['total_questions']}\n\n"
+            result_text += "📊 % правильных ответов по микротемам:\n"
 
-                result_text += "📊 % правильных ответов по микротемам:\n"
+            # Показываем сравнение по микротемам
+            microtopic_changes = comparison['microtopic_changes']
+            if microtopic_changes:
+                for microtopic_num in sorted(microtopic_changes.keys()):
+                    change_data = microtopic_changes[microtopic_num]
+                    microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
 
-                # Показываем сравнение по микротемам
-                microtopic_changes = comparison['microtopic_changes']
-                if microtopic_changes:
-                    for microtopic_num in sorted(microtopic_changes.keys()):
-                        change_data = microtopic_changes[microtopic_num]
-                        microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                    entry_percentage = change_data['entry_percentage']
+                    control_percentage = change_data['control_percentage']
+                    growth_percentage = change_data.get('growth_percentage', 0)
 
-                        entry_percentage = change_data['entry_percentage']
-                        control_percentage = change_data['control_percentage']
-                        growth_percentage = change_data.get('growth_percentage', 0)
+                    # Определяем эмодзи по проценту контрольного теста
+                    if control_percentage >= 80:
+                        emoji = "✅"
+                    elif control_percentage <= 40:
+                        emoji = "❌"
+                    else:
+                        emoji = "⚠️"
 
-                        # Определяем эмодзи по проценту контрольного теста
-                        if control_percentage >= 80:
-                            emoji = "✅"
-                        elif control_percentage <= 40:
-                            emoji = "❌"
+                    # Показываем сравнение с ростом
+                    if entry_percentage == 0 and control_percentage > 0:
+                        # Абсолютный рост в процентных пунктах
+                        result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% (+{control_percentage:.0f} п.п.) {emoji}\n"
+                    elif entry_percentage > 0:
+                        # Относительный рост в процентах
+                        if growth_percentage > 0:
+                            result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% (+{growth_percentage:.1f}%) {emoji}\n"
+                        elif growth_percentage < 0:
+                            result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% ({growth_percentage:.1f}%) {emoji}\n"
                         else:
-                            emoji = "⚠️"
-
-                        # Показываем сравнение с ростом
-                        if entry_percentage == 0 and control_percentage > 0:
-                            # Абсолютный рост в процентных пунктах
-                            result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% (+{control_percentage:.0f} п.п.) {emoji}\n"
-                        elif entry_percentage > 0:
-                            # Относительный рост в процентах
-                            if growth_percentage > 0:
-                                result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% (+{growth_percentage:.1f}%) {emoji}\n"
-                            elif growth_percentage < 0:
-                                result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% ({growth_percentage:.1f}%) {emoji}\n"
-                            else:
-                                result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {emoji}\n"
-                        else:
-                            # Оба теста 0%
                             result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {emoji}\n"
-                else:
-                    result_text += "Нет данных по микротемам\n"
+                    else:
+                        # Оба теста 0%
+                        result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {emoji}\n"
             else:
-                # Если сравнение не удалось получить, показываем только контрольный тест
-                await show_month_control_fallback_detailed(callback, student, group, month_test, month_test_id, student_id, microtopic_names)
-                return
+                result_text += "Нет данных по микротемам\n"
         else:
-            # Если входной тест не найден, показываем только контрольный тест
+            # Если сравнение не удалось получить, показываем только контрольный тест
             await show_month_control_fallback_detailed(callback, student, group, month_test, month_test_id, student_id, microtopic_names)
             return
 
@@ -2192,23 +2180,14 @@ async def show_month_tests_comparison_detail(callback: CallbackQuery, state: FSM
             )
             return
 
-        # Находим соответствующий входной тест
-        entry_test = None
-        if control_test.parent_test_id:
-            entry_test = await MonthTestRepository.get_by_id(control_test.parent_test_id)
+        # Теперь используем тот же тест для входного и контрольного режима
+        entry_test = control_test
 
-        if not entry_test:
-            await callback.message.edit_text(
-                f"❌ Не найден соответствующий входной тест для контрольного теста '{control_test.name}'",
-                reply_markup=get_back_kb()
-            )
-            return
-
-        # Получаем результаты обоих тестов
+        # Получаем результаты обоих тестов (теперь по одному тесту)
         entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
-            student_id, entry_test.id
+            student_id, control_test_id
         )
-        control_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+        control_result = await MonthControlTestResultRepository.get_by_student_and_month_test(
             student_id, control_test_id
         )
 
@@ -2228,7 +2207,7 @@ async def show_month_tests_comparison_detail(callback: CallbackQuery, state: FSM
 
         # Получаем сравнительную статистику
         comparison_data = await MonthEntryTestResultRepository.get_comparison_statistics(
-            student_id, entry_test.id, control_test_id
+            student_id, control_test_id, control_test_id
         )
 
         if not comparison_data:

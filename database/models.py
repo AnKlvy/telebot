@@ -299,10 +299,8 @@ class MonthTest(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)  # Название теста
-    test_type = Column(String(50), nullable=False, default='entry')  # 'entry' или 'control'
     course_id = Column(Integer, ForeignKey('courses.id', ondelete='CASCADE'), nullable=False)
     subject_id = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-    parent_test_id = Column(Integer, ForeignKey('month_tests.id', ondelete='CASCADE'), nullable=True)  # Для контрольных тестов
     created_at = Column(DateTime, server_default=func.now())
 
     # Связи
@@ -310,12 +308,9 @@ class MonthTest(Base):
     subject = relationship("Subject", backref="month_tests")
     microtopics = relationship("MonthTestMicrotopic", back_populates="month_test", cascade="all, delete-orphan")
 
-    # Связь для контрольных тестов
-    parent_test = relationship("MonthTest", remote_side=[id], backref="control_tests")
-
-    # Уникальность: один тест месяца на курс/предмет/название/тип
+    # Уникальность: один тест месяца на курс/предмет/название
     __table_args__ = (
-        UniqueConstraint('name', 'test_type', 'course_id', 'subject_id', name='unique_month_test_per_course_subject_type'),
+        UniqueConstraint('name', 'course_id', 'subject_id', name='unique_month_test_per_course_subject'),
     )
 
 

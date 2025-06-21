@@ -66,12 +66,11 @@ async def add_test_month_tests(created_subjects):
                     course_id = course.id
                     break
 
-            # Создаем тест месяца (только входной для демонстрации)
+            # Создаем тест месяца
             month_test = await MonthTestRepository.create(
                 name=test_data["name"],
                 course_id=course_id,
-                subject_id=subject.id,
-                test_type='entry'
+                subject_id=subject.id
             )
 
             # Получаем микротемы для предмета

@@ -34,16 +34,7 @@ async def generate_month_test_questions(month_test_id: int):
             return []
 
         # Получаем связи микротем с тестом месяца
-        # Для контрольных тестов используем микротемы родительского входного теста
-        if month_test.test_type == 'control' and month_test.parent_test_id:
-            parent_test = await MonthTestRepository.get_by_id(month_test.parent_test_id)
-            if parent_test:
-                month_test_microtopics = parent_test.microtopics
-            else:
-                logger.error(f"Родительский тест для контрольного теста {month_test_id} не найден")
-                return []
-        else:
-            month_test_microtopics = month_test.microtopics
+        month_test_microtopics = month_test.microtopics
 
         if not month_test_microtopics:
             logger.error(f"У теста месяца {month_test_id} нет микротем")
@@ -139,7 +130,6 @@ async def show_month_entry_test_confirmation(callback: CallbackQuery, state: FSM
 
         # Сохраняем данные для последующего запуска теста (только сериализуемые данные)
         await state.update_data(
-            test_type="month_entry",
             month_test_id=month_test.id,
             student_id=student_id,
             questions=test_questions,  # test_questions уже словари из generate_month_test_questions
@@ -166,15 +156,7 @@ async def show_month_control_test_confirmation(callback: CallbackQuery, state: F
         avg_time = sum(q.get('time_limit', 60) for q in test_questions) // len(test_questions) if test_questions else 60
 
         # Получаем информацию о микротемах
-        # Для контрольных тестов используем микротемы родительского входного теста
-        if month_test.test_type == 'control' and month_test.parent_test_id:
-            parent_test = await MonthTestRepository.get_by_id(month_test.parent_test_id)
-            if parent_test:
-                microtopic_numbers = [mtm.microtopic_number for mtm in parent_test.microtopics]
-            else:
-                microtopic_numbers = []
-        else:
-            microtopic_numbers = [mtm.microtopic_number for mtm in month_test.microtopics]
+        microtopic_numbers = [mtm.microtopic_number for mtm in month_test.microtopics]
 
         microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
         test_microtopics = [mt for mt in microtopics if mt.number in microtopic_numbers]
@@ -203,7 +185,6 @@ async def show_month_control_test_confirmation(callback: CallbackQuery, state: F
 
         # Сохраняем данные для последующего запуска теста (только сериализуемые данные)
         await state.update_data(
-            test_type="month_control",
             month_test_id=month_test.id,
             student_id=student_id,
             questions=test_questions,  # test_questions уже словари из generate_month_test_questions
@@ -333,44 +314,46 @@ async def finish_month_control_test(chat_id: int, state: FSMContext, bot):
 async def show_month_control_test_statistics_final(chat_id: int, state: FSMContext, test_result, bot):
     """Показать статистику контрольного теста месяца после завершения"""
     try:
+        # Получаем тест месяца отдельно (объект test_result отвязан от сессии)
+        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        if not month_test:
+            logger.error(f"Тест месяца с ID {test_result.month_test_id} не найден")
+            return
+
         # Получаем статистику по микротемам
         microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
 
         # Получаем названия микротем
-        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
+        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
         microtopic_names = {mt.number: mt.name for mt in microtopics}
 
-        # Пытаемся найти соответствующий входной тест для сравнения
-        entry_test = None
+        # Пытаемся найти соответствующий входной результат для сравнения
         comparison_text = ""
-        if test_result.month_test.parent_test_id:
-            entry_test = await MonthTestRepository.get_by_id(test_result.month_test.parent_test_id)
-            if entry_test:
-                entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
-                    test_result.student_id, entry_test.id
-                )
-                if entry_result:
-                    # Показываем сравнение с входным тестом
-                    comparison_text = f"\n📊 Сравнение с входным тестом:\n"
-                    comparison_text += f"Верных: {entry_result.correct_answers}/{entry_result.total_questions} → {test_result.correct_answers}/{test_result.total_questions}\n"
+        entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            test_result.student_id, test_result.month_test_id
+        )
+        if entry_result:
+            # Показываем сравнение с входным тестом
+            comparison_text = f"\n📊 Сравнение с входным тестом:\n"
+            comparison_text += f"Верных: {entry_result.correct_answers}/{entry_result.total_questions} → {test_result.correct_answers}/{test_result.total_questions}\n"
 
-                    # Рассчитываем общий рост
-                    if entry_result.score_percentage > 0:
-                        growth = ((test_result.score_percentage - entry_result.score_percentage) / entry_result.score_percentage) * 100
-                        if growth > 0:
-                            comparison_text += f"📈 Общий рост: +{growth:.1f}%\n"
-                        elif growth < 0:
-                            comparison_text += f"📉 Общее снижение: {growth:.1f}%\n"
-                        else:
-                            comparison_text += f"📊 Результат остался на том же уровне\n"
-                    else:
-                        if test_result.score_percentage > 0:
-                            comparison_text += f"📈 Рост: +{test_result.score_percentage:.1f} п.п.\n"
+            # Рассчитываем общий рост
+            if entry_result.score_percentage > 0:
+                growth = ((test_result.score_percentage - entry_result.score_percentage) / entry_result.score_percentage) * 100
+                if growth > 0:
+                    comparison_text += f"📈 Общий рост: +{growth:.1f}%\n"
+                elif growth < 0:
+                    comparison_text += f"📉 Общее снижение: {growth:.1f}%\n"
+                else:
+                    comparison_text += f"📊 Результат остался на том же уровне\n"
+            else:
+                if test_result.score_percentage > 0:
+                    comparison_text += f"📈 Рост: +{test_result.score_percentage:.1f} п.п.\n"
 
         # Формируем результат
         result_text = f"🎉 Контрольный тест месяца завершен!\n\n"
-        result_text += f"📗 {test_result.month_test.subject.name}\n"
-        result_text += f"Тест: {test_result.month_test.name}\n"
+        result_text += f"📗 {month_test.subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
         result_text += f"Верных ответов: {test_result.correct_answers} / {test_result.total_questions}\n"
         result_text += f"Процент: {test_result.score_percentage}%\n"
         result_text += comparison_text
@@ -399,6 +382,9 @@ async def show_month_control_test_statistics_final(chat_id: int, state: FSMConte
             )]
         ]
         buttons.extend(get_back_to_test_kb().inline_keyboard)
+
+        # Получаем данные состояния для очистки сообщений
+        data = await state.get_data()
 
         # Очищаем сообщения теста
         await cleanup_test_messages(chat_id, data, bot)

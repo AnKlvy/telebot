@@ -33,6 +33,21 @@ class MonthControlTestResultRepository:
             return list(result.scalars().all())
 
     @staticmethod
+    async def get_by_id(test_result_id: int) -> Optional[MonthControlTestResult]:
+        """Получить результат контрольного теста по ID"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(MonthControlTestResult)
+                .options(
+                    selectinload(MonthControlTestResult.student).selectinload(Student.user),
+                    selectinload(MonthControlTestResult.month_test).selectinload(MonthTest.subject),
+                    selectinload(MonthControlTestResult.month_test).selectinload(MonthTest.course)
+                )
+                .where(MonthControlTestResult.id == test_result_id)
+            )
+            return result.scalar_one_or_none()
+
+    @staticmethod
     async def get_by_student_and_month_test(student_id: int, month_test_id: int) -> Optional[MonthControlTestResult]:
         """Получить результат контрольного теста студента по тесту месяца"""
         async with get_db_session() as session:
