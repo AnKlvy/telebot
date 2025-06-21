@@ -668,31 +668,29 @@ async def show_student_month_entry_summary(callback: CallbackQuery, state: FSMCo
 
 @router.callback_query(StudentTestsStates.month_control_result, F.data.startswith("student_month_control_detailed_"))
 async def show_student_month_control_detailed(callback: CallbackQuery, state: FSMContext):
-    """Показать детальную статистику по микротемам контрольного теста месяца для студента"""
+    """Показать детальную статистику по микротемам контрольного теста месяца для студента с сравнением"""
     try:
         # Формат: student_month_control_detailed_TEST_RESULT_ID
         test_result_id = int(callback.data.split("_")[-1])
 
-        # Получаем результат теста
+        # Получаем результат контрольного теста
         from database.repositories.month_control_test_result_repository import MonthControlTestResultRepository
-        test_result = await MonthControlTestResultRepository.get_by_id(test_result_id)
+        control_result = await MonthControlTestResultRepository.get_by_id(test_result_id)
 
-        if not test_result:
+        if not control_result:
             await callback.message.edit_text(
                 "❌ Результат теста не найден",
                 reply_markup=get_back_to_test_kb()
             )
             return
 
-        # Получаем статистику по микротемам
-        microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
-
         # Получаем тест месяца и названия микротем
         from database.repositories.microtopic_repository import MicrotopicRepository
         from database.repositories.subject_repository import SubjectRepository
         from database.repositories.month_test_repository import MonthTestRepository
+        from database.repositories.month_entry_test_result_repository import MonthEntryTestResultRepository
 
-        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        month_test = await MonthTestRepository.get_by_id(control_result.month_test_id)
         if not month_test:
             await callback.message.edit_text(
                 "❌ Тест месяца не найден",
@@ -702,33 +700,77 @@ async def show_student_month_control_detailed(callback: CallbackQuery, state: FS
 
         microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
         microtopic_names = {mt.number: mt.name for mt in microtopics}
-
         subject = await SubjectRepository.get_by_id(month_test.subject_id)
 
-        # Формируем детальную статистику
-        result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
-        result_text += f"📗 {subject.name}\n"
-        result_text += f"Тест: {month_test.name}\n"
-        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
-        result_text += "📈 % правильных ответов по микротемам:\n"
+        # Пытаемся получить результат входного теста для сравнения
+        entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
+            control_result.student_id, control_result.month_test_id
+        )
 
-        if microtopic_stats:
-            for microtopic_num in sorted(microtopic_stats.keys()):
-                stats = microtopic_stats[microtopic_num]
-                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
-                percentage = stats['percentage']
+        if entry_result:
+            # Получаем статистику по микротемам для обоих тестов
+            entry_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(entry_result.id)
+            control_stats = await MonthControlTestResultRepository.get_microtopic_statistics(control_result.id)
 
-                # Определяем эмодзи статуса
-                if percentage >= 80:
-                    status = "✅"
-                elif percentage <= 40:
-                    status = "❌"
-                else:
-                    status = "⚠️"
+            # Формируем текст с сравнением
+            result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
+            result_text += f"📗 {subject.name}\n"
+            result_text += f"Тест: {month_test.name}\n"
+            result_text += f"Верных: {entry_result.correct_answers} / {entry_result.total_questions} → {control_result.correct_answers} / {control_result.total_questions}\n\n"
+            result_text += "📊 % правильных ответов по микротемам:\n"
 
-                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+            if control_stats:
+                for microtopic_num in sorted(control_stats.keys()):
+                    microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+
+                    # Получаем проценты для входного и контрольного тестов
+                    entry_percentage = entry_stats.get(microtopic_num, {}).get('percentage', 0) if entry_stats else 0
+                    control_percentage = control_stats[microtopic_num]['percentage']
+
+                    # Определяем изменение
+                    if entry_percentage > 0:
+                        change = control_percentage - entry_percentage
+                        if change > 0:
+                            emoji = "📈"  # Улучшение
+                        elif change < 0:
+                            emoji = "📉"  # Ухудшение
+                        else:
+                            emoji = "➡️"  # Без изменений
+
+                        result_text += f"• {microtopic_name} — {entry_percentage}% → {control_percentage}% {emoji}\n"
+                    else:
+                        # Если входного теста не было по этой микротеме
+                        status = "✅" if control_percentage >= 80 else "❌" if control_percentage <= 40 else "⚠️"
+                        result_text += f"• {microtopic_name} — {control_percentage}% {status}\n"
+            else:
+                result_text += "Нет данных по микротемам\n"
         else:
-            result_text += "Нет данных по микротемам\n"
+            # Если входного теста нет, показываем только контрольный
+            control_stats = await MonthControlTestResultRepository.get_microtopic_statistics(control_result.id)
+
+            result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
+            result_text += f"📗 {subject.name}\n"
+            result_text += f"Тест: {month_test.name}\n"
+            result_text += f"Верных: {control_result.correct_answers} / {control_result.total_questions}\n\n"
+            result_text += "📈 % правильных ответов по микротемам:\n"
+
+            if control_stats:
+                for microtopic_num in sorted(control_stats.keys()):
+                    stats = control_stats[microtopic_num]
+                    microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                    percentage = stats['percentage']
+
+                    # Определяем эмодзи статуса
+                    if percentage >= 80:
+                        status = "✅"
+                    elif percentage <= 40:
+                        status = "❌"
+                    else:
+                        status = "⚠️"
+
+                    result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+            else:
+                result_text += "Нет данных по микротемам\n"
 
         await callback.message.edit_text(
             result_text,

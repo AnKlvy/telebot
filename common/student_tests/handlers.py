@@ -264,10 +264,6 @@ async def handle_month_entry_month_selected(callback, state=None, user_role: str
 
 async def handle_month_control_month_selected(callback, state=None, user_role: str = None):
     """Обработчик состояния выбора месяца для контрольного теста месяца"""
-    print(f"🔥 handle_month_control_month_selected ВЫЗВАН!")
-    print(f"🔥 callback.data: {callback.data if hasattr(callback, 'data') else 'НЕТ DATA'}")
-    print(f"🔥 callback type: {type(callback)}")
-
     from .keyboards import get_month_test_kb
     from aiogram.types import CallbackQuery, Message
 
