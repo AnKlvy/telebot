@@ -408,9 +408,25 @@ async def show_month_control_test_statistics(callback: CallbackQuery, state: FSM
                 status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
                 result_text += f"• {microtopic_name} — {percentage}% {status}\n"
 
+        result_text += "\nВыберите тип аналитики:"
+
+        # Создаем кнопки для детальной аналитики (как у куратора)
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        buttons = [
+            [InlineKeyboardButton(
+                text="📊 Проценты по микротемам",
+                callback_data=f"student_month_control_detailed_{test_result.id}"
+            )],
+            [InlineKeyboardButton(
+                text="💪 Сильные/слабые темы",
+                callback_data=f"student_month_control_summary_{test_result.id}"
+            )]
+        ]
+        buttons.extend(get_back_to_test_kb().inline_keyboard)
+
         await callback.message.edit_text(
             result_text,
-            reply_markup=get_back_to_test_kb()
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
         await state.set_state(StudentTestsStates.test_result)
 
@@ -495,5 +511,247 @@ async def show_student_month_entry_detailed(callback: CallbackQuery, state: FSMC
         logger.error(f"Ошибка при получении детальной статистики входного теста месяца: {e}")
         await callback.message.edit_text(
             "❌ Ошибка при получении статистики",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_entry_summary_"))
+async def show_student_month_entry_summary(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным/слабым темам входного теста месяца для студента"""
+    try:
+        # Формат: student_month_entry_summary_TEST_RESULT_ID
+        test_result_id = int(callback.data.split("_")[-1])
+
+        # Получаем результат теста
+        from database.repositories.month_entry_test_result_repository import MonthEntryTestResultRepository
+        test_result = await MonthEntryTestResultRepository.get_by_id(test_result_id)
+
+        if not test_result:
+            await callback.message.edit_text(
+                "❌ Результат теста не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        from database.repositories.subject_repository import SubjectRepository
+        from database.repositories.month_test_repository import MonthTestRepository
+
+        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
+        microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Разделяем на сильные и слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        if microtopic_stats:
+            for microtopic_num, stats in microtopic_stats.items():
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                percentage = stats['percentage']
+
+                if percentage >= 80:
+                    strong_topics.append((microtopic_name, percentage))
+                elif percentage <= 40:
+                    weak_topics.append((microtopic_name, percentage))
+
+        # Формируем текст сводки
+        result_text = f"💪 Сильные и слабые темы\n\n"
+        result_text += f"📗 {subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Общий результат: {test_result.score_percentage}%\n\n"
+
+        if strong_topics:
+            result_text += "✅ Сильные темы (≥80%):\n"
+            for name, percentage in sorted(strong_topics, key=lambda x: x[1], reverse=True):
+                result_text += f"• {name} — {percentage}%\n"
+            result_text += "\n"
+        else:
+            result_text += "✅ Сильных тем пока нет\n\n"
+
+        if weak_topics:
+            result_text += "❌ Слабые темы (≤40%):\n"
+            for name, percentage in sorted(weak_topics, key=lambda x: x[1]):
+                result_text += f"• {name} — {percentage}%\n"
+            result_text += "\n"
+        else:
+            result_text += "❌ Слабых тем нет\n\n"
+
+        # Добавляем рекомендации
+        if strong_topics:
+            result_text += "🎉 Отличная работа! Продолжайте в том же духе"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_test_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении сводки входного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении сводки",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_control_detailed_"))
+async def show_student_month_control_detailed(callback: CallbackQuery, state: FSMContext):
+    """Показать детальную статистику по микротемам контрольного теста месяца для студента"""
+    try:
+        # Формат: student_month_control_detailed_TEST_RESULT_ID
+        test_result_id = int(callback.data.split("_")[-1])
+
+        # Получаем результат теста
+        from database.repositories.month_control_test_result_repository import MonthControlTestResultRepository
+        test_result = await MonthControlTestResultRepository.get_by_id(test_result_id)
+
+        if not test_result:
+            await callback.message.edit_text(
+                "❌ Результат теста не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        from database.repositories.microtopic_repository import MicrotopicRepository
+        microtopics = await MicrotopicRepository.get_by_subject(test_result.month_test.subject_id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Получаем предмет и тест
+        from database.repositories.subject_repository import SubjectRepository
+        from database.repositories.month_test_repository import MonthTestRepository
+
+        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
+        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+
+        # Формируем детальную статистику
+        result_text = f"📊 Детальная статистика контрольного теста месяца\n\n"
+        result_text += f"📗 {subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n\n"
+        result_text += "📈 % правильных ответов по микротемам:\n"
+
+        if microtopic_stats:
+            for microtopic_num in sorted(microtopic_stats.keys()):
+                stats = microtopic_stats[microtopic_num]
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                percentage = stats['percentage']
+
+                # Определяем эмодзи статуса
+                if percentage >= 80:
+                    status = "✅"
+                elif percentage <= 40:
+                    status = "❌"
+                else:
+                    status = "⚠️"
+
+                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
+        else:
+            result_text += "Нет данных по микротемам\n"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_test_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении детальной статистики контрольного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении статистики",
+            reply_markup=get_back_to_test_kb()
+        )
+
+
+@router.callback_query(StudentTestsStates.test_result, F.data.startswith("student_month_control_summary_"))
+async def show_student_month_control_summary(callback: CallbackQuery, state: FSMContext):
+    """Показать сводку по сильным/слабым темам контрольного теста месяца для студента"""
+    try:
+        # Формат: student_month_control_summary_TEST_RESULT_ID
+        test_result_id = int(callback.data.split("_")[-1])
+
+        # Получаем результат теста
+        from database.repositories.month_control_test_result_repository import MonthControlTestResultRepository
+        test_result = await MonthControlTestResultRepository.get_by_id(test_result_id)
+
+        if not test_result:
+            await callback.message.edit_text(
+                "❌ Результат теста не найден",
+                reply_markup=get_back_to_test_kb()
+            )
+            return
+
+        # Получаем статистику по микротемам
+        microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
+
+        # Получаем названия микротем
+        from database.repositories.subject_repository import SubjectRepository
+        from database.repositories.month_test_repository import MonthTestRepository
+        from database.repositories.microtopic_repository import MicrotopicRepository
+
+        month_test = await MonthTestRepository.get_by_id(test_result.month_test_id)
+        subject = await SubjectRepository.get_by_id(test_result.month_test.subject_id)
+        microtopics = await MicrotopicRepository.get_by_subject(subject.id)
+        microtopic_names = {mt.number: mt.name for mt in microtopics}
+
+        # Разделяем на сильные и слабые темы
+        strong_topics = []
+        weak_topics = []
+
+        if microtopic_stats:
+            for microtopic_num, stats in microtopic_stats.items():
+                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
+                percentage = stats['percentage']
+
+                if percentage >= 80:
+                    strong_topics.append((microtopic_name, percentage))
+                elif percentage <= 40:
+                    weak_topics.append((microtopic_name, percentage))
+
+        # Формируем текст сводки
+        result_text = f"💪 Сильные и слабые темы\n\n"
+        result_text += f"📗 {subject.name}\n"
+        result_text += f"Тест: {month_test.name}\n"
+        result_text += f"Общий результат: {test_result.score_percentage}%\n\n"
+
+        if strong_topics:
+            result_text += "✅ Сильные темы (≥80%):\n"
+            for name, percentage in sorted(strong_topics, key=lambda x: x[1], reverse=True):
+                result_text += f"• {name} — {percentage}%\n"
+            result_text += "\n"
+        else:
+            result_text += "✅ Сильных тем пока нет\n\n"
+
+        if weak_topics:
+            result_text += "❌ Слабые темы (≤40%):\n"
+            for name, percentage in sorted(weak_topics, key=lambda x: x[1]):
+                result_text += f"• {name} — {percentage}%\n"
+            result_text += "\n"
+        else:
+            result_text += "❌ Слабых тем нет\n\n"
+
+        # Добавляем рекомендации
+        if weak_topics:
+            result_text += "💡 Рекомендация: Обратите внимание на слабые темы и повторите материал"
+        elif strong_topics:
+            result_text += "🎉 Отличная работа! Продолжайте в том же духе"
+        else:
+            result_text += "📚 Продолжайте изучение материала"
+
+        await callback.message.edit_text(
+            result_text,
+            reply_markup=get_back_to_test_kb()
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении сводки контрольного теста месяца: {e}")
+        await callback.message.edit_text(
+            "❌ Ошибка при получении сводки",
             reply_markup=get_back_to_test_kb()
         )

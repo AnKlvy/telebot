@@ -34,7 +34,17 @@ async def generate_month_test_questions(month_test_id: int):
             return []
 
         # Получаем связи микротем с тестом месяца
-        month_test_microtopics = month_test.microtopics
+        # Для контрольных тестов используем микротемы родительского входного теста
+        if month_test.test_type == 'control' and month_test.parent_test_id:
+            parent_test = await MonthTestRepository.get_by_id(month_test.parent_test_id)
+            if parent_test:
+                month_test_microtopics = parent_test.microtopics
+            else:
+                logger.error(f"Родительский тест для контрольного теста {month_test_id} не найден")
+                return []
+        else:
+            month_test_microtopics = month_test.microtopics
+
         if not month_test_microtopics:
             logger.error(f"У теста месяца {month_test_id} нет микротем")
             return []
@@ -156,7 +166,16 @@ async def show_month_control_test_confirmation(callback: CallbackQuery, state: F
         avg_time = sum(q.get('time_limit', 60) for q in test_questions) // len(test_questions) if test_questions else 60
 
         # Получаем информацию о микротемах
-        microtopic_numbers = [mtm.microtopic_number for mtm in month_test.microtopics]
+        # Для контрольных тестов используем микротемы родительского входного теста
+        if month_test.test_type == 'control' and month_test.parent_test_id:
+            parent_test = await MonthTestRepository.get_by_id(month_test.parent_test_id)
+            if parent_test:
+                microtopic_numbers = [mtm.microtopic_number for mtm in parent_test.microtopics]
+            else:
+                microtopic_numbers = []
+        else:
+            microtopic_numbers = [mtm.microtopic_number for mtm in month_test.microtopics]
+
         microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
         test_microtopics = [mt for mt in microtopics if mt.number in microtopic_numbers]
 
@@ -365,13 +384,29 @@ async def show_month_control_test_statistics_final(chat_id: int, state: FSMConte
                 status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
                 result_text += f"• {microtopic_name} — {percentage}% {status}\n"
 
+        result_text += "\nВыберите тип аналитики:"
+
+        # Создаем кнопки для детальной аналитики (как у куратора)
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        buttons = [
+            [InlineKeyboardButton(
+                text="📊 Проценты по микротемам",
+                callback_data=f"student_month_control_detailed_{test_result.id}"
+            )],
+            [InlineKeyboardButton(
+                text="💪 Сильные/слабые темы",
+                callback_data=f"student_month_control_summary_{test_result.id}"
+            )]
+        ]
+        buttons.extend(get_back_to_test_kb().inline_keyboard)
+
         # Очищаем сообщения теста
         await cleanup_test_messages(chat_id, data, bot)
 
         await bot.send_message(
             chat_id,
             result_text,
-            reply_markup=get_back_to_test_kb()
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
         await state.set_state(StudentTestsStates.test_result)
 
