@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from common.utils import check_if_id_in_callback_data
-from ..keyboards.shop import get_shop_menu_kb, get_exchange_points_kb, get_back_to_shop_kb, get_bonus_catalog_kb, get_my_bonuses_kb
+from ..keyboards.shop import get_shop_menu_kb, get_exchange_points_kb, get_back_to_shop_kb, get_bonus_catalog_kb, get_my_bonuses_kb, get_purchase_confirmation_kb
 from database import StudentRepository, ShopItemRepository, StudentPurchaseRepository, BonusTestRepository, StudentBonusTestRepository, BonusQuestionRepository, BonusAnswerOptionRepository
 from common.navigation import log
 from common.quiz_registrator import register_quiz_handlers, send_next_question, cleanup_test_messages
@@ -16,6 +16,7 @@ class ShopStates(StatesGroup):
     exchange = State()
     catalog = State()
     my_bonuses = State()
+    purchase_confirmation = State()
     bonus_test_confirmation = State()
     bonus_test_in_progress = State()
 
@@ -277,9 +278,9 @@ async def process_shop_item_purchase(callback: CallbackQuery, state: FSMContext)
         )
 
 @router.callback_query(ShopStates.catalog, F.data.startswith("buy_bonus_"))
-async def process_bonus_test_purchase(callback: CallbackQuery, state: FSMContext):
-    """Обработать покупку бонусного теста"""
-    await log("process_bonus_test_purchase", "student", state)
+async def show_bonus_test_purchase_confirmation(callback: CallbackQuery, state: FSMContext):
+    """Показать подтверждение покупки бонусного теста"""
+    await log("show_bonus_test_purchase_confirmation", "student", state)
 
     test_id = int(callback.data.replace("buy_bonus_", ""))
 
@@ -322,6 +323,88 @@ async def process_bonus_test_purchase(callback: CallbackQuery, state: FSMContext
         )
         return
 
+    # Показываем подтверждение покупки
+    question_count = len(bonus_test.questions) if bonus_test.questions else 0
+
+    await callback.message.edit_text(
+        f"💳 Подтверждение покупки\n\n"
+        f"🧪 {bonus_test.name}\n"
+        f"📊 Количество вопросов: {question_count}\n"
+        f"💰 Стоимость: {bonus_test.price} монет\n\n"
+        f"💼 Твой баланс: {balance['coins']} монет\n"
+        f"💸 После покупки останется: {balance['coins'] - bonus_test.price} монет\n\n"
+        f"❓ Подтвердить покупку?",
+        reply_markup=get_purchase_confirmation_kb(test_id)
+    )
+
+    # Сохраняем данные для подтверждения
+    await state.update_data(
+        test_to_purchase_id=test_id,
+        test_to_purchase_name=bonus_test.name,
+        test_to_purchase_price=bonus_test.price
+    )
+    await state.set_state(ShopStates.purchase_confirmation)
+
+@router.callback_query(ShopStates.purchase_confirmation, F.data.startswith("confirm_purchase_bonus_"))
+async def confirm_bonus_test_purchase(callback: CallbackQuery, state: FSMContext):
+    """Подтвердить покупку бонусного теста"""
+    await log("confirm_bonus_test_purchase", "student", state)
+
+    test_id = int(callback.data.replace("confirm_purchase_bonus_", ""))
+
+    # Получаем данные из состояния
+    data = await state.get_data()
+    stored_test_id = data.get("test_to_purchase_id")
+    test_name = data.get("test_to_purchase_name", "Неизвестный тест")
+    test_price = data.get("test_to_purchase_price", 0)
+
+    # Проверяем соответствие ID
+    if stored_test_id != test_id:
+        await callback.message.edit_text(
+            "❌ Ошибка: несоответствие данных теста.",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
+
+    # Получаем студента
+    student = await StudentRepository.get_by_telegram_id(callback.from_user.id)
+    if not student:
+        await callback.message.edit_text(
+            "❌ Профиль студента не найден.",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
+
+    # Получаем бонусный тест
+    bonus_test = await BonusTestRepository.get_by_id(test_id)
+    if not bonus_test:
+        await callback.message.edit_text(
+            "❌ Бонусный тест не найден.",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
+
+    # Повторно проверяем баланс (на случай изменений)
+    balance = await StudentRepository.get_balance(student.id)
+    if balance["coins"] < bonus_test.price:
+        await callback.message.edit_text(
+            f"❌ Недостаточно монет!\n"
+            f"Нужно: {bonus_test.price} монет\n"
+            f"У тебя: {balance['coins']} монет",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
+
+    # Повторно проверяем, не покупал ли студент уже этот тест
+    already_purchased = await StudentBonusTestRepository.has_purchased_test(student.id, bonus_test.id)
+    if already_purchased:
+        await callback.message.edit_text(
+            f"⚠️ Ты уже покупал этот бонусный тест!\n"
+            f"Проверь раздел 'Мои бонусы'.",
+            reply_markup=get_back_to_shop_kb()
+        )
+        return
+
     # Выполняем покупку
     success = await StudentRepository.spend_coins(student.id, bonus_test.price)
     if success:
@@ -347,6 +430,17 @@ async def process_bonus_test_purchase(callback: CallbackQuery, state: FSMContext
             "❌ Ошибка при покупке. Попробуйте позже.",
             reply_markup=get_back_to_shop_kb()
         )
+
+@router.callback_query(ShopStates.purchase_confirmation, F.data == "cancel_purchase")
+async def cancel_bonus_test_purchase(callback: CallbackQuery, state: FSMContext):
+    """Отменить покупку бонусного теста"""
+    await log("cancel_bonus_test_purchase", "student", state)
+
+    await callback.message.edit_text(
+        "❌ Покупка отменена",
+        reply_markup=get_back_to_shop_kb()
+    )
+    await state.set_state(ShopStates.main)
 
 @router.callback_query(F.data.startswith("no_coins_"))
 async def handle_insufficient_coins(callback: CallbackQuery, state: FSMContext):
@@ -610,6 +704,11 @@ async def finish_bonus_test(chat_id, state: FSMContext, bot: Bot):
     # Возвращаемся в состояние магазина
     await state.set_state(ShopStates.my_bonuses)
 
+
+@router.callback_query(ShopStates.purchase_confirmation, F.data == "bonus_catalog")
+async def back_to_catalog_from_confirmation(callback: CallbackQuery, state: FSMContext):
+    """Вернуться к каталогу из подтверждения покупки"""
+    await show_bonus_catalog(callback, state)
 
 @router.callback_query(F.data == "my_bonuses")
 async def handle_my_bonuses_callback(callback: CallbackQuery, state: FSMContext):

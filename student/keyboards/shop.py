@@ -125,3 +125,12 @@ def get_back_to_shop_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button(),
     ])
+
+def get_purchase_confirmation_kb(test_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура подтверждения покупки бонусного теста"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Подтвердить покупку", callback_data=f"confirm_purchase_bonus_{test_id}")],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_purchase")],
+        [InlineKeyboardButton(text="🔙 Назад к каталогу", callback_data="bonus_catalog")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+    ])
