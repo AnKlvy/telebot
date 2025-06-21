@@ -89,3 +89,14 @@ class StudentPurchaseRepository:
                 .where(ShopItem.item_type == item_type)
             )
             return len(list(result.scalars().all()))
+
+    @staticmethod
+    async def has_purchased_item(student_id: int, item_id: int) -> bool:
+        """Проверить, покупал ли студент данный товар"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(StudentPurchase)
+                .where(StudentPurchase.student_id == student_id)
+                .where(StudentPurchase.item_id == item_id)
+            )
+            return result.scalar_one_or_none() is not None

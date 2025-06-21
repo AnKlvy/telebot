@@ -5,6 +5,8 @@ STATE_TRANSITIONS = {
     ShopStates.exchange: ShopStates.main,
     ShopStates.catalog: ShopStates.main,
     ShopStates.my_bonuses: ShopStates.main,
+    ShopStates.purchase_confirmation: ShopStates.catalog,  # Для бонусных тестов
+    ShopStates.item_purchase_confirmation: ShopStates.catalog,  # Для обычных товаров
     ShopStates.bonus_test_confirmation: ShopStates.my_bonuses,
     ShopStates.bonus_test_in_progress: ShopStates.bonus_test_confirmation,
     ShopStates.main: None  # None означает возврат в главное меню

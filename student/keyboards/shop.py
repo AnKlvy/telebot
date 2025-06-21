@@ -53,6 +53,7 @@ async def get_bonus_catalog_kb(items: List, user_coins: int) -> InlineKeyboardMa
         # Определяем эмодзи по типу товара
         emoji = {
             'bonus_test': '🧪',
+            'bonus_task': '🎯',
             'pdf': '📘',
             'money': '💰',
             'other': '🎁'
@@ -88,6 +89,7 @@ async def get_my_bonuses_kb(purchases: List, bonus_test_purchases: List) -> Inli
     for purchase in purchases:
         # Определяем эмодзи по типу товара
         emoji = {
+            'bonus_task': '🎯',
             'pdf': '📘',
             'money': '💰',
             'other': '🎁'
@@ -124,6 +126,24 @@ def get_back_to_shop_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню магазина"""
     return InlineKeyboardMarkup(inline_keyboard=[
         *get_main_menu_back_button(),
+    ])
+
+def get_purchase_confirmation_kb(item_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура подтверждения покупки бонусного теста"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Подтвердить покупку", callback_data=f"confirm_purchase_bonus_{item_id}")],
+        [InlineKeyboardButton(text="🛒 Вернуться к каталогу", callback_data="bonus_catalog")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_purchase")],
+        *get_main_menu_back_button()
+    ])
+
+def get_item_purchase_confirmation_kb(item_id: int) -> InlineKeyboardMarkup:
+    """Клавиатура подтверждения покупки обычного товара (бонусного задания)"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Подтвердить покупку", callback_data=f"confirm_purchase_item_{item_id}")],
+        [InlineKeyboardButton(text="🛒 Вернуться к каталогу", callback_data="bonus_catalog")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_purchase")],
+        *get_main_menu_back_button()
     ])
 
 def get_purchase_confirmation_kb(test_id: int) -> InlineKeyboardMarkup:
