@@ -228,13 +228,8 @@ async def finish_month_entry_test(chat_id: int, state: FSMContext, bot):
             question_results=question_results
         )
 
-        # Получаем статистику по микротемам
-        microtopic_stats = await MonthEntryTestResultRepository.get_microtopic_statistics(test_result.id)
 
-        # Получаем названия микротем
         month_test = await MonthTestRepository.get_by_id(month_test_id)
-        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
-        microtopic_names = {mt.number: mt.name for mt in microtopics}
 
         # Формируем текст результата
         result_text = f"📊 Входной тест месяца завершен!\n\n"
@@ -243,14 +238,6 @@ async def finish_month_entry_test(chat_id: int, state: FSMContext, bot):
         result_text += f"Верных: {test_result.correct_answers} / {test_result.total_questions}\n"
         result_text += f"Процент: {test_result.score_percentage}%\n\n"
 
-        # Добавляем статистику по микротемам
-        if microtopic_stats:
-            result_text += "📈 Результаты по микротемам:\n"
-            for microtopic_num, stats in microtopic_stats.items():
-                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
-                percentage = stats['percentage']
-                status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
-                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
 
         # Очищаем сообщения теста
         await cleanup_test_messages(chat_id, data, bot)
@@ -320,13 +307,6 @@ async def show_month_control_test_statistics_final(chat_id: int, state: FSMConte
             logger.error(f"Тест месяца с ID {test_result.month_test_id} не найден")
             return
 
-        # Получаем статистику по микротемам
-        microtopic_stats = await MonthControlTestResultRepository.get_microtopic_statistics(test_result.id)
-
-        # Получаем названия микротем
-        microtopics = await MicrotopicRepository.get_by_subject(month_test.subject_id)
-        microtopic_names = {mt.number: mt.name for mt in microtopics}
-
         # Пытаемся найти соответствующий входной результат для сравнения
         comparison_text = ""
         entry_result = await MonthEntryTestResultRepository.get_by_student_and_month_test(
@@ -358,14 +338,6 @@ async def show_month_control_test_statistics_final(chat_id: int, state: FSMConte
         result_text += f"Процент: {test_result.score_percentage}%\n"
         result_text += comparison_text
 
-        # Добавляем статистику по микротемам
-        if microtopic_stats:
-            result_text += "\n📈 Результаты по микротемам:\n"
-            for microtopic_num, stats in microtopic_stats.items():
-                microtopic_name = microtopic_names.get(microtopic_num, f"Микротема {microtopic_num}")
-                percentage = stats['percentage']
-                status = "✅" if percentage >= 80 else "❌" if percentage <= 40 else "⚠️"
-                result_text += f"• {microtopic_name} — {percentage}% {status}\n"
 
         result_text += "\nВыберите тип аналитики:"
 

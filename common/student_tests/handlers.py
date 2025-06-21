@@ -37,6 +37,7 @@ from .base_handlers import (
     show_month_control_test_statistics
 )
 from .menu import show_tests_menu_safe
+from ..utils import check_if_id_in_callback_data
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -191,9 +192,7 @@ async def handle_month_entry_subject_selected(callback, state=None, user_role: s
     """Обработчик после выбора предмета для входного теста месяца"""
     await handle_month_entry_subjects(callback, state, user_role)
 
-async def handle_month_entry_month_selected(callback, state=None, user_role: str = None):
-    """Обработчик после выбора месяца для входного теста месяца"""
-    await handle_month_entry_subjects(callback, state, user_role)
+
 
 # Обработчики для контрольного теста месяца
 async def handle_month_control_subjects(callback, state=None, user_role: str = None):
@@ -221,9 +220,7 @@ async def handle_month_control_subject_selected(callback, state=None, user_role:
     """Обработчик после выбора предмета для контрольного теста месяца"""
     await handle_month_control_subjects(callback, state, user_role)
 
-async def handle_month_control_month_selected(callback, state=None, user_role: str = None):
-    """Обработчик после выбора месяца для контрольного теста месяца"""
-    await handle_month_control_subjects(callback, state, user_role)
+
 
 # Обработчики для состояний подтверждения
 async def handle_course_entry_confirmation(callback, state=None, user_role: str = None):
@@ -259,7 +256,7 @@ async def handle_month_entry_month_selected(callback, state=None, user_role: str
                 f"Выберите месяц для входного теста:",
                 reply_markup=await get_month_test_kb("month_entry", str(subject_id), user_id=callback.from_user.id)
             )
-            await state.set_state(StudentTestsStates.month_entry_month_selected)
+            await state.set_state(StudentTestsStates.month_entry_subject_selected)
             return
 
     # Если нет данных о предмете, возвращаемся к выбору предмета
@@ -267,7 +264,10 @@ async def handle_month_entry_month_selected(callback, state=None, user_role: str
 
 async def handle_month_control_month_selected(callback, state=None, user_role: str = None):
     """Обработчик состояния выбора месяца для контрольного теста месяца"""
-    from common.utils import check_if_id_in_callback_data
+    print(f"🔥 handle_month_control_month_selected ВЫЗВАН!")
+    print(f"🔥 callback.data: {callback.data if hasattr(callback, 'data') else 'НЕТ DATA'}")
+    print(f"🔥 callback type: {type(callback)}")
+
     from .keyboards import get_month_test_kb
     from aiogram.types import CallbackQuery, Message
 
@@ -285,7 +285,7 @@ async def handle_month_control_month_selected(callback, state=None, user_role: s
                 f"Выберите месяц для контрольного теста:",
                 reply_markup=await get_month_test_kb("month_control", str(subject_id), user_id=callback.from_user.id)
             )
-            await state.set_state(StudentTestsStates.month_control_month_selected)
+            await state.set_state(StudentTestsStates.month_control_subject_selected)
             return
 
     # Если нет данных о предмете, возвращаемся к выбору предмета
