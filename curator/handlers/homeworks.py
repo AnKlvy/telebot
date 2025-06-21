@@ -277,49 +277,27 @@ async def select_group_stats_group(callback: CallbackQuery, state: FSMContext):
 async def show_group_stats(callback: CallbackQuery, state: FSMContext):
     """Показать статистику по группе"""
     group_id = int(callback.data.replace("analytics_group_", ""))
-    
-    # В реальном приложении здесь будет запрос к базе данных
-    # для получения статистики по группе
-    group_data = {
-        "group1": {
-            "name": "Интенсив. География",
-            "subject": "Химия",
-            "homework_completion": 75,
-            "topics": {
-                "Алканы": 82,
-                "Изомерия": 37,
-                "Кислоты": 66
-            },
-            "rating": [
-                {"name": "Аружан", "points": 870},
-                {"name": "Диана", "points": 800},
-                {"name": "Мадияр", "points": 780}
-            ]
-        },
-        "group2": {
-            "name": "Интенсив. Математика",
-            "subject": "Химия",
-            "homework_completion": 80,
-            "topics": {
-                "Алканы": 78,
-                "Изомерия": 42,
-                "Кислоты": 70
-            },
-            "rating": [
-                {"name": "Арман", "points": 850},
-                {"name": "Алия", "points": 820},
-                {"name": "Диас", "points": 790}
-            ]
+
+    try:
+        # Получаем реальную статистику группы из базы данных
+        from common.statistics import get_group_stats
+        stats = await get_group_stats(str(group_id))
+
+        print(f"📊 Статистика группы {group_id}: {stats}")
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении статистики группы {group_id}: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Возвращаем ошибку вместо захардкоженных данных
+        stats = {
+            "name": "Ошибка загрузки",
+            "subject": "Ошибка загрузки",
+            "homework_completion": 0,
+            "topics": {},
+            "rating": []
         }
-    }
-    
-    stats = group_data.get(group_id, {
-        "name": "Неизвестная группа",
-        "subject": "Неизвестный предмет",
-        "homework_completion": 0,
-        "topics": {},
-        "rating": []
-    })
     
     # Формируем текст с рейтингом
     rating_text = ""

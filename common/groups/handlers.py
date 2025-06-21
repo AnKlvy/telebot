@@ -185,7 +185,7 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext, role:
 
             student = {
                 "name": student_obj.user.name,
-                "telegram": f"@{student_obj.user.telegram_id}",
+                "telegram": f"tg://user?id={student_obj.user.telegram_id}",
                 "subject": subject_str,
                 "points": total_points,
                 "level": level,
@@ -226,12 +226,13 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext, role:
     # Формируем сообщение
     await callback.message.edit_text(
         f"👤 {student['name']}\n"
-        f"📞 Telegram: {student['telegram']}\n"
+        f"📞 Telegram: [Профиль]({student['telegram']})\n"
         f"📚 Предмет: {student['subject']}\n"
         f"🎯 Баллы: {student['points']}\n"
         f"📈 Уровень: {student['level']}\n"
         f"📋 Выполнено ДЗ: {student['unique_homeworks_completed']} уникальных ({student['homeworks_completed']} всего попыток)\n"
         f"🕓 Последнее выполненное ДЗ: {student['last_homework_date']}\n"
         f"📊 % выполнения ДЗ: {student['completion_percentage']}%",
-        reply_markup=get_student_profile_kb(role)
+        reply_markup=get_student_profile_kb(role),
+        parse_mode="Markdown"
     )

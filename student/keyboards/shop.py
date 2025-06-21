@@ -123,6 +123,5 @@ async def get_my_bonuses_kb(purchases: List, bonus_test_purchases: List) -> Inli
 def get_back_to_shop_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню магазина"""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад к магазину", callback_data="shop")],
         *get_main_menu_back_button(),
     ])
