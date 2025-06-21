@@ -554,20 +554,21 @@ async def show_test_students_statistics(
     current_state = await state.get_state()
     logger.info(f"ВЫЗОВ: show_test_students_statistics, user_id={callback.from_user.id}, текущее состояние={current_state}, test_type={test_type}, group_id={group_id}, month_id={month_id}, title={title}")
     
-    # В реальном приложении здесь будет запрос к базе данных
-    # для получения статистики по группе и месяцу
-    
-    # Определяем списки студентов в зависимости от типа теста
-    if test_type == "course_entry":
-        completed_students = ["Мадияр Сапаров", "Диана Нурланова"]
-        not_completed_students = ["Артем Осипов", "Арман Сериков"]
-    elif test_type == "month_entry":
-        completed_students = ["Мадияр Сапаров"]
-        not_completed_students = ["Артем Осипов", "Диана Нурланова", "Арман Сериков"]
-    elif test_type == "month_control":
-        completed_students = ["Мадияр Сапаров", "Диана Нурланова"]
-        not_completed_students = ["Артем Осипов", "Арман Сериков"]
-    else:
+    # Получаем реальных студентов из базы данных
+    try:
+        from database import StudentRepository
+        group_id_int = int(group_id)
+        all_students = await StudentRepository.get_by_group(group_id_int)
+
+        # Пока используем заглушку для статистики тестов
+        # В будущем здесь будет реальная логика получения результатов тестов
+        completed_students = []
+        not_completed_students = all_students
+
+        logger.info(f"Получено студентов для группы {group_id}: {len(all_students)}")
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении студентов: {e}")
         completed_students = []
         not_completed_students = []
 
@@ -588,25 +589,30 @@ async def show_test_students_statistics(
     result_text += f"Группа: {group_id.replace('_', ' ').title()}\n\n"
     
     result_text += "✅ Прошли тест:\n"
-    for i, student in enumerate(completed_students, 1):
-        result_text += f"{i}. {student}\n"
-    
+    if completed_students:
+        for i, student in enumerate(completed_students, 1):
+            result_text += f"{i}. {student.user.name}\n"
+    else:
+        result_text += "Пока никто не прошел тест\n"
+
     result_text += "\n❌ Не прошли тест:\n"
-    for i, student in enumerate(not_completed_students, 1):
-        result_text += f"{i}. {student}\n"
-    
+    if not_completed_students:
+        for i, student in enumerate(not_completed_students, 1):
+            result_text += f"{i}. {student.user.name}\n"
+    else:
+        result_text += "Все студенты прошли тест\n"
+
     # Добавляем кнопки для просмотра детальной статистики по ученикам
     buttons = []
     for student in completed_students:
-        student_id = "student1" if student == "Мадияр Сапаров" else "student3"
         callback_data = f"{test_type}_student_{group_id}"
         if month_id:
             callback_data += f"_{month_id}"
-        callback_data += f"_{student_id}"
-        
+        callback_data += f"_{student.id}"
+
         buttons.append([
             InlineKeyboardButton(
-                text=f"📊 {student}",
+                text=f"📊 {student.user.name}",
                 callback_data=callback_data
             )
         ])

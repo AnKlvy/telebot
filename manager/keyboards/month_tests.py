@@ -71,8 +71,8 @@ def get_confirm_test_creation_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Создать тест", callback_data="confirm_create_test")],
         [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_create_test")],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="back")]
-    ])
+        *get_main_menu_back_button()
+        ])
 
 def get_tests_list_kb(tests_list: list) -> InlineKeyboardMarkup:
     """Клавиатура со списком созданных тестов"""

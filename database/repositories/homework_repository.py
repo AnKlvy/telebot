@@ -57,6 +57,21 @@ class HomeworkRepository:
             return list(result.scalars().all())
 
     @staticmethod
+    async def get_by_subject(subject_id: int) -> List[Homework]:
+        """Получить все домашние задания по предмету"""
+        async with get_db_session() as session:
+            result = await session.execute(
+                select(Homework)
+                .options(
+                    selectinload(Homework.subject),
+                    selectinload(Homework.lesson)
+                )
+                .where(Homework.subject_id == subject_id)
+                .order_by(Homework.created_at.desc())
+            )
+            return list(result.scalars().all())
+
+    @staticmethod
     async def get_by_subject_lesson(subject_id: int, lesson_id: int) -> List[Homework]:
         """Получить домашние задания по предмету и уроку"""
         async with get_db_session() as session:

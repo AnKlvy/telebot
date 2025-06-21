@@ -7,7 +7,7 @@ from .keyboards import (
     get_confirm_test_kb
 )
 from manager.keyboards.homework import get_photo_edit_kb
-from common.keyboards import get_home_and_back_kb, get_home_kb
+from common.keyboards import get_home_and_back_kb, get_home_kb, back_to_main_button
 from ..utils import check_if_id_in_callback_data
 
 # Настройка логирования
@@ -211,7 +211,8 @@ async def process_topic(message: Message, state: FSMContext, states_group):
 
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="➕ Добавить новую микротему", callback_data=f"add_microtopic_{subject_id}_{topic_number}")],
-                [InlineKeyboardButton(text="🔄 Ввести номер заново", callback_data="retry_microtopic")]
+                [InlineKeyboardButton(text="🔄 Ввести номер заново", callback_data="retry_microtopic")],
+                back_to_main_button()
             ])
 
             await message.answer(

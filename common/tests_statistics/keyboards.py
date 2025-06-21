@@ -88,42 +88,57 @@ def get_month_kb(test_type: str, group_id: str) -> InlineKeyboardMarkup:
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_students_kb(test_type: str, group_id: str, month_id: str = None) -> InlineKeyboardMarkup:
+async def get_students_kb(test_type: str, group_id: str, month_id: str = None) -> InlineKeyboardMarkup:
     """Клавиатура со студентами для статистики тестов"""
-    # В реальном приложении студенты будут загружаться из базы данных
-    students = [
-        {"id": "student1", "name": "Мадияр Сапаров"},
-        {"id": "student2", "name": "Артем Осипов"},
-        {"id": "student3", "name": "Диана Нурланова"},
-        {"id": "student4", "name": "Арман Сериков"}
-    ]
-    
-    buttons = []
-    for student in students:
-        callback_data = f"{test_type}_student_{group_id}"
-        if month_id:
-            callback_data += f"_{month_id}"
-        callback_data += f"_{student['id']}"
-        
-        buttons.append([
+    try:
+        from database import StudentRepository
+
+        # Получаем реальных студентов группы из базы данных
+        group_id_int = int(group_id)
+        students = await StudentRepository.get_by_group(group_id_int)
+
+        if not students:
+            return InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Студенты не найдены", callback_data="no_students")],
+                *get_main_menu_back_button()
+            ])
+
+        buttons = []
+        for student in students:
+            callback_data = f"{test_type}_student_{group_id}"
+            if month_id:
+                callback_data += f"_{month_id}"
+            callback_data += f"_{student.id}"
+
+            buttons.append([
+                InlineKeyboardButton(
+                    text=student.user.name,
+                    callback_data=callback_data
+                )
+            ])
+
+        # Добавляем кнопку "Назад"
+        back_data = f"back_to_{test_type}_months_{group_id}" if month_id else f"back_to_{test_type}_groups"
+        buttons.extend([
+            [
             InlineKeyboardButton(
-                text=student["name"],
-                callback_data=callback_data
+                text="◀️ Назад",
+                callback_data=back_data
             )
+        ],
+        get_universal_back_button("🏠 Главное меню", "back_to_main")])
+
+        return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    except Exception as e:
+        print(f"❌ Ошибка при получении студентов для статистики тестов: {e}")
+        import traceback
+        traceback.print_exc()
+
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Ошибка загрузки студентов", callback_data="error_students")],
+            *get_main_menu_back_button()
         ])
-    
-    # Добавляем кнопку "Назад"
-    back_data = f"back_to_{test_type}_months_{group_id}" if month_id else f"back_to_{test_type}_groups"
-    buttons.extend([
-        [
-        InlineKeyboardButton(
-            text="◀️ Назад",
-            callback_data=back_data
-        )
-    ],
-    get_universal_back_button("🏠 Главное меню", "back_to_main")])
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_back_kb() -> InlineKeyboardMarkup:
     """Клавиатура для возврата в меню статистики тестов"""

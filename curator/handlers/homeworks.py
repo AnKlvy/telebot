@@ -6,7 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 from common.utils import check_if_id_in_callback_data
 from ..keyboards.main import get_curator_main_menu_kb
 from common.keyboards import get_courses_kb, get_subjects_kb, get_lessons_kb, get_main_menu_back_button
-from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb, get_students_by_homework_kb
+from ..keyboards.homeworks import get_homework_menu_kb, get_groups_kb
 from common.analytics.keyboards import get_groups_for_analytics_kb
 from database import (CuratorRepository, UserRepository, GroupRepository, StudentRepository,
                      CourseRepository, LessonRepository, HomeworkRepository, HomeworkResultRepository)

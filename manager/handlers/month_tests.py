@@ -240,27 +240,32 @@ async def confirm_create_test(callback: CallbackQuery, state: FSMContext):
         month_name = data.get("month_name")
         microtopic_numbers = data.get("selected_microtopic_numbers", [])
 
-        # Создаем входной и контрольный тесты месяца автоматически
-        entry_test, control_test = await MonthTestRepository.create_with_control_test(
+        # Создаем тест месяца
+        month_test = await MonthTestRepository.create(
             name=month_name,
             course_id=course_id,
-            subject_id=subject_id,
-            microtopic_numbers=microtopic_numbers
+            subject_id=subject_id
         )
+
+        # Привязываем микротемы к тесту
+        from database import MonthTestMicrotopicRepository
+        for microtopic_number in microtopic_numbers:
+            await MonthTestMicrotopicRepository.create(
+                month_test_id=month_test.id,
+                microtopic_number=microtopic_number
+            )
 
         numbers_text = ", ".join([str(num) for num in sorted(microtopic_numbers)])
 
         await callback.message.edit_text(
-            text=f"✅ Тесты месяца успешно созданы!\n\n"
-                 f"📋 Привязка создана:\n"
+            text=f"✅ Тест месяца успешно создан!\n\n"
+                 f"📋 Данные теста:\n"
                  f"Курс: {data.get('course_name')}\n"
                  f"Предмет: {data.get('subject_name')}\n"
                  f"Месяц: {month_name}\n"
-                 f"Микротемы: {numbers_text}\n\n"
-                 f"Автоматически созданы:\n"
-                 f"• Входной тест месяца (ID: {entry_test.id})\n"
-                 f"• Контрольный тест месяца (ID: {control_test.id})\n\n"
-                 f"Студенты смогут проходить оба теста, а результаты будут сравниваться.\n"
+                 f"Микротемы: {numbers_text}\n"
+                 f"ID теста: {month_test.id}\n\n"
+                 f"Студенты смогут проходить входной и контрольный тесты.\n"
                  f"Вопросы генерируются из ДЗ по указанным микротемам.",
             reply_markup=get_month_tests_menu_kb()
         )

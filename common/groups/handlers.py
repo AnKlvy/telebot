@@ -98,22 +98,36 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext, role:
     """
     # Получаем ID студента из callback_data
     student_id_str = callback.data.replace(f"{role}_student_", "")
+    print(f"🔍 Получен callback_data: {callback.data}")
+    print(f"🔍 Извлеченный student_id_str: {student_id_str}")
 
     # Проверяем, является ли student_id числом (реальный ID из БД) или строкой (хардкод)
     try:
         student_id = int(student_id_str)
+        print(f"🔍 Преобразованный student_id: {student_id}")
+
         # Получаем реального студента из базы данных
         from database import StudentRepository, HomeworkResultRepository
 
+        print(f"🔍 Запрашиваем студента из БД с ID: {student_id}")
         student_obj = await StudentRepository.get_by_id(student_id)
+        print(f"🔍 Результат запроса студента: {student_obj is not None}")
 
         if student_obj:
+            print(f"✅ Студент найден: {student_obj.user.name}")
+
             # Получаем статистику студента
             homework_results = await HomeworkResultRepository.get_by_student(student_id)
+            print(f"📊 Найдено результатов ДЗ: {len(homework_results)}")
 
             # Подсчитываем статистику
-            total_homeworks = len(homework_results)
+            # Считаем уникальные ДЗ (не повторные попытки)
+            unique_homework_ids = set(result.homework_id for result in homework_results)
+            unique_homeworks_count = len(unique_homework_ids)
+
+            total_homeworks = len(homework_results)  # Всего попыток (включая повторные)
             total_points = sum(result.points_earned for result in homework_results)
+            print(f"📊 Общая статистика: Всего попыток={total_homeworks}, Уникальных ДЗ={unique_homeworks_count}, Баллы={total_points}")
 
             # Определяем уровень на основе баллов
             if total_points >= 1000:
@@ -131,78 +145,80 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext, role:
                 last_result = max(homework_results, key=lambda x: x.completed_at)
                 last_homework_date = last_result.completed_at.strftime("%d.%m.%Y")
 
-            # Процент выполнения (примерный расчет)
-            completion_percentage = min(100, total_homeworks * 5) if total_homeworks > 0 else 0
+            # Процент выполнения (правильный расчет)
+            # Получаем общее количество доступных ДЗ для студента
+            try:
+                from database import HomeworkRepository
+
+                # Получаем все ДЗ по предметам студента
+                all_available_homeworks = 0
+                if student_obj.groups:
+                    subject_ids = []
+                    for group in student_obj.groups:
+                        if group.subject and group.subject.id not in subject_ids:
+                            subject_ids.append(group.subject.id)
+
+                    for subject_id in subject_ids:
+                        subject_homeworks = await HomeworkRepository.get_by_subject(subject_id)
+                        all_available_homeworks += len(subject_homeworks)
+
+                # Рассчитываем процент: (уникальных выполнено / всего доступных) * 100
+                if all_available_homeworks > 0:
+                    completion_percentage = round((unique_homeworks_count / all_available_homeworks) * 100, 1)
+                else:
+                    completion_percentage = 0
+
+                print(f"📊 Расчет процента: {unique_homeworks_count} уникальных выполнено / {all_available_homeworks} доступно = {completion_percentage}%")
+
+            except Exception as e:
+                print(f"❌ Ошибка при расчете процента выполнения: {e}")
+                completion_percentage = 0
+
+            # Получаем предметы из групп студента
+            subjects = []
+            if student_obj.groups:
+                for group in student_obj.groups:
+                    if group.subject and group.subject.name not in subjects:
+                        subjects.append(group.subject.name)
+
+            subject_str = ", ".join(subjects) if subjects else "Не указан"
 
             student = {
                 "name": student_obj.user.name,
                 "telegram": f"@{student_obj.user.telegram_id}",
-                "subject": student_obj.group.subject.name if student_obj.group and student_obj.group.subject else "Не указан",
+                "subject": subject_str,
                 "points": total_points,
                 "level": level,
                 "homeworks_completed": total_homeworks,
+                "unique_homeworks_completed": unique_homeworks_count,
                 "last_homework_date": last_homework_date,
                 "completion_percentage": completion_percentage
             }
         else:
-            student = {
-                "name": "Студент не найден",
-                "telegram": "Не указан",
-                "subject": "Не указан",
-                "points": 0,
-                "level": "Не определен",
-                "homeworks_completed": 0,
-                "last_homework_date": "Нет данных",
-                "completion_percentage": 0
-            }
+            print(f"❌ Студент с ID {student_id} не найден в базе данных")
+            await callback.message.edit_text(
+                f"❌ Студент не найден\n"
+                f"ID студента: {student_id}\n\n"
+                "Возможно, студент был удален или произошла ошибка.\n"
+                "Попробуйте выбрать другого студента или обратитесь к администратору.",
+                reply_markup=get_student_profile_kb(role)
+            )
+            return
 
     except (ValueError, Exception) as e:
-        print(f"Ошибка при получении данных студента: {e}")
-        # Хардкодим данные для совместимости со старыми ID
-        if student_id_str == "1":
-            student = {
-                "name": "Аружан Ахметова",
-                "telegram": "@aruzhan_chem",
-                "subject": "Химия",
-                "points": 870,
-                "level": "🧪 Практик",
-                "homeworks_completed": 28,
-                "last_homework_date": "14.05.2025",
-                "completion_percentage": 30
-            }
-        elif student_id_str == "2":
-            student = {
-                "name": "Мадияр Сапаров",
-                "telegram": "@madiyar_bio",
-                "subject": "Биология",
-                "points": 920,
-                "level": "🔬 Исследователь",
-                "homeworks_completed": 32,
-                "last_homework_date": "15.05.2025",
-                "completion_percentage": 35
-            }
-        elif student_id_str == "3":
-            student = {
-                "name": "Диана Ержанова",
-                "telegram": "@diana_history",
-                "subject": "История",
-                "points": 750,
-                "level": "📚 Теоретик",
-                "homeworks_completed": 25,
-                "last_homework_date": "12.05.2025",
-                "completion_percentage": 28
-            }
-        else:
-            student = {
-                "name": "Неизвестный ученик",
-                "telegram": "Не указан",
-                "subject": "Не указан",
-                "points": 0,
-                "level": "Не определен",
-                "homeworks_completed": 0,
-                "last_homework_date": "Нет данных",
-                "completion_percentage": 0
-            }
+        print(f"❌ Ошибка при получении данных студента ID {student_id_str}: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Возвращаем ошибку вместо захардкоженных данных
+        await callback.message.edit_text(
+            f"❌ Ошибка при загрузке данных студента\n"
+            f"ID студента: {student_id_str}\n"
+            f"Ошибка: {str(e)}\n\n"
+            "Попробуйте выбрать студента заново или обратитесь к администратору.",
+            reply_markup=get_student_profile_kb(role)
+        )
+        return
 
     # Сохраняем данные в состоянии
     await state.update_data(selected_student_id=student_id_str, student=student)
@@ -214,8 +230,8 @@ async def show_student_profile(callback: CallbackQuery, state: FSMContext, role:
         f"📚 Предмет: {student['subject']}\n"
         f"🎯 Баллы: {student['points']}\n"
         f"📈 Уровень: {student['level']}\n"
-        f"📋 Выполнено ДЗ: {student['homeworks_completed']} (с учетом повторных)\n"
+        f"📋 Выполнено ДЗ: {student['unique_homeworks_completed']} уникальных ({student['homeworks_completed']} всего попыток)\n"
         f"🕓 Последнее выполненное ДЗ: {student['last_homework_date']}\n"
-        f"🕓% выполнения ДЗ: {student['completion_percentage']}%",
+        f"📊 % выполнения ДЗ: {student['completion_percentage']}%",
         reply_markup=get_student_profile_kb(role)
     )

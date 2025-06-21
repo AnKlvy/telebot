@@ -141,23 +141,29 @@ async def get_real_student_analytics(student_id: int) -> str:
         result_text += f"   • Уровень: {student.level}\n"
         result_text += f"   • Выполнено ДЗ: {general_stats.get('total_completed', 0)}\n"
 
-        # Если студент в группе, показываем статистику по предмету
-        if student.group and student.group.subject:
-            subject = student.group.subject
-            result_text += f"\n📗 Прогресс по предмету '{subject.name}':\n"
+        # Если студент в группах, показываем статистику по предметам
+        if student.groups:
+            # Получаем уникальные предметы из всех групп студента
+            subjects = []
+            for group in student.groups:
+                if group.subject and group.subject not in subjects:
+                    subjects.append(group.subject)
 
-            # Получаем отформатированную статистику по микротемам (детальный формат)
-            # НЕ показываем непроверенные микротемы (show_untested=False по умолчанию)
-            microtopic_data = await format_microtopic_stats(student_id, subject.id, "detailed")
+            for subject in subjects:
+                result_text += f"\n📗 Прогресс по предмету '{subject.name}':\n"
 
-            if microtopic_data['has_data']:
-                result_text += microtopic_data['text']
+                # Получаем отформатированную статистику по микротемам (детальный формат)
+                # НЕ показываем непроверенные микротемы (show_untested=False по умолчанию)
+                microtopic_data = await format_microtopic_stats(student_id, subject.id, "detailed")
 
-                # Добавляем сводку по сильным и слабым темам
-                summary_data = await format_microtopic_stats(student_id, subject.id, "summary")
-                result_text += f"\n\n{summary_data['text']}"
-            else:
-                result_text += microtopic_data['text']
+                if microtopic_data['has_data']:
+                    result_text += microtopic_data['text']
+
+                    # Добавляем сводку по сильным и слабым темам
+                    summary_data = await format_microtopic_stats(student_id, subject.id, "summary")
+                    result_text += f"\n\n{summary_data['text']}"
+                else:
+                    result_text += microtopic_data['text']
 
         return result_text
 
@@ -165,53 +171,36 @@ async def get_real_student_analytics(student_id: int) -> str:
         return f"❌ Ошибка при получении статистики: {str(e)}"
 
 
-def get_student_topics_stats(student_id: str) -> Dict:
+async def get_student_topics_stats(student_id: str) -> Dict:
     """
     Получить статистику по темам для конкретного ученика
-    
+
     Args:
         student_id: ID ученика
-        
+
     Returns:
         Dict: Словарь с данными о студенте и его прогрессе по темам
     """
-    # В реальном приложении здесь будет запрос к базе данных
-    student_data = {
-        "student1": {
-            "name": "Мадияр Сапаров",
-            "topics": {
-                "Алканы": 80,
-                "Изомерия": 45,
-                "Кислоты": 70
-            }
-        },
-        "student2": {
-            "name": "Аружан Ахметова",
-            "topics": {
-                "Алканы": 90,
-                "Изомерия": 33,
-                "Кислоты": 60
-            }
-        },
-        "student3": {
-            "name": "Диана Нурланова",
-            "topics": {
-                "Алканы": 85,
-                "Изомерия": 40,
-                "Кислоты": 75
-            }
-        },
-        "student4": {
-            "name": "Арман Сериков",
-            "topics": {
-                "Алканы": 75,
-                "Изомерия": 30,
-                "Кислоты": 50
-            }
+    try:
+        from database.repositories import StudentRepository
+
+        # Получаем реального студента из базы данных
+        student_id_int = int(student_id)
+        student = await StudentRepository.get_by_id(student_id_int)
+
+        if not student:
+            return {"name": "Студент не найден", "topics": {}}
+
+        # Пока возвращаем базовую информацию
+        # В будущем здесь будет реальная статистика по микротемам
+        return {
+            "name": student.user.name,
+            "topics": {}  # Пока пустой словарь, в будущем - реальная статистика
         }
-    }
-    
-    return student_data.get(student_id, {"name": "Неизвестный ученик", "topics": {}})
+
+    except (ValueError, Exception) as e:
+        print(f"Ошибка при получении статистики студента {student_id}: {e}")
+        return {"name": "Ошибка загрузки", "topics": {}}
 
 async def get_group_stats(group_id: str) -> Dict:
     """
