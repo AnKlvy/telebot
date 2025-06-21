@@ -104,13 +104,43 @@ class SubjectRepository:
     @staticmethod
     async def delete(subject_id: int) -> bool:
         """Удалить предмет, все его связи с курсами и группы"""
-        from ..models import course_subjects
+        from ..models import course_subjects, TrialEntResult, TrialEntQuestionResult, Question
         from .group_repository import GroupRepository
 
         # Сначала удаляем все группы предмета (со всеми их связями)
         await GroupRepository.delete_by_subject(subject_id)
 
         async with get_db_session() as session:
+            # Получаем все вопросы предмета, которые будут удалены
+            questions_result = await session.execute(
+                select(Question.id).where(Question.subject_id == subject_id)
+            )
+            question_ids = [row[0] for row in questions_result.fetchall()]
+
+            if question_ids:
+                # Находим все результаты пробного ЕНТ, которые содержат эти вопросы
+                trial_ent_results = await session.execute(
+                    select(TrialEntResult.id).distinct()
+                    .join(TrialEntQuestionResult, TrialEntResult.id == TrialEntQuestionResult.test_result_id)
+                    .where(TrialEntQuestionResult.question_id.in_(question_ids))
+                )
+                trial_ent_result_ids = [row[0] for row in trial_ent_results.fetchall()]
+
+                if trial_ent_result_ids:
+                    # Удаляем результаты ответов на вопросы пробного ЕНТ
+                    await session.execute(
+                        delete(TrialEntQuestionResult).where(
+                            TrialEntQuestionResult.test_result_id.in_(trial_ent_result_ids)
+                        )
+                    )
+
+                    # Удаляем основные результаты пробного ЕНТ
+                    await session.execute(
+                        delete(TrialEntResult).where(TrialEntResult.id.in_(trial_ent_result_ids))
+                    )
+
+                    print(f"🗑️ Удалено {len(trial_ent_result_ids)} результатов пробного ЕНТ, содержащих вопросы удаляемого предмета")
+
             # Затем удаляем связи с курсами
             await session.execute(
                 delete(course_subjects).where(course_subjects.c.subject_id == subject_id)
